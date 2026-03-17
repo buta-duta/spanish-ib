@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: exam
+    description: IB Spanish Oral Exam operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /exam/chat:
+    post:
+      operationId: examChat
+      tags: [exam]
+      summary: Send a message to the AI examiner (SSE streaming)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExamChatRequest"
+      responses:
+        "200":
+          description: SSE stream of examiner response
+          content:
+            text/event-stream: {}
 components:
   schemas:
     HealthStatus:
@@ -33,4 +51,28 @@ components:
           type: string
       required:
         - status
-
+    ExamChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        theme:
+          type: string
+        sessionTurn:
+          type: integer
+      required:
+        - messages
+        - theme
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+      required:
+        - role
+        - content

@@ -14,3 +14,17 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Send a message to the AI examiner (SSE streaming)
+ */
+export const ExamChatBody = zod.object({
+  messages: zod.array(
+    zod.object({
+      role: zod.enum(["user", "assistant", "system"]),
+      content: zod.string(),
+    }),
+  ),
+  theme: zod.string(),
+  sessionTurn: zod.number().optional(),
+});
