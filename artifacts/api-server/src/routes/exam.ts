@@ -59,7 +59,7 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
 `;
 
 router.post("/exam/chat", async (req, res) => {
-  const { messages, theme, sessionTurn, regenerate } = req.body;
+  const { messages, theme, sessionTurn, regenerate, skip } = req.body;
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -78,7 +78,14 @@ router.post("/exam/chat", async (req, res) => {
 - Keep it as ONE focused question only.`
     : "";
 
-  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction;
+  const skipInstruction = skip
+    ? `\n\nSPECIAL INSTRUCTION — SKIP QUESTION: The student has chosen to skip the current question.
+- Acknowledge graciously in 1 short sentence (e.g. "Entendido, pasamos a otro tema.").
+- Then immediately ask a COMPLETELY FRESH question on a different sub-topic within the same theme.
+- Do not dwell on the skipped question.`
+    : "";
+
+  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction + skipInstruction;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");

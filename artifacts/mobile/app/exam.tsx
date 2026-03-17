@@ -108,6 +108,7 @@ function MessageBubble({
   isDark,
   isLast,
   onRegenerate,
+  onSkip,
   canRegenerate,
 }: {
   message: Message;
@@ -115,6 +116,7 @@ function MessageBubble({
   isDark: boolean;
   isLast: boolean;
   onRegenerate: () => void;
+  onSkip: () => void;
   canRegenerate: boolean;
 }) {
   const colors = Colors[isDark ? "dark" : "light"];
@@ -143,13 +145,21 @@ function MessageBubble({
         </View>
       </View>
       {!isUser && isLast && canRegenerate && (
-        <Pressable
-          onPress={onRegenerate}
-          style={({ pressed }) => [bubbleStyles.regenBtn, { opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Ionicons name="refresh-outline" size={13} color={themeColor} />
-          <Text style={[bubbleStyles.regenText, { color: themeColor }]}>Otra pregunta</Text>
-        </Pressable>
+        <View style={bubbleStyles.actionRow}>
+          <Pressable
+            onPress={onRegenerate}
+            style={({ pressed }) => [bubbleStyles.regenBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name="refresh-outline" size={13} color={themeColor} />
+            <Text style={[bubbleStyles.regenText, { color: themeColor }]}>Otra pregunta</Text>
+          </Pressable>
+          <Pressable
+            onPress={onSkip}
+            style={({ pressed }) => [bubbleStyles.skipBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={bubbleStyles.skipText}>Saltar →</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -162,8 +172,11 @@ const bubbleStyles = StyleSheet.create({
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   text: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
-  regenBtn: { flexDirection: "row", alignItems: "center", gap: 5, marginLeft: 52, marginTop: 4, marginBottom: 4, alignSelf: "flex-start" },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginLeft: 52, marginTop: 4, marginBottom: 4 },
+  regenBtn: { flexDirection: "row", alignItems: "center", gap: 5 },
   regenText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  skipBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: "#88888820", borderWidth: 1, borderColor: "#88888840" },
+  skipText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#888888" },
 });
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -271,7 +284,7 @@ export default function ExamScreen() {
 
   // ── AI chat ──────────────────────────────────────────────────────────────────
 
-  const sendToAI = async (chatMessages: Message[], regenerate = false) => {
+  const sendToAI = async (chatMessages: Message[], regenerate = false, skip = false) => {
     setIsStreaming(true);
     setShowTyping(true);
 
@@ -281,7 +294,7 @@ export default function ExamScreen() {
       const response = await expoFetch(`${getApiUrl()}api/exam/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate }),
+        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip }),
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -334,7 +347,12 @@ export default function ExamScreen() {
     } finally {
       setIsStreaming(false);
       setShowTyping(false);
-      setSessionTurn((prev) => prev + 1);
+      // Only count a turn when the student actually answered (has user messages),
+      // not on the initial AI greeting, not on regeneration, and not on skip (skip pre-increments manually)
+      const hasUserMessage = chatMessages.some((m) => m.role === "user");
+      if (hasUserMessage && !regenerate && !skip) {
+        setSessionTurn((prev) => prev + 1);
+      }
     }
   };
 
@@ -641,62 +659,72 @@ export default function ExamScreen() {
     await sendToAI(withoutLastAI, true);
   }, [messages, isStreaming]);
 
+  const handleSkipQuestion = useCallback(async () => {
+    if (isStreaming) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Count this as a used turn then ask a fresh unrelated question
+    setSessionTurn((prev) => Math.min(prev + 1, TOTAL_TURNS));
+    // Send the skip signal only to the API — don't show it as a visible bubble
+    const skipMsg: Message = {
+      id: generateMsgId(),
+      role: "user",
+      content: "[El estudiante quiere saltar esta pregunta y continuar con otra diferente.]",
+      timestamp: Date.now(),
+    };
+    await sendToAI([...messages, skipMsg], false, true);
+  }, [messages, isStreaming]);
+
+  const doNewSession = () => {
+    setMessages([]);
+    setSessionTurn(0);
+    setTranscript("");
+    setRecordingState("idle");
+    setMicError(null);
+    initializedRef.current = false;
+    setTimeout(() => { initializedRef.current = true; sendToAI([]); }, 100);
+  };
+
+  const doExit = async () => {
+    nativeRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
+    nativeSoundRef.current?.unloadAsync().catch(() => {});
+    webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+    if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
+    router.replace("/");
+  };
+
   const handleNewSession = () => {
+    if (Platform.OS === "web") { doNewSession(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Nueva sesión", "¿Quieres reiniciar la sesión con un nuevo tema?", [
       { text: "Cancelar", style: "cancel" },
-      {
-        text: "Reiniciar",
-        style: "destructive",
-        onPress: () => {
-          setMessages([]);
-          setSessionTurn(0);
-          setTranscript("");
-          setRecordingState("idle");
-          setMicError(null);
-          initializedRef.current = false;
-          setTimeout(() => {
-            initializedRef.current = true;
-            sendToAI([]);
-          }, 100);
-        },
-      },
+      { text: "Reiniciar", style: "destructive", onPress: doNewSession },
     ]);
   };
 
   const handleExit = () => {
+    if (Platform.OS === "web") { doExit(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Salir de la sesión", "¿Estás seguro de que quieres salir?", [
       { text: "Continuar practicando", style: "cancel" },
-      {
-        text: "Salir",
-        style: "destructive",
-        onPress: async () => {
-          nativeRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
-          nativeSoundRef.current?.unloadAsync().catch(() => {});
-          webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
-          if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
-          router.replace("/");
-        },
-      },
+      { text: "Salir", style: "destructive", onPress: doExit },
     ]);
   };
 
+  const doFinish = async () => {
+    nativeSoundRef.current?.unloadAsync().catch(() => {});
+    nativeRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
+    webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+    if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
+    const session = await endSession();
+    router.replace({ pathname: "/summary", params: { sessionId: session?.id } });
+  };
+
   const handleFinish = () => {
+    if (Platform.OS === "web") { doFinish(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Terminar examen", "¿Deseas terminar esta sesión y ver tu resumen?", [
       { text: "Continuar", style: "cancel" },
-      {
-        text: "Ver resumen",
-        onPress: async () => {
-          nativeSoundRef.current?.unloadAsync().catch(() => {});
-          nativeRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
-          webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
-          if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
-          const session = await endSession();
-          router.replace({ pathname: "/summary", params: { sessionId: session?.id } });
-        },
-      },
+      { text: "Ver resumen", onPress: doFinish },
     ]);
   };
 
@@ -746,7 +774,7 @@ export default function ExamScreen() {
       </View>
 
       {/* Message list */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minHeight: 0 }}>
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -758,6 +786,7 @@ export default function ExamScreen() {
               isDark={isDark}
               isLast={index === messages.length - 1}
               onRegenerate={handleRegenerateQuestion}
+              onSkip={handleSkipQuestion}
               canRegenerate={canRegenerate}
             />
           )}
