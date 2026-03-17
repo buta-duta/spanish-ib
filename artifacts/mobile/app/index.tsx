@@ -83,6 +83,11 @@ export default function HomeScreen() {
     router.push("/history");
   };
 
+  const handleFlashcards = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/flashcards");
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
@@ -107,19 +112,34 @@ export default function HomeScreen() {
             <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish B</Text>
             <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
           </View>
-          <Pressable
-            onPress={handleHistory}
-            style={({ pressed }) => [
-              styles.historyBtn,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Ionicons name="time-outline" size={22} color={theme.tint} />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable
+              onPress={handleFlashcards}
+              style={({ pressed }) => [
+                styles.historyBtn,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Ionicons name="bookmark-outline" size={22} color="#8E44AD" />
+            </Pressable>
+            <Pressable
+              onPress={handleHistory}
+              style={({ pressed }) => [
+                styles.historyBtn,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Ionicons name="time-outline" size={22} color={theme.tint} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Progress card */}

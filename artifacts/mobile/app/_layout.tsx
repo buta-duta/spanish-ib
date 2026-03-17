@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ExamProvider } from "@/contexts/ExamContext";
+import { FlashcardProvider } from "@/contexts/FlashcardContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,6 +30,7 @@ function RootLayoutNav() {
       <Stack.Screen name="exam" />
       <Stack.Screen name="summary" />
       <Stack.Screen name="history" />
+      <Stack.Screen name="flashcards" />
     </Stack>
   );
 }
@@ -57,7 +59,9 @@ export default function RootLayout() {
             <KeyboardProvider>
               <ThemeProvider>
                 <ExamProvider>
-                  <RootLayoutNav />
+                  <FlashcardProvider>
+                    <RootLayoutNav />
+                  </FlashcardProvider>
                 </ExamProvider>
               </ThemeProvider>
             </KeyboardProvider>

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import Colors from "@/constants/colors";
+import { useFlashcards } from "@/contexts/FlashcardContext";
 
 export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
 
@@ -42,9 +43,11 @@ export function WordModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const colors = Colors[isDark ? "dark" : "light"];
+  const { addCard, hasWord } = useFlashcards();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<WordInfo | null>(null);
   const [ttsLoading, setTtsLoading] = useState(false);
+  const [fcStatus, setFcStatus] = useState<"idle" | "saved" | "duplicate">("idle");
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export function WordModal({
       body: JSON.stringify({ word, context: context.slice(0, 300) }),
     })
       .then((r) => r.json())
-      .then((d: WordInfo) => { wordExplainCache.set(word.toLowerCase(), d); setData(d); })
+      .then((d: WordInfo) => { wordExplainCache.set(word.toLowerCase(), d); setData(d); setFcStatus(hasWord(word) ? "duplicate" : "idle"); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [word]);
@@ -82,6 +85,12 @@ export function WordModal({
         sound.setOnPlaybackStatusUpdate((s) => { if (s.isLoaded && s.didJustFinish) sound.unloadAsync(); });
       }
     } catch { } finally { setTtsLoading(false); }
+  };
+
+  const handleAddFlashcard = async () => {
+    if (!data || fcStatus !== "idle") return;
+    const result = await addCard(word, data);
+    setFcStatus(result === "added" ? "saved" : "duplicate");
   };
 
   return (
@@ -112,6 +121,27 @@ export function WordModal({
                 )}
                 <View style={[wStyles.divider, { backgroundColor: colors.border }]} />
                 <Text style={[wStyles.meaning, { color: colors.text }]}>{data.meaning}</Text>
+                <View style={[wStyles.divider, { backgroundColor: colors.border, marginTop: 8 }]} />
+                <Pressable
+                  onPress={handleAddFlashcard}
+                  style={({ pressed }) => [
+                    wStyles.fcBtn,
+                    {
+                      backgroundColor: fcStatus !== "idle" ? "#8E44AD18" : "#8E44AD15",
+                      borderColor: fcStatus !== "idle" ? "#8E44AD60" : "#8E44AD30",
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={fcStatus !== "idle" ? "bookmark" : "bookmark-outline"}
+                    size={16}
+                    color="#8E44AD"
+                  />
+                  <Text style={wStyles.fcBtnText}>
+                    {fcStatus === "saved" ? "Añadida ✓" : fcStatus === "duplicate" ? "Ya guardada" : "Añadir a flashcards"}
+                  </Text>
+                </Pressable>
               </>
             ) : (
               <Text style={{ color: colors.textSecondary, textAlign: "center", paddingVertical: 12 }}>No disponible</Text>
@@ -179,4 +209,6 @@ const wStyles = StyleSheet.create({
   pos: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 },
   divider: { height: 1, marginBottom: 10 },
   meaning: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  fcBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginTop: 4 },
+  fcBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#8E44AD" },
 });
