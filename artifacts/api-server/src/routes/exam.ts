@@ -44,18 +44,24 @@ Subthemes include: renewable energy, deforestation, ocean pollution, carbon foot
 
 const BASE_INSTRUCTIONS = `
 IMPORTANT INSTRUCTIONS:
-1. Always respond ENTIRELY in Spanish (Español). Never switch to English.
+1. QUESTIONS: Always ask questions in Spanish. Never switch to English when asking.
 2. Ask ONE focused question at a time. Never ask multiple questions in a single turn.
-3. After the student responds, provide brief encouraging feedback (1-2 sentences), then ask a follow-up question.
+3. RESPONSE FORMAT after the student answers (follow this exact order every time):
+   a) Brief encouraging comment in Spanish (1 sentence, e.g. "¡Muy bien!", "¡Interesante punto!")
+   b) ONE English language tip marked with "💡" — pick ONE of:
+      - Grammar correction: "💡 Grammar: Instead of '[their error]', say '[correct form]' ([brief reason])"
+      - Vocabulary upgrade: "💡 Vocab: '[their word]' works — try '[advanced word]' for a stronger B2 impression"
+      - Structure tip: "💡 Tip: Using connectors like 'sin embargo', 'cabe destacar que', or 'no obstante' would elevate this response"
+      - Only include this tip if the student actually made a mistake or used basic vocabulary. If they performed well, skip the tip and move straight to the question.
+   c) The next question in Spanish (1 sentence)
 4. Vary your question types: descriptive, opinion-based, hypothetical, comparative.
-5. After 6-8 exchanges, you may occasionally link to a second IB theme to train cross-theme thinking (Band 6-7 skill).
-6. Keep your responses concise: feedback (1-2 sentences) + question (1 sentence).
-7. Start with an accessible warm-up question, then gradually increase difficulty.
-8. Use informal "tú" consistently for student interactions.
-9. Show authentic examiner personality: be professional but encouraging.
-10. Reference the theme in your questions naturally.
+5. After 6-8 exchanges, occasionally link to a second IB theme (Band 6-7 skill).
+6. Start with an accessible warm-up question, then gradually increase difficulty.
+7. Use informal "tú" consistently for student interactions.
+8. Show authentic examiner personality: be professional but encouraging.
+9. Reference the theme in your questions naturally.
 
-Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme.
+Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
 `;
 
 router.post("/exam/chat", async (req, res) => {
@@ -232,6 +238,29 @@ router.post("/exam/transcribe", async (req, res) => {
   }
 });
 
+// Natural Spanish examiner TTS — uses gpt-audio with a Spanish-specific system prompt
+// for authentic intonation, pacing, and rhythm (F22)
+async function textToSpeechExaminer(text: string): Promise<Buffer> {
+  const response = await (openai as any).chat.completions.create({
+    model: "gpt-audio",
+    modalities: ["text", "audio"],
+    audio: { voice: "shimmer", format: "mp3" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "Eres una examinadora del IB de habla hispana. Habla con entonación natural, cálida y profesional en español. Usa un ritmo conversacional auténtico con variación de tono. Evita sonar monótona o robótica.",
+      },
+      {
+        role: "user",
+        content: `Di exactamente esto en voz alta, sin añadir nada extra: ${text}`,
+      },
+    ],
+  });
+  const audioData = (response.choices[0]?.message as any)?.audio?.data ?? "";
+  return Buffer.from(audioData, "base64");
+}
+
 router.post("/exam/tts", async (req, res) => {
   const { text } = req.body;
 
@@ -241,12 +270,18 @@ router.post("/exam/tts", async (req, res) => {
   }
 
   try {
-    const audioBuffer = await textToSpeech(text, "nova", "mp3");
+    const audioBuffer = await textToSpeechExaminer(text);
     const audioBase64 = audioBuffer.toString("base64");
     res.json({ audioBase64 });
   } catch (error) {
     console.error("TTS error:", error);
-    res.status(500).json({ error: "TTS failed" });
+    // Fallback to standard TTS if custom fails
+    try {
+      const fallback = await textToSpeech(text, "shimmer", "mp3");
+      res.json({ audioBase64: fallback.toString("base64") });
+    } catch {
+      res.status(500).json({ error: "TTS failed" });
+    }
   }
 });
 

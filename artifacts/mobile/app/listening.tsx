@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
+import { WordModal, TappableText } from "@/components/WordModal";
 
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -91,6 +92,9 @@ export default function ListeningScreen() {
   const [passageContext, setPassageContext] = useState("");
   const [passage, setPassage] = useState("");
   const [showPassage, setShowPassage] = useState(false);
+
+  // ── Word popup (F19) ─────────────────────────────────────────────────────────
+  const [wordPopup, setWordPopup] = useState<{ word: string; context: string } | null>(null);
 
   // ── Audio state ───────────────────────────────────────────────────────────────
   const [audioBase64, setAudioBase64] = useState<string | null>(null);
@@ -239,14 +243,16 @@ export default function ListeningScreen() {
     setPlayStatus("paused");
   }, []);
 
+  // F18: changing speed stops playback — user must press Play again with new speed
   const handleSpeedChange = useCallback(async (speed: number) => {
     setPlaybackSpeed(speed);
-    if (Platform.OS === "web") {
-      if (webAudioRef.current) webAudioRef.current.playbackRate = speed;
-    } else {
-      if (nativeSoundRef.current && playStatus === "playing") {
-        await nativeSoundRef.current.setStatusAsync({ rate: speed, shouldCorrectPitch: true });
+    if (playStatus === "playing") {
+      if (Platform.OS === "web") {
+        webAudioRef.current?.pause();
+      } else {
+        await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false }).catch(() => {});
       }
+      setPlayStatus("paused");
     }
   }, [playStatus]);
 
@@ -526,7 +532,16 @@ export default function ListeningScreen() {
           <View style={{ width: 44 }} />
         </View>
 
-        <ScrollView contentContainerStyle={[s.listeningContent, { paddingBottom: botPad + 24 }]} showsVerticalScrollIndicator={false}>
+        {wordPopup && (
+        <WordModal
+          word={wordPopup.word}
+          context={wordPopup.context}
+          themeColor={themeColor}
+          onClose={() => setWordPopup(null)}
+        />
+      )}
+
+      <ScrollView contentContainerStyle={[s.listeningContent, { paddingBottom: botPad + 24 }]} showsVerticalScrollIndicator={false}>
           {/* Context line */}
           {passageContext ? (
             <View style={[s.contextCard, { backgroundColor: themeColor + "15", borderColor: themeColor + "30" }]}>
@@ -631,7 +646,17 @@ export default function ListeningScreen() {
 
           {showPassage && (
             <View style={[s.passageCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[s.passageCardText, { color: colors.text }]}>{passage}</Text>
+              <TappableText
+                text={passage}
+                textStyle={[s.passageCardText, { color: colors.text }]}
+                onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+              />
+              <View style={[s.glossaryHint, { borderTopColor: colors.border }]}>
+                <Ionicons name="finger-print-outline" size={12} color={themeColor} />
+                <Text style={[s.glossaryHintText, { color: themeColor }]}>
+                  Toca cualquier palabra para ver su significado
+                </Text>
+              </View>
             </View>
           )}
 
@@ -994,8 +1019,10 @@ const s = StyleSheet.create({
   speedBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   togglePassageBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   togglePassageText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  passageCard: { borderRadius: 12, borderWidth: 1, padding: 16 },
+  passageCard: { borderRadius: 12, borderWidth: 1, padding: 16, gap: 12 },
   passageCardText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  glossaryHint: { flexDirection: "row", alignItems: "center", gap: 5, paddingTop: 8, borderTopWidth: 1 },
+  glossaryHintText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   questionsBtn: { borderRadius: 14, overflow: "hidden" },
   questionsBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16 },
   questionsBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },

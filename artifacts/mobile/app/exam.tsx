@@ -11,7 +11,6 @@ import {
   Alert,
   Animated,
   FlatList,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -26,135 +25,15 @@ import Colors from "@/constants/colors";
 import { getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
+import { WordModal, tokenizeText } from "@/components/WordModal";
 
 type RecordingState = "idle" | "recording" | "preview" | "processing";
 
 const TOTAL_TURNS = 8;
 
-// ─── Word explanation cache (persists across renders) ─────────────────────────
-type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
-const wordExplainCache = new Map<string, WordInfo>();
 const audioCache = new Map<string, string>(); // msgId → base64 mp3
 
-const cleanWord = (token: string) =>
-  token.replace(/^[¿¡«"'([\s]+|[.,;:!?»"')[\]\s]+$/g, "").toLowerCase().trim();
-
-const tokenizeMessage = (text: string) =>
-  text.split(/(\s+)/).map((part, idx) => ({
-    display: part,
-    clean: /^\s+$/.test(part) ? "" : cleanWord(part),
-    idx,
-  }));
-
-// ─── Word explanation modal ───────────────────────────────────────────────────
-function WordModal({
-  word,
-  context,
-  onClose,
-  themeColor,
-  isDark,
-}: {
-  word: string;
-  context: string;
-  onClose: () => void;
-  themeColor: string;
-  isDark: boolean;
-}) {
-  const colors = Colors[isDark ? "dark" : "light"];
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<WordInfo | null>(null);
-  const [ttsLoading, setTtsLoading] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }).start();
-    const cached = wordExplainCache.get(word.toLowerCase());
-    if (cached) { setData(cached); setLoading(false); return; }
-    globalThis.fetch(`${getApiUrl()}api/exam/word`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ word, context: context.slice(0, 300) }),
-    })
-      .then((r) => r.json())
-      .then((d: WordInfo) => { wordExplainCache.set(word.toLowerCase(), d); setData(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [word]);
-
-  const playWord = async () => {
-    if (ttsLoading) return;
-    setTtsLoading(true);
-    try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: word }),
-      });
-      const { audioBase64 } = await res.json();
-      if (Platform.OS === "web") {
-        const audio = new (globalThis as any).Audio(`data:audio/mp3;base64,${audioBase64}`);
-        audio.play();
-      } else {
-        const path = (FileSystem.cacheDirectory ?? "") + "word_tts.mp3";
-        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" as any });
-        const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
-        sound.setOnPlaybackStatusUpdate((s) => { if (s.isLoaded && s.didJustFinish) sound.unloadAsync(); });
-      }
-    } catch { } finally { setTtsLoading(false); }
-  };
-
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={wordStyles.overlay} onPress={onClose}>
-        <Pressable onPress={() => {/* capture tap — prevent overlay close */}}>
-          <Animated.View style={[wordStyles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: "#000", transform: [{ scale: scaleAnim }] }]}>
-            <View style={wordStyles.cardHeader}>
-              <Text style={[wordStyles.wordText, { color: colors.text }]}>{word}</Text>
-              <Pressable onPress={onClose} style={({ pressed }) => [wordStyles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}>
-                <Ionicons name="close" size={20} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            {loading ? (
-              <ActivityIndicator color={themeColor} style={{ marginVertical: 20 }} />
-            ) : data ? (
-              <>
-                <View style={wordStyles.phoneticRow}>
-                  <Text style={[wordStyles.phonetic, { color: themeColor }]}>/{data.phonetic}/</Text>
-                  <Pressable onPress={playWord} style={({ pressed }) => [wordStyles.ttsBtn, { backgroundColor: themeColor + "20", opacity: pressed ? 0.6 : 1 }]}>
-                    {ttsLoading
-                      ? <ActivityIndicator size="small" color={themeColor} />
-                      : <Ionicons name="volume-medium-outline" size={18} color={themeColor} />}
-                  </Pressable>
-                </View>
-                {!!data.partOfSpeech && (
-                  <Text style={[wordStyles.pos, { color: colors.textSecondary }]}>{data.partOfSpeech}</Text>
-                )}
-                <View style={[wordStyles.divider, { backgroundColor: colors.border }]} />
-                <Text style={[wordStyles.meaning, { color: colors.text }]}>{data.meaning}</Text>
-              </>
-            ) : (
-              <Text style={{ color: colors.textSecondary, textAlign: "center", paddingVertical: 12 }}>No disponible</Text>
-            )}
-          </Animated.View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-const wordStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", padding: 24 },
-  card: { width: 300, borderRadius: 22, borderWidth: 1, padding: 22, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24 },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  wordText: { fontSize: 30, fontFamily: "Inter_700Bold", flex: 1 },
-  closeBtn: { padding: 4 },
-  phoneticRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 },
-  phonetic: { fontSize: 16, fontFamily: "Inter_400Regular", flex: 1, fontStyle: "italic" },
-  ttsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  pos: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 },
-  divider: { height: 1, marginBottom: 10 },
-  meaning: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
-});
+const tokenizeMessage = tokenizeText;
 
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -1099,7 +978,6 @@ export default function ExamScreen() {
           context={wordPopup.context}
           onClose={() => setWordPopup(null)}
           themeColor={themeColor}
-          isDark={isDark}
         />
       )}
     </View>
