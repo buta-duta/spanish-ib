@@ -236,7 +236,6 @@ function TappableText({
           <Text
             key={i}
             onPress={() => onWordPress(clean, content)}
-            style={{ textDecorationLine: "underline", textDecorationStyle: "dotted", textDecorationColor: "rgba(201,168,76,0.5)" }}
           >
             {chunk}
           </Text>
@@ -540,7 +539,7 @@ export default function ImagePracticeScreen() {
           }
         }
 
-        if (fullContent) playTTS(fullContent, assistantMsgId);
+        // Audio auto-play removed — user taps the play button manually
       } catch {
         setShowTyping(false);
         setMessages((prev) => [
@@ -1207,17 +1206,32 @@ export default function ImagePracticeScreen() {
                   )}
                 </View>
 
-                {/* Question controls (F31) — only on assistant messages */}
+                {/* Controls — only on assistant messages */}
                 {item.role === "assistant" && (
-                  <View style={sc.qControls}>
-                    {/* Repeat */}
+                  <View style={sc.msgFooter}>
+                    {/* Audio play button */}
                     <Pressable
                       onPress={() => handleRepeat(item)}
-                      style={({ pressed }) => [sc.qBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                      disabled={isStreaming}
+                      style={({ pressed }) => [
+                        sc.audioBtn,
+                        {
+                          backgroundColor: activeColor + "18",
+                          borderColor: activeColor + "50",
+                          opacity: pressed || isStreaming ? 0.6 : 1,
+                        },
+                      ]}
                     >
-                      <Ionicons name="volume-high-outline" size={13} color={activeColor} />
-                      <Text style={[sc.qBtnText, { color: activeColor }]}>Repetir</Text>
+                      {isTTSPlaying ? (
+                        <ActivityIndicator size="small" color={activeColor} style={{ width: 16, height: 16 }} />
+                      ) : (
+                        <Ionicons name="play-circle-outline" size={16} color={activeColor} />
+                      )}
+                      <Text style={[sc.audioBtnText, { color: activeColor }]}>
+                        {isTTSPlaying ? "Reproduciendo…" : "Escuchar"}
+                      </Text>
                     </Pressable>
+
                     {/* Rephrase — only on last AI message */}
                     {isLast && !isStreaming && !examTimeUp && (
                       <Pressable
@@ -1489,13 +1503,24 @@ const sc = StyleSheet.create({
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22, flexShrink: 1 },
 
   // Question controls (F31)
-  qControls: {
+  msgFooter: {
     flexDirection: "row",
     gap: 6,
-    marginTop: 5,
+    marginTop: 6,
     marginLeft: 4,
     flexWrap: "wrap",
+    alignItems: "center",
   },
+  audioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  audioBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   qBtn: {
     flexDirection: "row",
     alignItems: "center",
