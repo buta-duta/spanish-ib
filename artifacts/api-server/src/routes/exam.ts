@@ -124,7 +124,7 @@ router.post("/exam/chat", async (req, res) => {
 
 // ── Image-based oral exam ─────────────────────────────────────────────────────
 router.post("/exam/image-chat", async (req, res) => {
-  const { messages, theme, imageDescription, imageCaption, sessionTurn } = req.body;
+  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip } = req.body;
   if (!messages || !imageDescription) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -139,6 +139,14 @@ router.post("/exam/image-chat", async (req, res) => {
     "compartir-el-planeta": "Compartir el planeta",
   };
 
+  const rephraseInstruction = rephrase
+    ? `\n\nSPECIAL INSTRUCTION — REFORMULAR: The student has asked for the question to be rephrased. Ask the EXACT SAME concept or idea using completely different vocabulary, sentence structure and wording. Do NOT ask a new question — just restate the same one differently. Keep it natural and conversational.`
+    : "";
+
+  const skipInstruction = skip
+    ? `\n\nSPECIAL INSTRUCTION — SKIP: The student wants to move on from the current question. Acknowledge briefly and naturally ("Entendido, pasemos a..."), then ask a DIFFERENT question about another aspect of the image or theme. Move forward in the descriptive → interpretive → analytical progression.`
+    : "";
+
   const systemPrompt = `You are an experienced IB Spanish B oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
 
 The student is looking at a photograph described as:
@@ -151,7 +159,7 @@ The IB theme being examined is: ${themeName[themeKey] || "Compartir el planeta"}
 
 YOUR ROLE AS EXAMINER:
 1. ALWAYS respond ENTIRELY in Spanish. Never use English.
-2. On the FIRST turn (when messages list is empty or has only the initial greeting): Welcome the student warmly, briefly describe the task, and ask them to begin describing what they see in the image.
+2. On the FIRST turn (when messages list is empty): Welcome the student warmly, briefly describe the task, and ask them to begin describing what they see in the image.
 3. On SUBSEQUENT turns: React to the student's response with brief encouraging feedback (1 sentence), then ask ONE focused follow-up question.
 4. Follow this PROGRESSION through the exam:
    - Phase 1 (first 2–3 turns): Descriptive — "¿Qué ves en la imagen? ¿Qué está pasando?"
@@ -162,7 +170,15 @@ YOUR ROLE AS EXAMINER:
 7. Keep responses concise: feedback (1 sentence) + one question (1 sentence).
 8. Use informal "tú" throughout.
 9. Show the personality of a professional but encouraging examiner.
-10. If the student is on turn ${sessionTurn || 0} of the exam, calibrate difficulty accordingly.`;
+10. If the student is on turn ${sessionTurn || 0} of the exam, calibrate difficulty accordingly.
+
+ENCOURAGE PALMS-STYLE RESPONSES:
+Structure your questions to elicit these elements (don't mention PALMS explicitly):
+- Point: Ask students to state a clear position or observation
+- Answer/Evidence: Ask for specific examples or details they can see or know
+- Link: Guide them to connect to the theme or a real-world context
+- Meaning: Ask them to explain the significance or implications
+- Structure: Reward use of discourse markers — react positively when students use "sin embargo", "además", "por lo tanto", "cabe destacar que", "en cambio"${rephraseInstruction}${skipInstruction}`;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -308,6 +324,78 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
     res.json({ feedback });
   } catch (error) {
     console.error("Feedback error:", error);
+    res.status(500).json({ error: "Feedback generation failed" });
+  }
+});
+
+// ── IB image oral feedback ────────────────────────────────────────────────────
+router.post("/exam/image-feedback", async (req, res) => {
+  const { messages, imageCaption, theme } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    res.status(400).json({ error: "Missing messages" });
+    return;
+  }
+
+  const conversationText = messages
+    .filter((m: { role: string }) => m.role !== "system")
+    .map((m: { role: string; content: string }) =>
+      `${m.role === "user" ? "Student" : "Examiner"}: ${m.content}`
+    )
+    .join("\n");
+
+  const feedbackPrompt = `You are an experienced IB Spanish B examiner grading a student's Individual Oral (IO) based on an image stimulus.
+
+Image: "${imageCaption || "Image-based oral"}"
+Theme: ${theme || "General"}
+
+EXAM CONVERSATION:
+${conversationText}
+
+Grade the student using the official IB Spanish B Individual Oral criteria. Return ONLY valid JSON:
+
+{
+  "criterionA": {
+    "score": <1-10>,
+    "label": "Lengua",
+    "feedback": "2-3 sentence specific assessment of grammar accuracy, vocabulary range, register, tense variety, and sentence complexity. Reference ACTUAL quotes from the student."
+  },
+  "criterionB": {
+    "score": <1-10>,
+    "label": "Mensaje",
+    "feedback": "2-3 sentence specific assessment of ideas, arguments, relevance to image, detail, examples used, and development of points."
+  },
+  "criterionC": {
+    "score": <1-10>,
+    "label": "Comprensión conceptual",
+    "feedback": "2-3 sentence specific assessment of engagement with the IB theme, cultural references, cross-theme connections, and depth of analysis."
+  },
+  "criterionD": {
+    "score": <1-10>,
+    "label": "Interacción",
+    "feedback": "2-3 sentence specific assessment of responsiveness to examiner questions, spontaneity, conversation flow, and ability to maintain and develop discussion."
+  },
+  "estimatedBand": "<string like '5-6' or '7'>",
+  "strengths": ["<specific strength 1>", "<specific strength 2>"],
+  "improvements": ["<specific improvement 1>", "<specific improvement 2>"],
+  "encouragement": "<One motivating sentence in English, max 20 words>"
+}
+
+Be fair, constructive, and specific. Grade ONLY what was actually said. Bands range from 1–10 per criterion.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 1500,
+      messages: [{ role: "user", content: feedbackPrompt }],
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) { res.status(500).json({ error: "Empty feedback" }); return; }
+    res.json(JSON.parse(content));
+  } catch (error) {
+    console.error("Image feedback error:", error);
     res.status(500).json({ error: "Feedback generation failed" });
   }
 });

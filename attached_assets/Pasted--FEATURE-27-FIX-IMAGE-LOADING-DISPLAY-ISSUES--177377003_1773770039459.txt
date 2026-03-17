@@ -1,0 +1,170 @@
+-----------------------------------
+FEATURE 27: FIX IMAGE LOADING & DISPLAY ISSUES
+-----------------------------------
+
+ISSUE:
+The following images are not loading or displaying correctly:
+- Joven y redes sociales
+- Grupo multicultural de jóvenes
+- Personas migrantes en nuevo país
+- Contaminación
+- Plantas de reciclaje y economía circular
+- Inundación causada por desastre natural
+
+REQUIREMENTS:
+- Fix all broken image paths/URLs
+- Ensure all images load correctly and consistently
+- Use reliable image sources (host locally or use stable CDN)
+
+-----------------------------------
+
+DISPLAY REQUIREMENTS:
+- Images must:
+  - Load instantly (with fallback if failed)
+  - Maintain proper aspect ratio
+  - Be clearly visible (not cropped incorrectly)
+
+- IMPORTANT:
+  The selected image MUST remain visible:
+  - During preparation time
+  - During AI questioning
+  - During user responses
+
+-----------------------------------
+FEATURE 28: IMPROVE IMAGE QUALITY (MORE ACTION)
+-----------------------------------
+
+GOAL:
+Use more descriptive, high-context images
+
+REQUIREMENTS:
+- Replace static/low-information images (e.g. close-up fox, robot)
+
+- All images must include:
+  - People + actions
+  - Clear setting
+  - Multiple elements to describe
+
+Examples:
+- Instead of: animal close-up
+- Use: environmental protest, recycling activity, classroom, migration scene
+
+-----------------------------------
+FEATURE 29: STARTABLE PREPARATION TIMER
+-----------------------------------
+
+REQUIREMENTS:
+- Add button:
+  "▶️ Start 10-minute Preparation"
+
+- Timer must:
+  - Only start when user clicks button
+  - Display countdown (MM:SS)
+
+- Include button:
+  "⏭ Skip Preparation"
+
+-----------------------------------
+FEATURE 30: TRANSLATE BUTTON DURING PRACTICE
+-----------------------------------
+
+GOAL:
+Allow real-time translation support
+
+REQUIREMENTS:
+- Add "Translate" button during:
+  - Image display phase
+  - AI questioning phase
+
+- Functionality:
+  - Works like clickable word feature
+  - Allows user to tap words in AI questions
+  - Shows:
+    - English meaning
+    - pronunciation
+
+-----------------------------------
+FEATURE 31: QUESTION CONTROL OPTIONS
+-----------------------------------
+
+For EACH AI question, provide:
+
+1. "🔊 Repeat Question"
+- Replay audio exactly
+
+2. "🔁 Rephrase Question"
+- AI asks same idea using different wording
+
+3. "⏭ Skip Question"
+- Move to next question without penalty
+
+-----------------------------------
+FEATURE 32: IB PALMS TECHNIQUE + MARKING
+-----------------------------------
+
+GOAL:
+Structure evaluation using IB-style expectations
+
+REQUIREMENTS:
+- AI should encourage PALMS-style responses:
+  (Point, Answer, Link, Meaning, Structure)
+
+- After session:
+  Grade based on IB Spanish B Oral criteria:
+  - Criterion A: Language
+  - Criterion B: Message
+  - Criterion C: Conceptual Understanding
+  - Criterion D: Interaction
+
+-----------------------------------
+FEATURE 33: 5-MINUTE QUESTIONING TIMER
+-----------------------------------
+
+REQUIREMENTS:
+- Start a 5-minute timer when AI questioning begins
+
+-----------------------------------
+
+LOGIC:
+- AI asks questions ONLY while time remains
+- If time runs out:
+  - Stop asking new questions
+
+-----------------------------------
+
+USER RESPONSE HANDLING:
+- If user is still speaking when time ends:
+  - Allow them to finish speaking
+  - Record full transcript
+
+-----------------------------------
+
+AFTER TIMER ENDS:
+- Generate feedback based on:
+  - Entire conversation
+  - Final response included
+
+- If user exceeded time:
+  - Add note:
+    "You spent too much time on one response"
+
+-----------------------------------
+FEATURE 34: SESSION CONTROL (EXIT)
+-----------------------------------
+
+REQUIREMENTS:
+- Add button:
+  "❌ Terminar"
+
+- When clicked:
+  - End session immediately
+  - Stop timers
+  - Return to main menu
+
+- Include confirmation prompt:
+  "¿Quieres terminar la práctica?"
+
+-----------------------------------
+GOAL:
+Fix broken UX, improve realism, and fully simulate IB oral timing,
+interaction, and evaluation conditions.
