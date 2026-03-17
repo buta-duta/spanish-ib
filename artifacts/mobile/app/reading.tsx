@@ -177,7 +177,9 @@ export default function ReadingScreen() {
   // TTS read-aloud
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [ttsPaused, setTtsPaused] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const webAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -255,18 +257,51 @@ export default function ReadingScreen() {
 
   const stopTts = async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
+      if (Platform.OS === "web") {
+        if (webAudioRef.current) {
+          webAudioRef.current.pause();
+          webAudioRef.current.src = "";
+          webAudioRef.current = null;
+        }
+      } else {
+        if (soundRef.current) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
       }
     } catch {}
     setTtsPlaying(false);
+    setTtsPaused(false);
+  };
+
+  const pauseResumeTts = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (ttsPaused) {
+      // Resume
+      try {
+        if (Platform.OS === "web") {
+          await webAudioRef.current?.play();
+        } else {
+          await soundRef.current?.playAsync();
+        }
+      } catch {}
+      setTtsPaused(false);
+    } else {
+      // Pause
+      try {
+        if (Platform.OS === "web") {
+          webAudioRef.current?.pause();
+        } else {
+          await soundRef.current?.pauseAsync();
+        }
+      } catch {}
+      setTtsPaused(true);
+    }
   };
 
   const readAloud = async () => {
     if (ttsLoading) return;
-    if (ttsPlaying) { stopTts(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTtsLoading(true);
     try {
@@ -277,26 +312,40 @@ export default function ReadingScreen() {
       });
       const { audioBase64 } = await res.json();
       if (Platform.OS === "web") {
-        const audio = new (globalThis as any).Audio(`data:audio/mp3;base64,${audioBase64}`);
-        audio.onended = () => setTtsPlaying(false);
+        if (webAudioRef.current) {
+          webAudioRef.current.pause();
+          webAudioRef.current.src = "";
+        }
+        const audio = new (globalThis as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
+        webAudioRef.current = audio;
+        audio.onended = () => { setTtsPlaying(false); setTtsPaused(false); webAudioRef.current = null; };
         audio.play();
         setTtsPlaying(true);
+        setTtsPaused(false);
       } else {
+        if (soundRef.current) {
+          await soundRef.current.stopAsync().catch(() => {});
+          await soundRef.current.unloadAsync().catch(() => {});
+          soundRef.current = null;
+        }
         const path = (FileSystem.cacheDirectory ?? "") + "reading_tts.mp3";
         await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" as any });
         const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
         soundRef.current = sound;
         setTtsPlaying(true);
+        setTtsPaused(false);
         sound.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
             sound.unloadAsync();
             soundRef.current = null;
             setTtsPlaying(false);
+            setTtsPaused(false);
           }
         });
       }
     } catch {
       setTtsPlaying(false);
+      setTtsPaused(false);
     } finally {
       setTtsLoading(false);
     }
@@ -540,31 +589,46 @@ export default function ReadingScreen() {
                 Toca una palabra para ver su definición
               </Text>
             </View>
-            <Pressable
-              onPress={readAloud}
-              disabled={ttsLoading}
-              style={({ pressed }) => [
-                s.ttsBtn,
-                {
-                  backgroundColor: ttsPlaying ? ACCENT + "25" : colors.card,
-                  borderColor: ttsPlaying ? ACCENT : colors.border,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-            >
-              {ttsLoading ? (
-                <ActivityIndicator size="small" color={ACCENT} />
-              ) : (
-                <Ionicons
-                  name={ttsPlaying ? "stop-circle" : "volume-high-outline"}
-                  size={20}
-                  color={ttsPlaying ? ACCENT : colors.textSecondary}
-                />
-              )}
-              <Text style={[s.ttsBtnText, { color: ttsPlaying ? ACCENT : colors.textSecondary }]}>
-                {ttsLoading ? "Cargando..." : ttsPlaying ? "Detener" : "Leer"}
-              </Text>
-            </Pressable>
+            {ttsPlaying || ttsPaused ? (
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <Pressable
+                  onPress={pauseResumeTts}
+                  style={({ pressed }) => [
+                    s.ttsIconBtn,
+                    { backgroundColor: ACCENT + "20", borderColor: ACCENT + "60", opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Ionicons name={ttsPaused ? "play" : "pause"} size={18} color={ACCENT} />
+                </Pressable>
+                <Pressable
+                  onPress={stopTts}
+                  style={({ pressed }) => [
+                    s.ttsIconBtn,
+                    { backgroundColor: "#E74C3C15", borderColor: "#E74C3C50", opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Ionicons name="stop" size={18} color="#E74C3C" />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={readAloud}
+                disabled={ttsLoading}
+                style={({ pressed }) => [
+                  s.ttsBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
+                ]}
+              >
+                {ttsLoading ? (
+                  <ActivityIndicator size="small" color={ACCENT} />
+                ) : (
+                  <Ionicons name="volume-high-outline" size={20} color={colors.textSecondary} />
+                )}
+                <Text style={[s.ttsBtnText, { color: colors.textSecondary }]}>
+                  {ttsLoading ? "Cargando..." : "Leer"}
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Reading text — paragraphs */}
@@ -1081,6 +1145,7 @@ const s = StyleSheet.create({
   hintRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, borderWidth: 1 },
   ttsBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, minWidth: 80, justifyContent: "center" },
   ttsBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  ttsIconBtn: { width: 38, height: 38, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   hintText: { fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   readingCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
   readingText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 27 },

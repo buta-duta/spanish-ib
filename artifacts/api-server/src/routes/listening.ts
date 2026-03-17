@@ -116,7 +116,7 @@ router.post("/listening/tts", async (req, res) => {
   try {
     if (!isDialogue(passage)) {
       // Single narrator voice for monologue/news
-      const audioBuffer = await textToSpeech(passage.trim(), "nova", "mp3");
+      const audioBuffer = await textToSpeech(passage.trim(), "shimmer", "mp3");
       res.json({ audioBase64: audioBuffer.toString("base64"), isDualVoice: false });
       return;
     }
@@ -135,12 +135,12 @@ router.post("/listening/tts", async (req, res) => {
 
     // Generate all segment audios + pauses IN PARALLEL (fast)
     const segmentPromises = segments.map((seg) =>
-      textToSpeech(seg.text, speakerVoiceMap.get(seg.speaker) ?? "nova", "mp3")
+      textToSpeech(seg.text, speakerVoiceMap.get(seg.speaker) ?? "shimmer", "mp3")
     );
 
     // Short pause (~200ms) and long pause (~500ms) between turns
-    const shortPausePromise = textToSpeech(".", "nova", "mp3");
-    const longPausePromise = textToSpeech("...", "nova", "mp3");
+    const shortPausePromise = textToSpeech(".", "shimmer", "mp3");
+    const longPausePromise = textToSpeech("...", "shimmer", "mp3");
 
     const [segmentBuffers, shortPause, longPause] = await Promise.all([
       Promise.all(segmentPromises),
