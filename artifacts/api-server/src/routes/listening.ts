@@ -16,6 +16,28 @@ const THEME_NAMES: Record<string, string> = {
 const VOICES = ["nova", "onyx", "shimmer", "alloy", "echo", "fable"] as const;
 type VoiceId = typeof VOICES[number];
 
+// ── Silent MP3 generator ─────────────────────────────────────────────────────
+// Creates valid MPEG1 Layer3 frames filled with zeros (silence).
+// Avoids sending punctuation-only text to TTS which causes the model to
+// generate spoken apology messages instead of silence.
+function createSilentMp3(durationMs: number): Buffer {
+  // MPEG1, Layer3, 128 kbps, 44100 Hz, mono
+  // Frame size = floor(144 * 128000 / 44100) = 417 bytes
+  // One frame covers 1152 samples → ~26.12 ms
+  const FRAME_SIZE = 417;
+  const MS_PER_FRAME = (1152 / 44100) * 1000; // ~26.12
+  const frames = Math.max(1, Math.ceil(durationMs / MS_PER_FRAME));
+  const buf = Buffer.alloc(frames * FRAME_SIZE, 0);
+  for (let i = 0; i < frames; i++) {
+    const o = i * FRAME_SIZE;
+    buf[o + 0] = 0xFF; // sync word high byte
+    buf[o + 1] = 0xFB; // sync(4b) + MPEG1(2b) + Layer3(2b) + no-CRC(1b)
+    buf[o + 2] = 0x90; // 128kbps(4b) + 44100Hz(2b) + no-padding(1b) + private(1b)
+    buf[o + 3] = 0xC4; // mono(2b) + mode_ext(2b) + not-copyrighted + original + no-emphasis(2b)
+  }
+  return buf;
+}
+
 // ── Dialogue detection + parsing (F40) ───────────────────────────────────────
 function isDialogue(text: string): boolean {
   const lines = text.split("\n").filter((l) => l.trim());
@@ -138,15 +160,12 @@ router.post("/listening/tts", async (req, res) => {
       textToSpeech(seg.text, speakerVoiceMap.get(seg.speaker) ?? "shimmer", "mp3")
     );
 
-    // Short pause (~200ms) and long pause (~500ms) between turns
-    const shortPausePromise = textToSpeech(".", "shimmer", "mp3");
-    const longPausePromise = textToSpeech("...", "shimmer", "mp3");
+    // Programmatic silent buffers — no TTS calls for pauses
+    // (using TTS for "." or "..." causes the model to speak apology messages)
+    const shortPause = createSilentMp3(220);  // ~220ms between same-speaker lines
+    const longPause = createSilentMp3(520);   // ~520ms between different speakers
 
-    const [segmentBuffers, shortPause, longPause] = await Promise.all([
-      Promise.all(segmentPromises),
-      shortPausePromise,
-      longPausePromise,
-    ]);
+    const segmentBuffers = await Promise.all(segmentPromises);
 
     // Interleave segment audio with pauses
     const chunks: Buffer[] = [];

@@ -108,6 +108,11 @@ export default function ListeningScreen() {
 
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const nativeSoundRef = useRef<Audio.Sound | null>(null);
+  const seekBarLayoutRef = useRef<{ x: number; width: number } | null>(null);
+
+  // Progress tracking
+  const [progressMs, setProgressMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
 
   // ── Questions state ───────────────────────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -185,6 +190,29 @@ export default function ListeningScreen() {
     await loadAudio(text);
   };
 
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  const formatTime = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  };
+
+  const seekTo = useCallback(async (ms: number) => {
+    const clamped = Math.max(0, Math.min(ms, durationMs));
+    setProgressMs(clamped);
+    if (Platform.OS === "web") {
+      if (webAudioRef.current) webAudioRef.current.currentTime = clamped / 1000;
+    } else {
+      await nativeSoundRef.current?.setStatusAsync({ positionMillis: clamped }).catch(() => {});
+    }
+  }, [durationMs]);
+
+  const handleSeekBar = useCallback((locationX: number) => {
+    const layout = seekBarLayoutRef.current;
+    if (!layout || durationMs === 0) return;
+    const fraction = Math.max(0, Math.min(1, locationX / layout.width));
+    seekTo(fraction * durationMs);
+  }, [durationMs, seekTo]);
+
   // ── Audio playback ────────────────────────────────────────────────────────────
   const playAudio = useCallback(async () => {
     if (!audioBase64) return;
@@ -200,10 +228,12 @@ export default function ListeningScreen() {
         const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
-        audio.onended = () => setPlayStatus("ended");
+        audio.onloadedmetadata = () => setDurationMs(Math.floor((audio.duration ?? 0) * 1000));
+        audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
+        audio.onended = () => { setPlayStatus("ended"); setProgressMs(0); };
         audio.onerror = () => setPlayStatus("ready");
-        webAudioRef.current = audio;
         setPlayCount((c) => c + 1);
+        setProgressMs(0);
       } else {
         webAudioRef.current.playbackRate = playbackSpeed;
       }
@@ -218,9 +248,13 @@ export default function ListeningScreen() {
           const { sound } = await Audio.Sound.createAsync({ uri: path });
           nativeSoundRef.current = sound;
           sound.setOnPlaybackStatusUpdate((s) => {
-            if (s.isLoaded && s.didJustFinish) setPlayStatus("ended");
+            if (!s.isLoaded) return;
+            if (s.durationMillis) setDurationMs(s.durationMillis);
+            setProgressMs(s.positionMillis ?? 0);
+            if (s.didJustFinish) { setPlayStatus("ended"); setProgressMs(0); }
           });
           setPlayCount((c) => c + 1);
+          setProgressMs(0);
         }
         await nativeSoundRef.current!.setStatusAsync({
           shouldPlay: true,
@@ -243,16 +277,24 @@ export default function ListeningScreen() {
     setPlayStatus("paused");
   }, []);
 
-  // F18: changing speed stops playback — user must press Play again with new speed
+  // Speed change: stop and reset to beginning — user presses play again at new speed
   const handleSpeedChange = useCallback(async (speed: number) => {
     setPlaybackSpeed(speed);
-    if (playStatus === "playing") {
+    try {
       if (Platform.OS === "web") {
-        webAudioRef.current?.pause();
+        if (webAudioRef.current) {
+          webAudioRef.current.pause();
+          webAudioRef.current.currentTime = 0;
+        }
       } else {
-        await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false }).catch(() => {});
+        if (nativeSoundRef.current) {
+          await nativeSoundRef.current.setStatusAsync({ shouldPlay: false, positionMillis: 0 }).catch(() => {});
+        }
       }
-      setPlayStatus("paused");
+    } catch {}
+    if (playStatus === "playing" || playStatus === "paused") {
+      setPlayStatus("ready");
+      setProgressMs(0);
     }
   }, [playStatus]);
 
@@ -609,6 +651,38 @@ export default function ListeningScreen() {
                 )}
               </View>
             </View>
+
+            {/* Seek / Progress bar */}
+            {durationMs > 0 && (
+              <View style={s.seekWrap}>
+                <View
+                  style={s.seekTrack}
+                  onLayout={(e) => {
+                    seekBarLayoutRef.current = { x: 0, width: e.nativeEvent.layout.width };
+                  }}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={(e) => handleSeekBar(e.nativeEvent.locationX)}
+                  onResponderMove={(e) => handleSeekBar(e.nativeEvent.locationX)}
+                >
+                  <View style={[s.seekFill, { width: `${durationMs > 0 ? (progressMs / durationMs) * 100 : 0}%` as any, backgroundColor: themeColor }]} />
+                  <View
+                    style={[
+                      s.seekThumb,
+                      {
+                        left: `${durationMs > 0 ? (progressMs / durationMs) * 100 : 0}%` as any,
+                        backgroundColor: themeColor,
+                        borderColor: colors.card,
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={s.seekTimeRow}>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs)}</Text>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs)}</Text>
+                </View>
+              </View>
+            )}
 
             {/* Speed selector */}
             <Text style={[s.speedLabel, { color: colors.textSecondary }]}>Velocidad de reproducción</Text>
@@ -1013,6 +1087,12 @@ const s = StyleSheet.create({
   playerMeta: { flex: 1, gap: 3 },
   playerStatus: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   playerPlayCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  seekWrap: { gap: 6 },
+  seekTrack: { height: 6, borderRadius: 3, backgroundColor: "#00000015", overflow: "visible", position: "relative" },
+  seekFill: { position: "absolute", left: 0, top: 0, height: 6, borderRadius: 3 },
+  seekThumb: { position: "absolute", top: -5, width: 16, height: 16, borderRadius: 8, marginLeft: -8, borderWidth: 2, elevation: 3 },
+  seekTimeRow: { flexDirection: "row", justifyContent: "space-between" },
+  seekTime: { fontSize: 11, fontFamily: "Inter_400Regular" },
   speedLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   speedRow: { gap: 8, paddingVertical: 2 },
   speedBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
