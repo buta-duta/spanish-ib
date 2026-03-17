@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { WordModal, TappableText } from "@/components/WordModal";
 
 const ACCENT = "#E67E22";
 const ACCENT_DARK = "#CA6F1E";
@@ -191,6 +192,9 @@ export default function WritingScreen() {
 
   // Phase
   const [phase, setPhase] = useState<Phase>("setup");
+
+  // Word glossary popup
+  const [wordPopup, setWordPopup] = useState<{ word: string; context: string } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -432,7 +436,15 @@ export default function WritingScreen() {
 
                 {generatedPrompt ? (
                   <View style={[s.promptBox, { backgroundColor: colors.cardAlt, borderColor: ACCENT + "50" }]}>
-                    <Text style={[s.promptText, { color: colors.text }]}>{generatedPrompt}</Text>
+                    <View style={[s.glossaryHint, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30" }]}>
+                      <Ionicons name="finger-print-outline" size={13} color={ACCENT} />
+                      <Text style={[s.glossaryHintText, { color: ACCENT }]}>Toca cualquier palabra para ver su definición</Text>
+                    </View>
+                    <TappableText
+                      text={generatedPrompt}
+                      textStyle={[s.promptText, { color: colors.text }]}
+                      onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+                    />
                   </View>
                 ) : (
                   <View style={[s.promptPlaceholder, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
@@ -482,6 +494,15 @@ export default function WritingScreen() {
             </LinearGradient>
           </Pressable>
         </ScrollView>
+
+        {wordPopup && (
+          <WordModal
+            word={wordPopup.word}
+            context={wordPopup.context}
+            onClose={() => setWordPopup(null)}
+            themeColor={ACCENT}
+          />
+        )}
       </View>
     );
   }
@@ -532,7 +553,17 @@ export default function WritingScreen() {
                 />
               </View>
               {!promptCollapsed && (
-                <Text style={[s.promptCardText, { color: colors.text }]}>{activePrompt}</Text>
+                <>
+                  <TappableText
+                    text={activePrompt}
+                    textStyle={[s.promptCardText, { color: colors.text }]}
+                    onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+                  />
+                  <View style={[s.glossaryHint, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30", marginTop: 8 }]}>
+                    <Ionicons name="finger-print-outline" size={12} color={ACCENT} />
+                    <Text style={[s.glossaryHintText, { color: ACCENT }]}>Toca una palabra para ver su definición</Text>
+                  </View>
+                </>
               )}
             </Pressable>
 
@@ -597,6 +628,15 @@ export default function WritingScreen() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+
+        {wordPopup && (
+          <WordModal
+            word={wordPopup.word}
+            context={wordPopup.context}
+            onClose={() => setWordPopup(null)}
+            themeColor={ACCENT}
+          />
+        )}
       </View>
     );
   }
@@ -955,6 +995,8 @@ const s = StyleSheet.create({
   rewriteExplanation: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   ghostBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
   ghostBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  glossaryHint: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, marginBottom: 8 },
+  glossaryHintText: { flex: 1, fontSize: 11, fontFamily: "Inter_500Medium" },
   rewriteFullCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
   rewriteFullText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 28 },
   wcInfo: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "right", marginTop: 6 },

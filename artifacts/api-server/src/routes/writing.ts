@@ -42,17 +42,17 @@ router.post("/writing/prompt", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an IB Spanish B examiner. Generate a single, realistic IB-style writing task prompt in English.
+          content: `Eres un examinador del IB Spanish B. Genera una sola tarea de escritura realista al estilo IB completamente en español.
 
-The prompt must:
-- Require writing a ${typeName} in Spanish
-- Be clearly related to the IB theme: ${themeName}
-- Be realistic and specific (include a scenario, audience, and clear goal)
-- Be appropriate for B1-B2 Spanish level students
-- State the recommended word count (between 250–400 words)
-- Use the exact IB format: include a situation, purpose, and recipient/audience where relevant${avoidSection}
+La pregunta debe:
+- Pedir al estudiante que escriba un/a ${typeName} en español
+- Estar claramente relacionada con el tema del IB: ${themeName}
+- Ser realista y específica (incluir una situación, un propósito y un destinatario o audiencia)
+- Ser adecuada para estudiantes de nivel B1-B2 de español
+- Indicar el número de palabras recomendado (entre 250 y 400 palabras)
+- Seguir el formato exacto del IB: contexto de la situación, instrucciones claras y audiencia${avoidSection}
 
-Return ONLY the prompt text. No explanation, no JSON. Just the prompt as it would appear on an IB exam paper.`,
+Devuelve ÚNICAMENTE el texto de la pregunta en español. Sin explicaciones, sin JSON. Solo la pregunta tal como aparecería en un examen IB.`,
         },
       ],
       temperature: 0.9,
