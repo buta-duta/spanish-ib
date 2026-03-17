@@ -34,6 +34,7 @@ const TOTAL_TURNS = 8;
 // ─── Word explanation cache (persists across renders) ─────────────────────────
 type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
 const wordExplainCache = new Map<string, WordInfo>();
+const audioCache = new Map<string, string>(); // msgId → base64 mp3
 
 const cleanWord = (token: string) =>
   token.replace(/^[¿¡«"'([\s]+|[.,;:!?»"')[\]\s]+$/g, "").toLowerCase().trim();
@@ -237,6 +238,7 @@ function MessageBubble({
   onSkip,
   canRegenerate,
   onWordPress,
+  onReplay,
 }: {
   message: Message;
   themeColor: string;
@@ -246,6 +248,7 @@ function MessageBubble({
   onSkip: () => void;
   canRegenerate: boolean;
   onWordPress: (word: string, context: string) => void;
+  onReplay: () => void;
 }) {
   const colors = Colors[isDark ? "dark" : "light"];
   const isUser = message.role === "user";
@@ -290,6 +293,16 @@ function MessageBubble({
           )}
         </View>
       </View>
+      {/* Replay button — shown on every AI message */}
+      {!isUser && (
+        <Pressable
+          onPress={onReplay}
+          style={({ pressed }) => [bubbleStyles.replayRow, { opacity: pressed ? 0.5 : 1 }]}
+        >
+          <Ionicons name="volume-medium-outline" size={13} color={themeColor} />
+          <Text style={[bubbleStyles.replayText, { color: themeColor }]}>Reproducir otra vez</Text>
+        </Pressable>
+      )}
       {!isUser && isLast && canRegenerate && (
         <View style={bubbleStyles.actionRow}>
           <Pressable
@@ -323,6 +336,8 @@ const bubbleStyles = StyleSheet.create({
   regenText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   skipBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: "#88888820", borderWidth: 1, borderColor: "#88888840" },
   skipText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#888888" },
+  replayRow: { flexDirection: "row", alignItems: "center", gap: 5, marginLeft: 52, marginTop: 3, marginBottom: 1 },
+  replayText: { fontSize: 12, fontFamily: "Inter_500Medium" },
 });
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -369,6 +384,7 @@ export default function ExamScreen() {
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const progressFraction = Math.min(sessionTurn / TOTAL_TURNS, 1);
+  const currentQuestion = Math.min(sessionTurn + 1, TOTAL_TURNS);
   const remaining = Math.max(0, TOTAL_TURNS - sessionTurn);
   const timeEstimate = Math.round(remaining * 1.5);
 
@@ -452,6 +468,7 @@ export default function ExamScreen() {
       let fullContent = "";
       let buffer = "";
       let assistantAdded = false;
+      let assistantMsgId = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -469,8 +486,9 @@ export default function ExamScreen() {
             if (parsed.content) {
               fullContent += parsed.content;
               if (!assistantAdded) {
+                assistantMsgId = generateMsgId();
                 setShowTyping(false);
-                const newMsg: Message = { id: generateMsgId(), role: "assistant", content: fullContent, timestamp: Date.now() };
+                const newMsg: Message = { id: assistantMsgId, role: "assistant", content: fullContent, timestamp: Date.now() };
                 setMessages((prev) => [...prev, newMsg]);
                 addMessage({ role: "assistant", content: fullContent });
                 assistantAdded = true;
@@ -486,7 +504,7 @@ export default function ExamScreen() {
         }
       }
 
-      if (fullContent) playTTS(fullContent);
+      if (fullContent) playTTS(fullContent, assistantMsgId);
     } catch {
       setShowTyping(false);
       const errMsg: Message = { id: generateMsgId(), role: "assistant", content: "Lo siento, hubo un error. Por favor intenta de nuevo.", timestamp: Date.now() };
@@ -505,8 +523,46 @@ export default function ExamScreen() {
 
   // ── TTS ───────────────────────────────────────────────────────────────────────
 
-  const playTTS = async (text: string) => {
+  const playAudioBase64 = async (audioBase64: string) => {
+    if (Platform.OS === "web") {
+      if (webAudioRef.current) {
+        webAudioRef.current.pause();
+        webAudioRef.current.src = "";
+        webAudioRef.current = null;
+      }
+      setIsTTSPlaying(true);
+      const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
+      webAudioRef.current = audio;
+      audio.onended = () => { setIsTTSPlaying(false); webAudioRef.current = null; };
+      audio.onerror = () => setIsTTSPlaying(false);
+      await audio.play();
+    } else {
+      if (nativeSoundRef.current) {
+        await nativeSoundRef.current.unloadAsync().catch(() => {});
+        nativeSoundRef.current = null;
+      }
+      setIsTTSPlaying(true);
+      const path = (FileSystem.cacheDirectory ?? "") + "exam_tts.mp3";
+      await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
+      const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
+      nativeSoundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsTTSPlaying(false);
+          sound.unloadAsync().catch(() => {});
+        }
+      });
+    }
+  };
+
+  const playTTS = async (text: string, msgId?: string) => {
     try {
+      // Check cache first
+      if (msgId && audioCache.has(msgId)) {
+        await playAudioBase64(audioCache.get(msgId)!);
+        return;
+      }
+
       // Stop any current TTS
       if (Platform.OS === "web") {
         if (webAudioRef.current) {
@@ -533,29 +589,10 @@ export default function ExamScreen() {
       const { audioBase64 } = await res.json();
       if (!audioBase64) throw new Error("No audio data");
 
-      if (Platform.OS === "web") {
-        // Use HTML Audio element — most reliable on web
-        const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
-        webAudioRef.current = audio;
-        audio.onended = () => {
-          setIsTTSPlaying(false);
-          webAudioRef.current = null;
-        };
-        audio.onerror = () => setIsTTSPlaying(false);
-        await audio.play();
-      } else {
-        // Native: write to filesystem then play
-        const path = (FileSystem.cacheDirectory ?? "") + "exam_tts.mp3";
-        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
-        const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
-        nativeSoundRef.current = sound;
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setIsTTSPlaying(false);
-            sound.unloadAsync().catch(() => {});
-          }
-        });
-      }
+      // Cache for instant replay
+      if (msgId) audioCache.set(msgId, audioBase64);
+
+      await playAudioBase64(audioBase64);
     } catch (e) {
       console.error("TTS error:", e);
       setIsTTSPlaying(false);
@@ -878,6 +915,11 @@ export default function ExamScreen() {
   const lastMsgIsAssistant = messages.length > 0 && messages[messages.length - 1].role === "assistant";
   const canRegenerate = lastMsgIsAssistant && !isStreaming && recordingState === "idle";
 
+  const handleReplayMessage = async (msgId: string, content: string) => {
+    if (isStreaming) return;
+    await playTTS(content, msgId);
+  };
+
   const micDisabled = isStreaming || recordingState === "processing" || recordingState === "preview";
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -915,7 +957,7 @@ export default function ExamScreen() {
         </View>
         <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
           {remaining > 0
-            ? `${remaining} pregunta${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""} • ~${timeEstimate} min restantes`
+            ? `Pregunta ${currentQuestion} de ${TOTAL_TURNS} • ~${timeEstimate} min restantes`
             : "Sesión completa — puedes terminar cuando quieras"}
         </Text>
       </View>
@@ -933,6 +975,7 @@ export default function ExamScreen() {
               themeColor={themeColor}
               isDark={isDark}
               isLast={index === messages.length - 1}
+              onReplay={() => handleReplayMessage(item.id, item.content)}
               onRegenerate={handleRegenerateQuestion}
               onSkip={handleSkipQuestion}
               canRegenerate={canRegenerate}
