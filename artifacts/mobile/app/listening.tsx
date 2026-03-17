@@ -660,27 +660,41 @@ export default function ListeningScreen() {
             {/* Seek / Progress bar */}
             {durationMs > 0 && (
               <View style={s.seekWrap}>
+                {/*
+                  Tall transparent hit-area owns the Responder so locationX is
+                  always relative to the full-width bar, never to a child.
+                  All visual children are pointerEvents="none" so they can't
+                  steal the touch and corrupt locationX.
+                */}
                 <View
-                  style={s.seekTrack}
+                  style={s.seekHitArea}
                   onLayout={(e) => {
                     seekBarLayoutRef.current = { x: 0, width: e.nativeEvent.layout.width };
                   }}
                   onStartShouldSetResponder={() => true}
                   onMoveShouldSetResponder={() => true}
+                  onStartShouldSetResponderCapture={() => true}
                   onResponderGrant={(e) => handleSeekBar(e.nativeEvent.locationX)}
                   onResponderMove={(e) => handleSeekBar(e.nativeEvent.locationX)}
                 >
-                  <View style={[s.seekFill, { width: `${durationMs > 0 ? (progressMs / durationMs) * 100 : 0}%` as any, backgroundColor: themeColor }]} />
-                  <View
-                    style={[
-                      s.seekThumb,
-                      {
-                        left: `${durationMs > 0 ? (progressMs / durationMs) * 100 : 0}%` as any,
+                  {/* Visual track — pointer-events disabled so hit-area keeps locationX ownership */}
+                  <View style={[s.seekTrack, { backgroundColor: colors.cardAlt }]} pointerEvents="none">
+                    <View
+                      pointerEvents="none"
+                      style={[s.seekFill, {
+                        width: `${(progressMs / durationMs) * 100}%` as any,
+                        backgroundColor: themeColor,
+                      }]}
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={[s.seekThumb, {
+                        left: `${(progressMs / durationMs) * 100}%` as any,
                         backgroundColor: themeColor,
                         borderColor: colors.card,
-                      },
-                    ]}
-                  />
+                      }]}
+                    />
+                  </View>
                 </View>
                 <View style={s.seekTimeRow}>
                   <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs / playbackSpeed)}</Text>
@@ -1092,10 +1106,11 @@ const s = StyleSheet.create({
   playerMeta: { flex: 1, gap: 3 },
   playerStatus: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   playerPlayCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  seekWrap: { gap: 6 },
-  seekTrack: { height: 6, borderRadius: 3, backgroundColor: "#00000015", overflow: "visible", position: "relative" },
+  seekWrap: { gap: 4 },
+  seekHitArea: { height: 44, justifyContent: "center" },   // 44pt min touch target; owns locationX
+  seekTrack: { height: 6, borderRadius: 3, overflow: "visible", position: "relative" },
   seekFill: { position: "absolute", left: 0, top: 0, height: 6, borderRadius: 3 },
-  seekThumb: { position: "absolute", top: -5, width: 16, height: 16, borderRadius: 8, marginLeft: -8, borderWidth: 2, elevation: 3 },
+  seekThumb: { position: "absolute", top: -5, width: 16, height: 16, borderRadius: 8, marginLeft: -8, borderWidth: 2, elevation: 3, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
   seekTimeRow: { flexDirection: "row", justifyContent: "space-between" },
   seekTime: { fontSize: 11, fontFamily: "Inter_400Regular" },
   speedLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
