@@ -59,7 +59,7 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
 `;
 
 router.post("/exam/chat", async (req, res) => {
-  const { messages, theme, sessionTurn } = req.body;
+  const { messages, theme, sessionTurn, regenerate } = req.body;
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -68,7 +68,17 @@ router.post("/exam/chat", async (req, res) => {
 
   const themeKey = theme.toLowerCase().replace(/\s+/g, "-");
   const themePrompt = THEME_DESCRIPTIONS[themeKey] || THEME_DESCRIPTIONS["identidades"];
-  const systemPrompt = themePrompt + BASE_INSTRUCTIONS;
+
+  const regenerateInstruction = regenerate
+    ? `\n\nSPECIAL INSTRUCTION — REGENERATE QUESTION: The student has requested a different question.
+- Look carefully at the student's LAST response in the conversation.
+- Ask a DIFFERENT question that builds naturally on what they just said — go deeper into a specific detail, perspective, or aspect they mentioned.
+- Do NOT repeat the previous question or change the topic abruptly.
+- The new question should feel like a natural follow-up that any good examiner would ask after hearing that response.
+- Keep it as ONE focused question only.`
+    : "";
+
+  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");

@@ -14,6 +14,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useColorScheme,
 } from "react-native";
@@ -237,6 +238,13 @@ export default function ExamScreen() {
       }
     };
   }, []);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    }
+  }, [messages.length]);
 
   // Pulse animation when recording
   useEffect(() => {
@@ -694,7 +702,6 @@ export default function ExamScreen() {
 
   const lastMsgIsAssistant = messages.length > 0 && messages[messages.length - 1].role === "assistant";
   const canRegenerate = lastMsgIsAssistant && !isStreaming && recordingState === "idle";
-  const reversedMessages = [...messages].reverse();
 
   const micDisabled = isStreaming || recordingState === "processing" || recordingState === "preview";
 
@@ -739,33 +746,34 @@ export default function ExamScreen() {
       </View>
 
       {/* Message list */}
-      <FlatList
-        ref={flatListRef}
-        data={reversedMessages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <MessageBubble
-            message={item}
-            themeColor={themeColor}
-            isDark={isDark}
-            isLast={index === 0}
-            onRegenerate={handleRegenerateQuestion}
-            canRegenerate={canRegenerate}
-          />
-        )}
-        inverted={messages.length > 0}
-        ListHeaderComponent={
-          showTyping ? (
-            <View style={[styles.typingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.typingAvatar, { backgroundColor: themeColor + "22", borderColor: themeColor + "44" }]}>
-                <Ionicons name="school-outline" size={14} color={themeColor} />
+      <View style={{ flex: 1 }}>
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <MessageBubble
+              message={item}
+              themeColor={themeColor}
+              isDark={isDark}
+              isLast={index === messages.length - 1}
+              onRegenerate={handleRegenerateQuestion}
+              canRegenerate={canRegenerate}
+            />
+          )}
+          ListFooterComponent={
+            showTyping ? (
+              <View style={[styles.typingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.typingAvatar, { backgroundColor: themeColor + "22", borderColor: themeColor + "44" }]}>
+                  <Ionicons name="school-outline" size={14} color={themeColor} />
+                </View>
+                <TypingIndicator color={themeColor} />
               </View>
-              <TypingIndicator color={themeColor} />
-            </View>
-          ) : null
-        }
-        contentContainerStyle={styles.listContent}
-      />
+            ) : null
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      </View>
 
       {/* Voice input area */}
       <View style={[styles.voiceArea, { paddingBottom: botPad + 16, backgroundColor: colors.card, borderTopColor: colors.border }]}>
@@ -781,8 +789,16 @@ export default function ExamScreen() {
         {/* Transcript preview card */}
         {recordingState === "preview" && (
           <View style={[styles.transcriptCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Text style={[styles.transcriptLabel, { color: colors.textSecondary }]}>Tu respuesta:</Text>
-            <Text style={[styles.transcriptText, { color: colors.text }]}>{transcript}</Text>
+            <Text style={[styles.transcriptLabel, { color: colors.textSecondary }]}>Tu respuesta (editable):</Text>
+            <TextInput
+              style={[styles.transcriptText, styles.transcriptInput, { color: colors.text, borderColor: colors.border }]}
+              value={transcript}
+              onChangeText={setTranscript}
+              multiline
+              scrollEnabled={false}
+              autoCorrect={false}
+              spellCheck={false}
+            />
             <View style={styles.transcriptActions}>
               <Pressable onPress={handleDeleteTranscript} style={({ pressed }) => [styles.transcriptDeleteBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}>
                 <Ionicons name="trash-outline" size={16} color="#FF4444" />
@@ -882,6 +898,7 @@ const styles = StyleSheet.create({
   transcriptCard: { width: "100%", borderRadius: 16, borderWidth: 1, padding: 14 },
   transcriptLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 },
   transcriptText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22, marginBottom: 12 },
+  transcriptInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, minHeight: 60 },
   transcriptActions: { flexDirection: "row", gap: 10 },
   transcriptDeleteBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 10 },
   transcriptDeleteText: { fontSize: 14, fontFamily: "Inter_500Medium", color: "#FF4444" },
