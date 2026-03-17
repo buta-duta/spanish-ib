@@ -50,7 +50,7 @@ type AnswerRecord = {
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 2, 3, 4];
+const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 4];
 const DEFAULT_MAX_PLAYS = 3;
 
 const PASSAGE_TYPES: { id: PassageType; label: string; icon: string; desc: string }[] = [
