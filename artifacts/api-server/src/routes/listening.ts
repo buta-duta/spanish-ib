@@ -160,24 +160,12 @@ router.post("/listening/tts", async (req, res) => {
       textToSpeech(seg.text, speakerVoiceMap.get(seg.speaker) ?? "shimmer", "mp3")
     );
 
-    // Programmatic silent buffers — no TTS calls for pauses
-    // (using TTS for "." or "..." causes the model to speak apology messages)
-    const shortPause = createSilentMp3(220);  // ~220ms between same-speaker lines
-    const longPause = createSilentMp3(520);   // ~520ms between different speakers
-
     const segmentBuffers = await Promise.all(segmentPromises);
 
-    // Interleave segment audio with pauses
-    const chunks: Buffer[] = [];
-    for (let i = 0; i < segmentBuffers.length; i++) {
-      chunks.push(segmentBuffers[i]);
-      if (i < segmentBuffers.length - 1) {
-        const isDifferentSpeaker = segments[i].speaker !== segments[i + 1].speaker;
-        chunks.push(isDifferentSpeaker ? longPause : shortPause);
-      }
-    }
-
-    const combined = Buffer.concat(chunks);
+    // Concatenate segments directly — OpenAI TTS already has natural trailing
+    // silence in each clip so no explicit gap audio is needed.
+    // (Injecting hand-crafted MP3 frames caused decoders to terminate early.)
+    const combined = Buffer.concat(segmentBuffers);
     res.json({
       audioBase64: combined.toString("base64"),
       isDualVoice: speakerVoiceMap.size >= 2,

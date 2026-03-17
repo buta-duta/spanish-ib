@@ -223,15 +223,15 @@ export default function ListeningScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (Platform.OS === "web") {
-      if (!webAudioRef.current || playStatus === "ended") {
-        if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current = null; }
+      if (!webAudioRef.current) {
+        // null means: never loaded, or ended/errored (ref cleared in those callbacks)
         const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
         audio.onloadedmetadata = () => setDurationMs(Math.floor((audio.duration ?? 0) * 1000));
         audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
-        audio.onended = () => { setPlayStatus("ended"); setProgressMs(0); };
-        audio.onerror = () => setPlayStatus("ready");
+        audio.onended = () => { webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
+        audio.onerror = () => { webAudioRef.current = null; setPlayStatus("ready"); };
         setPlayCount((c) => c + 1);
         setProgressMs(0);
       } else {
@@ -241,8 +241,8 @@ export default function ListeningScreen() {
       setPlayStatus("playing");
     } else {
       try {
-        if (!nativeSoundRef.current || playStatus === "ended") {
-          if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
+        if (!nativeSoundRef.current) {
+          // null means: never loaded, or ended/errored (ref cleared in those callbacks)
           const path = (FileSystem.cacheDirectory ?? "") + "listening.mp3";
           await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
           const { sound } = await Audio.Sound.createAsync({ uri: path });
@@ -251,7 +251,12 @@ export default function ListeningScreen() {
             if (!s.isLoaded) return;
             if (s.durationMillis) setDurationMs(s.durationMillis);
             setProgressMs(s.positionMillis ?? 0);
-            if (s.didJustFinish) { setPlayStatus("ended"); setProgressMs(0); }
+            if (s.didJustFinish) {
+              nativeSoundRef.current = null;
+              sound.unloadAsync().catch(() => {});
+              setPlayStatus("ended");
+              setProgressMs(0);
+            }
           });
           setPlayCount((c) => c + 1);
           setProgressMs(0);
@@ -266,7 +271,7 @@ export default function ListeningScreen() {
         setPlayStatus("ready");
       }
     }
-  }, [audioBase64, playbackSpeed, playStatus, playCount, maxPlays, unlimitedPlays]);
+  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays]);
 
   const pauseAudio = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -678,8 +683,8 @@ export default function ListeningScreen() {
                   />
                 </View>
                 <View style={s.seekTimeRow}>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs)}</Text>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs)}</Text>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs / playbackSpeed)}</Text>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs / playbackSpeed)}</Text>
                 </View>
               </View>
             )}
