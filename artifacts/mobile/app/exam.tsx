@@ -373,7 +373,7 @@ export default function ExamScreen() {
       } else {
         // Native: write to filesystem then play
         const path = (FileSystem.cacheDirectory ?? "") + "exam_tts.mp3";
-        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
+        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
         const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
         nativeSoundRef.current = sound;
         sound.setOnPlaybackStatusUpdate((status) => {
@@ -524,7 +524,7 @@ export default function ExamScreen() {
       if (!uri) { setRecordingState("idle"); return; }
 
       const audioBase64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: "base64" as any,
       });
 
       await transcribeAndPreview(audioBase64);
