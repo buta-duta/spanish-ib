@@ -20,6 +20,41 @@ pnpm workspace monorepo using TypeScript. Contains an IB Spanish B oral exam pra
 
 ## Features (IB Spanish Oral Exam App)
 
+### Feature 12: Voice-Only Input
+- Large animated microphone button (no text input)
+- Recording states: idle → recording (pulsing red) → transcript preview → processing
+- STT via POST /api/exam/transcribe (OpenAI gpt-4o-mini-transcribe)
+- TTS via POST /api/exam/tts (OpenAI nova voice) — auto-plays every AI response
+- Transcript preview card with Delete (re-record) and Send buttons
+- Silence hint "Puedes empezar a hablar" after 3.5s of recording
+- expo-av for recording + playback on both native and web
+
+### Feature 13: Practice Progress Bar
+- Fixed bar below header during exam session
+- Shows: "X preguntas restantes • ~Y minutos restantes" (1.5 min/question)
+- Total session = 8 exchanges; bar fills as turns complete
+- No countdown timer — static estimate only
+
+### Feature 14: Regenerate Options
+- Regenerate Question: "Otra pregunta" chip below last AI message, removes it and requests a new one
+- Regenerate Session: refresh icon in header → Alert confirmation → full reset
+- API accepts `regenerate: true` flag on /api/exam/chat
+
+### Feature 15: End-of-Session Feedback
+- Auto-fetches from POST /api/exam/feedback on summary screen load
+- Structured English feedback via GPT with json_object response_format:
+  - Overall comment
+  - IB Criteria A/B/C/D with band scores (1-7) and color-coded bar
+  - Grammar mistakes with error → correction → explanation
+  - Tense usage + vocabulary range analysis
+  - Better structures + advanced vocabulary chips
+  - 2-3 improved example sentences
+
+### Feature 16: Exit Chat
+- Red X button in exam header → Alert "¿Estás seguro de que quieres salir?"
+- Stops recording + unloads audio before navigating home
+- Separate "Terminar" button for ending with summary
+
 ### Feature 11: Smart Theme Selection System
 - 5 IB themes: Identidades, Experiencias, Ingenio humano, Organización social, Compartir el planeta
 - User-selected mode: pick any theme directly

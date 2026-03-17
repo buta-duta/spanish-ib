@@ -1,0 +1,132 @@
+-----------------------------------
+-----------------------------------
+FEATURE 12: VOICE-ONLY INPUT (MICROPHONE UX)
+-----------------------------------
+
+- The app must ONLY accept input via voice (speech-to-text)
+- Completely remove any text input fields
+
+UI REQUIREMENT:
+- Use a LARGE microphone icon button (🎤) as the ONLY input method
+
+Interaction flow:
+1. User taps the microphone icon (🎤) to start speaking
+2. While recording:
+- Microphone icon changes state (e.g. glowing, pulsing, or red)
+- Show label: "Escuchando..."
+3. Live transcript appears on screen in real time
+4. User taps the microphone icon again to STOP recording
+5. The spoken response is automatically submitted
+
+- Do NOT include any “Start Speaking” or text-based buttons
+
+Add an option to delete input from a microphone and submission button before sending in a chat with AI
+
+-----------------------------------
+AI RESPONSE (VOICE OUTPUT)
+-----------------------------------
+
+- Every AI response must:
+- Be displayed as text
+- Be spoken aloud in Spanish using text-to-speech
+
+-----------------------------------
+EXTRA UX DETAILS
+-----------------------------------
+
+- Add subtle animation to microphone when active
+- If user is silent for a few seconds:
+- Show hint: "Puedes empezar a hablar"
+- If speech is unclear:
+- Allow retry by tapping mic again
+
+-----------------------------------
+GOAL:
+Create a natural, mobile-first, conversation experience that mimics
+real speaking conditions of the IB Spanish B Oral exam.
+
+-----------------------------------
+FEATURE 13: PRACTICE PROGRESS BAR
+-----------------------------------
+
+Add a progress bar fixed at the top of the screen during practice.
+
+The progress bar must show:
+- Current progress through the session (visual bar)
+- Number of questions remaining
+- Estimated time remaining in MINUTES (not a countdown)
+
+IMPORTANT:
+- Do NOT display a live countdown timer
+- Instead show static estimates, for example:
+  "3 preguntas restantes • ~4 minutos restantes"
+
+- Update this after each completed question
+
+-----------------------------------
+FEATURE 14: REGENERATE OPTIONS
+-----------------------------------
+
+Add two regeneration controls:
+
+1. REGENERATE QUESTION
+- Button visible after each AI question
+- Replaces the current question with a new one from the same theme
+- Must not repeat previous questions
+
+2. REGENERATE SESSION (MAIN IDEA)
+- Button available at any time during session
+- Resets the conversation
+- Generates:
+  - New image
+  - New theme (if random mode)
+  - New set of questions
+
+-----------------------------------
+FEATURE 15: END-OF-SESSION FEEDBACK
+-----------------------------------
+
+After the practice session ends, AI must provide structured feedback in English.
+
+Feedback must include:
+
+1. LANGUAGE ANALYSIS
+- Grammar mistakes (specific corrections)
+- Tense usage (what was used vs what should be used)
+- Vocabulary range (basic vs advanced)
+
+2. IMPROVEMENT SUGGESTIONS
+- Better sentence structures
+- More advanced connectors
+- Suggested higher-level vocabulary
+
+3. IB CRITERIA ESTIMATION
+- Criterion A: Language
+- Criterion B: Message
+- Criterion C: Conceptual Understanding
+- Criterion D: Interaction
+
+4. EXAMPLES
+- Show 2–3 improved versions of user sentences in Spanish
+
+-----------------------------------
+FEATURE 16: EXIT CHAT OPTION
+-----------------------------------
+
+- Add a clearly visible "Exit Session" button
+
+When clicked:
+- Immediately stop current session
+- Save progress (optional)
+- Return user to main menu
+
+- Include confirmation prompt:
+  "¿Estás seguro de que quieres salir?"
+
+-----------------------------------
+GOAL:
+Ensure a fully voice-driven, exam-realistic experience with:
+- Clear progress tracking
+- Flexible practice (regeneration options)
+- Actionable IB-level feedback
+- Full user control (exit anytime)
