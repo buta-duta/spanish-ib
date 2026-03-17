@@ -122,6 +122,81 @@ router.post("/exam/chat", async (req, res) => {
   }
 });
 
+// ── Image-based oral exam ─────────────────────────────────────────────────────
+router.post("/exam/image-chat", async (req, res) => {
+  const { messages, theme, imageDescription, imageCaption, sessionTurn } = req.body;
+  if (!messages || !imageDescription) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  const themeKey = (theme || "").toLowerCase().replace(/\s+/g, "-");
+  const themeName: Record<string, string> = {
+    identidades: "Identidades",
+    experiencias: "Experiencias",
+    "ingenio-humano": "Ingenio humano",
+    "organizacion-social": "Organización social",
+    "compartir-el-planeta": "Compartir el planeta",
+  };
+
+  const systemPrompt = `You are an experienced IB Spanish B oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
+
+The student is looking at a photograph described as:
+"${imageCaption || "An image related to the theme"}"
+
+DETAILED IMAGE DESCRIPTION (for your reference — the student can see the image):
+${imageDescription}
+
+The IB theme being examined is: ${themeName[themeKey] || "Compartir el planeta"}
+
+YOUR ROLE AS EXAMINER:
+1. ALWAYS respond ENTIRELY in Spanish. Never use English.
+2. On the FIRST turn (when messages list is empty or has only the initial greeting): Welcome the student warmly, briefly describe the task, and ask them to begin describing what they see in the image.
+3. On SUBSEQUENT turns: React to the student's response with brief encouraging feedback (1 sentence), then ask ONE focused follow-up question.
+4. Follow this PROGRESSION through the exam:
+   - Phase 1 (first 2–3 turns): Descriptive — "¿Qué ves en la imagen? ¿Qué está pasando?"
+   - Phase 2 (middle turns): Interpretive — "¿Por qué crees que...? ¿Qué mensaje transmite esta imagen?"
+   - Phase 3 (later turns): Analytical + Cultural — "¿Cómo se relaciona esto con la situación en...? ¿Qué soluciones propones?"
+5. Questions must be open-ended, IB-standard, and directly related to the image AND theme.
+6. Cross-theme connections (e.g. linking identity to social organisation) earn Band 6–7 marks — nudge the student towards these.
+7. Keep responses concise: feedback (1 sentence) + one question (1 sentence).
+8. Use informal "tú" throughout.
+9. Show the personality of a professional but encouraging examiner.
+10. If the student is on turn ${sessionTurn || 0} of the exam, calibrate difficulty accordingly.`;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+      ...messages.filter((m: { role: string }) => m.role !== "system"),
+    ];
+
+    const stream = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 8192,
+      messages: chatMessages,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
+  } catch (error) {
+    console.error("Image chat error:", error);
+    res.write(`data: ${JSON.stringify({ error: "Error connecting to AI" })}\n\n`);
+    res.write("data: [DONE]\n\n");
+    res.end();
+  }
+});
+
 router.post("/exam/transcribe", async (req, res) => {
   const { audioBase64 } = req.body;
 

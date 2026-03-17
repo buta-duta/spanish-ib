@@ -1,0 +1,107 @@
+-----------------------------------
+FEATURE 25: IB READING PRACTICE MODE
+-----------------------------------
+
+GOAL:
+Provide IB-style reading comprehension practice based on Spanish B themes
+
+-----------------------------------
+REQUIREMENTS
+-----------------------------------
+
+- Create texts for each theme (150–400 words)
+- Include different text types:
+  - article
+  - blog
+  - interview
+  - advertisement
+
+-----------------------------------
+
+QUESTION TYPES:
+- Multiple choice
+- True/False with justification
+- Short answer questions
+- Vocabulary in context:
+  "Find a word in the text that means..."
+
+-----------------------------------
+
+AFTER ANSWERS:
+- Show correct answers
+- Provide explanations:
+  - why correct
+  - why others are incorrect
+
+-----------------------------------
+
+INTERACTIVE TEXT:
+- Allow clicking words AND sentences
+- Show:
+  - translation
+  - grammar breakdown
+  - tense explanation
+
+-----------------------------------
+
+PROGRESS TRACKING:
+- Track performance by:
+  - vocabulary
+  - inference
+  - detail questions
+
+-----------------------------------
+FEATURE 26: IB WRITING PRACTICE MODE
+-----------------------------------
+
+GOAL:
+Help users improve IB Spanish writing to Band 6–7 level
+
+-----------------------------------
+TEXT TYPES:
+- Email
+- Article
+- Blog
+- Essay
+
+-----------------------------------
+
+USER FLOW:
+1. Show prompt (theme-based)
+2. Show required text type
+3. Optional structure guide
+4. User writes response
+
+-----------------------------------
+
+AI FEEDBACK:
+After submission, provide:
+
+1. Grammar corrections
+2. Tense usage feedback
+3. Vocabulary level analysis
+4. Structure evaluation
+5. Task completion assessment
+
+-----------------------------------
+
+UPGRADE FEATURE:
+- Add button:
+  "✨ Upgrade my answer"
+
+- AI rewrites response into:
+  - higher-level vocabulary
+  - better structure
+  - Band 7 quality
+
+-----------------------------------
+
+TIMED MODE:
+- Optional timer (20–30 minutes)
+- Show word count
+
+-----------------------------------
+
+GOAL:
+Improve writing quality, not just quantity,
+and train students to meet IB marking criteria.

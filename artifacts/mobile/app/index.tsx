@@ -58,6 +58,11 @@ export default function HomeScreen() {
     router.push("/theme-select");
   };
 
+  const handleImagePractice = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/image-practice");
+  };
+
   const handleHistory = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push("/history");
@@ -229,9 +234,24 @@ export default function HomeScreen() {
             style={styles.startBtnGradient}
           >
             <Ionicons name="mic-outline" size={22} color="#fff" />
-            <Text style={styles.startBtnText}>Comenzar examen</Text>
+            <Text style={styles.startBtnText}>Comenzar examen oral</Text>
             <Ionicons name="arrow-forward" size={20} color="#fff" />
           </LinearGradient>
+        </Pressable>
+
+        {/* Image practice button */}
+        <Pressable
+          onPress={handleImagePractice}
+          style={({ pressed }) => [
+            styles.imageBtn,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <Ionicons name="image-outline" size={20} color={theme.tint} />
+          <Text style={[styles.imageBtnText, { color: theme.text }]}>Práctica con imagen</Text>
+          <View style={[styles.imageBtnBadge, { backgroundColor: theme.tint + "20", borderColor: theme.tint + "40" }]}>
+            <Text style={[styles.imageBtnBadgeText, { color: theme.tint }]}>IB Oral</Text>
+          </View>
         </Pressable>
       </Animated.View>
     </View>
@@ -379,5 +399,30 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     flex: 1,
     textAlign: "center",
+  },
+  imageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  imageBtnText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+  },
+  imageBtnBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  imageBtnBadgeText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
   },
 });
