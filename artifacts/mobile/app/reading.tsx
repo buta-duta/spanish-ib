@@ -158,6 +158,9 @@ export default function ReadingScreen() {
   const [pastedText, setPastedText] = useState("");
   const [pastedTitle, setPastedTitle] = useState("");
 
+  // Custom focus (Feature 27)
+  const [customFocus, setCustomFocus] = useState("");
+
   // Generated content
   const [readingTitle, setReadingTitle] = useState("");
   const [readingText, setReadingText] = useState("");
@@ -190,7 +193,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedTheme, textType: selectedType }),
+        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
       });
       const data = await res.json();
       setReadingTitle(data.title ?? "Texto de lectura");
@@ -471,6 +474,23 @@ export default function ReadingScreen() {
                     );
                   })}
                 </View>
+              </View>
+
+              {/* Custom Focus (Feature 27) */}
+              <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={s.customFocusHeader}>
+                  <Ionicons name="options-outline" size={15} color={colors.textSecondary} />
+                  <Text style={[s.customFocusLabel, { color: colors.textSecondary }]}>Enfoque personalizado <Text style={{ fontFamily: "Inter_400Regular" }}>(opcional)</Text></Text>
+                </View>
+                <TextInput
+                  style={[s.customFocusInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.cardAlt }]}
+                  placeholder="p.ej. tecnología, subjuntivo, vocabulario de salud, conectores avanzados…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={customFocus}
+                  onChangeText={setCustomFocus}
+                  multiline={false}
+                  returnKeyType="done"
+                />
               </View>
 
               {/* Generate button */}
@@ -1135,6 +1155,10 @@ const s = StyleSheet.create({
   optionText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
   typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   typeChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  customFocusCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  customFocusHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  customFocusLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  customFocusInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontFamily: "Inter_400Regular" },
   primaryBtn: { borderRadius: 14, overflow: "hidden" },
   primaryBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 20 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },

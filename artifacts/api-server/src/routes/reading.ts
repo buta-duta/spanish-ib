@@ -21,13 +21,17 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
-  const { theme = "experiencias", textType = "article" } = req.body as {
+  const { theme = "experiencias", textType = "article", customFocus } = req.body as {
     theme?: string;
     textType?: string;
+    customFocus?: string;
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
   const typeName = TEXT_TYPE_NAMES[textType] ?? textType;
+  const focusLine = customFocus?.trim()
+    ? `\n- Custom focus: Naturally incorporate the following into the text: "${customFocus.trim()}"`
+    : "";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -46,7 +50,7 @@ REQUIREMENTS:
 - Use proper paragraph structure (3–5 paragraphs)
 - Include culturally relevant references to Spanish-speaking countries when appropriate
 - Use a variety of grammatical structures: subjunctive, conditional, passive voice
-- Write in a style authentic to a real ${typeName}
+- Write in a style authentic to a real ${typeName}${focusLine}
 
 FORMAT:
 Return a JSON object with exactly these fields:

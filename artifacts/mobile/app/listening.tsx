@@ -86,6 +86,7 @@ export default function ListeningScreen() {
   const [selectedType, setSelectedType] = useState<PassageType>("conversation");
   const [manualPassage, setManualPassage] = useState("");
   const [generatingPassage, setGeneratingPassage] = useState(false);
+  const [customFocus, setCustomFocus] = useState("");
 
   // ── Passage state ─────────────────────────────────────────────────────────────
   const [passageTitle, setPassageTitle] = useState("");
@@ -134,7 +135,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType }),
+        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
@@ -192,8 +193,8 @@ export default function ListeningScreen() {
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const formatTime = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+    const s = Math.floor(Math.max(0, ms) / 1000);
+    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
   };
 
   const seekTo = useCallback(async (ms: number) => {
@@ -228,7 +229,11 @@ export default function ListeningScreen() {
         const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
-        audio.onloadedmetadata = () => setDurationMs(Math.floor((audio.duration ?? 0) * 1000));
+        const captureDuration = () => {
+          if (audio.duration && isFinite(audio.duration)) setDurationMs(Math.floor(audio.duration * 1000));
+        };
+        audio.onloadedmetadata = captureDuration;
+        audio.ondurationchange = captureDuration;
         audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
         audio.onended = () => { webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
         audio.onerror = () => { webAudioRef.current = null; setPlayStatus("ready"); };
@@ -465,6 +470,23 @@ export default function ListeningScreen() {
                 </Pressable>
               );
             })}
+          </View>
+
+          {/* Custom Focus (Feature 27) */}
+          <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={s.customFocusHeader}>
+              <Ionicons name="options-outline" size={15} color={colors.textSecondary} />
+              <Text style={[s.customFocusLabel, { color: colors.textSecondary }]}>Enfoque personalizado <Text style={{ fontFamily: "Inter_400Regular" }}>(opcional)</Text></Text>
+            </View>
+            <TextInput
+              style={[s.customFocusInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.cardAlt }]}
+              placeholder="p.ej. vocabulario del medio ambiente, subjuntivo, conectores avanzados…"
+              placeholderTextColor={colors.textSecondary}
+              value={customFocus}
+              onChangeText={setCustomFocus}
+              multiline={false}
+              returnKeyType="done"
+            />
           </View>
 
           {/* Generate button */}
@@ -1070,6 +1092,10 @@ const s = StyleSheet.create({
   typeCard: { width: "47.5%", borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
   typeLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   typeDesc: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  customFocusCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  customFocusHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  customFocusLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  customFocusInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontFamily: "Inter_400Regular" },
   generateBtn: { borderRadius: 14, overflow: "hidden" },
   generateGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 15 },
   generateText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },

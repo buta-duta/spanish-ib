@@ -1,0 +1,98 @@
+-----------------------------------
+FEATURE 26: AUDIO PLAYER FIX (TIME + DURATION)
+-----------------------------------
+
+PROBLEM:
+- The audio slider does NOT correctly display:
+  1. Current playback time
+  2. Total duration of the audio track
+
+REQUIREMENTS:
+
+1. ACCURATE CURRENT TIME
+- Display current playback time in format:
+  mm:ss
+- Must update in real-time as audio plays
+
+2. ACCURATE TOTAL DURATION
+- Display full length of the audio track (mm:ss)
+- Must load correctly once audio metadata is available
+
+3. SLIDER SYNC
+- Slider must:
+  - Move smoothly with playback
+  - Be draggable by user to seek position
+  - Update current time when user drags
+
+4. METADATA HANDLING
+- Use audio metadata event (e.g. "loadedmetadata") to:
+  - Set correct duration before playback
+
+5. UI FORMAT EXAMPLE:
+  01:12 / 03:45
+
+-----------------------------------
+FEATURE 27: CUSTOM AI GENERATION INSTRUCTIONS
+-----------------------------------
+
+GOAL:
+Allow users to guide AI-generated reading and listening content
+based on specific topics or vocabulary they want to practice.
+
+-----------------------------------
+FEATURE 27.1: USER INPUT FOR CUSTOM INSTRUCTIONS
+-----------------------------------
+
+- Add optional input field before generating content:
+
+Label:
+"Custom Focus (Optional)"
+
+Placeholder:
+"e.g. environment, technology, subjunctive phrases, advanced connectors"
+
+- This field is OPTIONAL:
+  - If empty → normal generation
+  - If filled → AI must adapt output
+
+-----------------------------------
+FEATURE 27.2: AI BEHAVIOR
+-----------------------------------
+
+When generating reading or listening text:
+
+- AI must:
+  - Incorporate requested topics and/or vocabulary naturally
+  - Maintain IB Spanish B level and structure
+  - NOT force unnatural repetition
+
+Examples:
+- If user inputs "environment + climate change vocab"
+  → text should include relevant terminology naturally
+
+- If user inputs "subjunctive + opinion phrases"
+  → text should include appropriate grammar structures
+
+-----------------------------------
+FEATURE 27.3: SCOPE
+-----------------------------------
+
+This must apply to:
+- Reading text generation
+- Listening script generation (before TTS playback)
+
+-----------------------------------
+FEATURE 27.4: UI INTEGRATION
+-----------------------------------
+
+- Place input field above:
+  - "Generate Text" button
+
+- Keep UI clean and optional (no clutter)
+
+-----------------------------------
+GOAL:
+Give users control over their practice by targeting:
+- Weak vocabulary areas
+- Specific IB themes
+- Advanced grammar structures

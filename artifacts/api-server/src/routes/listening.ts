@@ -80,10 +80,13 @@ function parseDialogue(text: string): DialogueSeg[] {
 
 // ── Generate passage (F35) ────────────────────────────────────────────────────
 router.post("/listening/passage", async (req, res) => {
-  const { theme, passageType } = req.body;
+  const { theme, passageType, customFocus } = req.body;
   const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
   const themeName = THEME_NAMES[themeKey] || "Identidades";
   const type = passageType || "conversation";
+  const focusLine = customFocus?.trim()
+    ? `\n- Custom focus: Naturally incorporate the following vocabulary, topics, or grammar into the passage: "${customFocus.trim()}"`
+    : "";
 
   const formatInstructions: Record<string, string> = {
     conversation: `FORMAT: A natural dialogue between 2 people. Label each turn clearly as:\nNombre A: [text]\nNombre B: [text]\nUse realistic Spanish first names. Include natural fillers: bueno, pues, eh..., mira, oye. Aim for 6-10 turns each.`,
@@ -102,7 +105,7 @@ Content guidelines:
 - Theme content: Explore a specific aspect of "${themeName}" with depth
 - Include cultural references relevant to Spanish-speaking countries
 - Use varied tenses: present, preterite, imperfect, conditional, subjunctive where natural
-- Make the content engaging and exam-realistic
+- Make the content engaging and exam-realistic${focusLine}
 
 Return ONLY valid JSON (no markdown):
 {
