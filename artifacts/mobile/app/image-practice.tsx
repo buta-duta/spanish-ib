@@ -36,7 +36,7 @@ function getApiUrl() {
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "select" | "prep" | "exam" | "feedback";
 type RecordingState = "idle" | "recording" | "processing" | "preview";
-type Message = { id: string; role: "user" | "assistant"; content: string };
+type Message = { id: string; role: "user" | "assistant"; content: string; timestamp?: number };
 type WordData = { phonetic: string; meaning: string; partOfSpeech: string } | null;
 type CriterionScore = { score: number; label: string; feedback: string };
 type FeedbackData = {
@@ -503,7 +503,7 @@ export default function ImagePracticeScreen() {
                 if (!assistantAdded) {
                   assistantMsgId = generateId();
                   setShowTyping(false);
-                  setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: fullContent }]);
+                  setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: fullContent, timestamp: Date.now() }]);
                   assistantAdded = true;
                   // Start exam timer on first AI message (F33)
                   startExamTimer();
@@ -582,7 +582,13 @@ export default function ImagePracticeScreen() {
     });
     const blob = new Blob(webAudioChunksRef.current, { type: webMimeTypeRef.current });
     const buf = await blob.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    const b64 = btoa(binary);
     await transcribeAndPreview(b64, "audio.webm");
   };
 
@@ -643,7 +649,7 @@ export default function ImagePracticeScreen() {
     if (!text || isStreaming) return;
     setTranscript("");
     setRecordingState("idle");
-    const userMsg: Message = { id: generateId(), role: "user", content: text };
+    const userMsg: Message = { id: generateId(), role: "user", content: text, timestamp: Date.now() };
     const currentMessages = [...messages];
     setMessages((prev) => [...prev, userMsg]);
     if (!examTimeUp) {
@@ -871,6 +877,26 @@ export default function ImagePracticeScreen() {
     const criteria = feedback
       ? [feedback.criterionA, feedback.criterionB, feedback.criterionC, feedback.criterionD]
       : [];
+
+    // Compute per-question response times and answer lengths
+    const timingRows: { label: string; seconds: number; words: number }[] = [];
+    let qNum = 0;
+    for (let i = 0; i < messages.length - 1; i++) {
+      const a = messages[i];
+      const u = messages[i + 1];
+      if (a.role === "assistant" && u.role === "user" && a.timestamp && u.timestamp) {
+        qNum++;
+        const secs = Math.round((u.timestamp - a.timestamp) / 1000);
+        const words = u.content.trim().split(/\s+/).filter(Boolean).length;
+        timingRows.push({ label: `Pregunta ${qNum}`, seconds: secs, words });
+      }
+    }
+    const avgTime = timingRows.length > 0
+      ? Math.round(timingRows.reduce((s, r) => s + r.seconds, 0) / timingRows.length)
+      : null;
+    const avgWords = timingRows.length > 0
+      ? Math.round(timingRows.reduce((s, r) => s + r.words, 0) / timingRows.length)
+      : null;
     const bandColors: Record<string, string> = {
       A: "#9B59B6", B: "#2ECC71", C: "#3498DB", D: "#E67E22",
     };
@@ -961,6 +987,32 @@ export default function ImagePracticeScreen() {
           ) : (
             <View style={sc.fbLoadingBox}>
               <Text style={[sc.fbLoadingText, { color: colors.textSecondary }]}>No se pudo generar el feedback.</Text>
+            </View>
+          )}
+
+          {/* Timing stats */}
+          {timingRows.length > 0 && (
+            <View style={[sc.listCard, { backgroundColor: colors.card, borderColor: "#3498DB40" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <Ionicons name="timer-outline" size={16} color="#3498DB" />
+                <Text style={[sc.listCardTitle, { color: "#3498DB", marginBottom: 0 }]}>Tiempos de respuesta</Text>
+              </View>
+              {timingRows.map((r, i) => (
+                <View key={i} style={[sc.listRow, { justifyContent: "space-between" }]}>
+                  <Text style={[sc.listRowText, { color: colors.textSecondary, flex: 1 }]}>{r.label}</Text>
+                  <Text style={[sc.listRowText, { color: colors.text, fontFamily: "Inter_600SemiBold" }]}>
+                    {r.seconds}s · {r.words} palabras
+                  </Text>
+                </View>
+              ))}
+              {avgTime !== null && (
+                <View style={[sc.listRow, { justifyContent: "space-between", marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }]}>
+                  <Text style={[sc.listRowText, { color: colors.text, fontFamily: "Inter_600SemiBold", flex: 1 }]}>Promedio</Text>
+                  <Text style={[sc.listRowText, { color: "#3498DB", fontFamily: "Inter_600SemiBold" }]}>
+                    {avgTime}s · {avgWords} palabras
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
