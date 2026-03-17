@@ -237,4 +237,29 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
   }
 });
 
+// ── Word explanation ──────────────────────────────────────────────────────────
+router.post("/exam/word", async (req, res) => {
+  const { word, context } = req.body;
+  if (!word) { res.status(400).json({ error: "Missing word" }); return; }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 200,
+      messages: [
+        { role: "system", content: "You are a Spanish language dictionary. Return only valid JSON with no markdown code blocks." },
+        {
+          role: "user",
+          content: `Spanish word: "${word}"\nContext sentence: "${(context || word).slice(0, 300)}"\n\nReturn JSON only:\n{ "phonetic": "readable syllable pronunciation like deh-sah-rroh-yoh", "meaning": "concise English meaning based on context (max 15 words)", "partOfSpeech": "noun / verb / adjective / adverb / etc" }`,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+    const data = JSON.parse(response.choices[0]?.message?.content || "{}");
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: "Word explanation failed" });
+  }
+});
+
 export default router;
