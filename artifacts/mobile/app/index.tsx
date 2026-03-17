@@ -7,6 +7,7 @@ import {
   Animated,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -96,16 +97,17 @@ export default function HomeScreen() {
       />
 
       <Animated.View
-        style={[
-          styles.content,
-          {
-            paddingTop: topPad + 20,
-            paddingBottom: botPad + 20,
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
+        style={{
+          flex: 1,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
       >
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}
+          showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={false}
+        >
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -333,6 +335,7 @@ export default function HomeScreen() {
             <Text style={[styles.imageBtnBadgeText, { color: "#E67E22" }]}>IB Writing</Text>
           </View>
         </Pressable>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -341,8 +344,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    flex: 1,
     paddingHorizontal: 20,
+    flexGrow: 1,
   },
   header: {
     flexDirection: "row",

@@ -226,7 +226,12 @@ export default function ListeningScreen() {
     if (Platform.OS === "web") {
       if (!webAudioRef.current) {
         // null means: never loaded, or ended/errored (ref cleared in those callbacks)
-        const audio = new (window as any).Audio(`data:audio/mp3;base64,${audioBase64}`) as HTMLAudioElement;
+        // Convert base64 → Blob URL so browsers fire loadedmetadata reliably.
+        // Data URIs can return NaN/~10s duration on mobile Safari/Chrome.
+        const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "audio/mpeg" });
+        const blobUrl = URL.createObjectURL(blob);
+        const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
         const captureDuration = () => {
@@ -235,8 +240,8 @@ export default function ListeningScreen() {
         audio.onloadedmetadata = captureDuration;
         audio.ondurationchange = captureDuration;
         audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
-        audio.onended = () => { webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
-        audio.onerror = () => { webAudioRef.current = null; setPlayStatus("ready"); };
+        audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
+        audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ready"); };
         setPlayCount((c) => c + 1);
         setProgressMs(0);
       } else {
