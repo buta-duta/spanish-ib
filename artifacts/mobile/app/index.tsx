@@ -73,6 +73,11 @@ export default function HomeScreen() {
     router.push("/reading");
   };
 
+  const handleWriting = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/writing");
+  };
+
   const handleHistory = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push("/history");
@@ -291,6 +296,21 @@ export default function HomeScreen() {
           <Text style={[styles.imageBtnText, { color: theme.text }]}>Comprensión lectora</Text>
           <View style={[styles.imageBtnBadge, { backgroundColor: "#27AE6020", borderColor: "#27AE6040" }]}>
             <Text style={[styles.imageBtnBadgeText, { color: "#27AE60" }]}>IB Reading</Text>
+          </View>
+        </Pressable>
+
+        {/* Writing practice button */}
+        <Pressable
+          onPress={handleWriting}
+          style={({ pressed }) => [
+            styles.imageBtn,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <Ionicons name="create-outline" size={20} color="#E67E22" />
+          <Text style={[styles.imageBtnText, { color: theme.text }]}>Práctica de escritura</Text>
+          <View style={[styles.imageBtnBadge, { backgroundColor: "#E67E2220", borderColor: "#E67E2240" }]}>
+            <Text style={[styles.imageBtnBadgeText, { color: "#E67E22" }]}>IB Writing</Text>
           </View>
         </Pressable>
       </Animated.View>
