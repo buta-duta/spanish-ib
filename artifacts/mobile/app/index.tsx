@@ -63,6 +63,11 @@ export default function HomeScreen() {
     router.push("/image-practice");
   };
 
+  const handleListening = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/listening");
+  };
+
   const handleHistory = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push("/history");
@@ -251,6 +256,21 @@ export default function HomeScreen() {
           <Text style={[styles.imageBtnText, { color: theme.text }]}>Práctica con imagen</Text>
           <View style={[styles.imageBtnBadge, { backgroundColor: theme.tint + "20", borderColor: theme.tint + "40" }]}>
             <Text style={[styles.imageBtnBadgeText, { color: theme.tint }]}>IB Oral</Text>
+          </View>
+        </Pressable>
+
+        {/* Listening practice button */}
+        <Pressable
+          onPress={handleListening}
+          style={({ pressed }) => [
+            styles.imageBtn,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <Ionicons name="headset-outline" size={20} color="#3498DB" />
+          <Text style={[styles.imageBtnText, { color: theme.text }]}>Comprensión auditiva</Text>
+          <View style={[styles.imageBtnBadge, { backgroundColor: "#3498DB20", borderColor: "#3498DB40" }]}>
+            <Text style={[styles.imageBtnBadgeText, { color: "#3498DB" }]}>IB Listening</Text>
           </View>
         </Pressable>
       </Animated.View>
