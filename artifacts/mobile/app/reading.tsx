@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -172,6 +174,11 @@ export default function ReadingScreen() {
   // Word popup
   const [wordPopup, setWordPopup] = useState<{ word: string; context: string } | null>(null);
 
+  // TTS read-aloud
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -244,6 +251,55 @@ export default function ReadingScreen() {
     setSubmitted(false);
     setPastedText("");
     setPastedTitle("");
+  };
+
+  const stopTts = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+    } catch {}
+    setTtsPlaying(false);
+  };
+
+  const readAloud = async () => {
+    if (ttsLoading) return;
+    if (ttsPlaying) { stopTts(); return; }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTtsLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}api/exam/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: readingText }),
+      });
+      const { audioBase64 } = await res.json();
+      if (Platform.OS === "web") {
+        const audio = new (globalThis as any).Audio(`data:audio/mp3;base64,${audioBase64}`);
+        audio.onended = () => setTtsPlaying(false);
+        audio.play();
+        setTtsPlaying(true);
+      } else {
+        const path = (FileSystem.cacheDirectory ?? "") + "reading_tts.mp3";
+        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" as any });
+        const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
+        soundRef.current = sound;
+        setTtsPlaying(true);
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.unloadAsync();
+            soundRef.current = null;
+            setTtsPlaying(false);
+          }
+        });
+      }
+    } catch {
+      setTtsPlaying(false);
+    } finally {
+      setTtsLoading(false);
+    }
   };
 
   const setAnswer = (id: number, val: string) => {
@@ -476,12 +532,39 @@ export default function ReadingScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 24 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Tap hint */}
-          <View style={[s.hintRow, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30" }]}>
-            <Ionicons name="finger-print-outline" size={14} color={ACCENT} />
-            <Text style={[s.hintText, { color: ACCENT }]}>
-              Toca cualquier palabra para ver su definición
-            </Text>
+          {/* Tap hint + Read aloud row */}
+          <View style={s.hintAndTtsRow}>
+            <View style={[s.hintRow, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30", flex: 1 }]}>
+              <Ionicons name="finger-print-outline" size={14} color={ACCENT} />
+              <Text style={[s.hintText, { color: ACCENT }]}>
+                Toca una palabra para ver su definición
+              </Text>
+            </View>
+            <Pressable
+              onPress={readAloud}
+              disabled={ttsLoading}
+              style={({ pressed }) => [
+                s.ttsBtn,
+                {
+                  backgroundColor: ttsPlaying ? ACCENT + "25" : colors.card,
+                  borderColor: ttsPlaying ? ACCENT : colors.border,
+                  opacity: pressed ? 0.75 : 1,
+                },
+              ]}
+            >
+              {ttsLoading ? (
+                <ActivityIndicator size="small" color={ACCENT} />
+              ) : (
+                <Ionicons
+                  name={ttsPlaying ? "stop-circle" : "volume-high-outline"}
+                  size={20}
+                  color={ttsPlaying ? ACCENT : colors.textSecondary}
+                />
+              )}
+              <Text style={[s.ttsBtnText, { color: ttsPlaying ? ACCENT : colors.textSecondary }]}>
+                {ttsLoading ? "Cargando..." : ttsPlaying ? "Detener" : "Leer"}
+              </Text>
+            </Pressable>
           </View>
 
           {/* Reading text — paragraphs */}
@@ -994,7 +1077,10 @@ const s = StyleSheet.create({
   titleInput: { marginTop: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular" },
   pasteInput: { marginTop: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, minHeight: 180 },
   charCount: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "right", marginTop: 4 },
-  hintRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 14, marginTop: 4 },
+  hintAndTtsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14, marginTop: 4 },
+  hintRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, borderWidth: 1 },
+  ttsBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, minWidth: 80, justifyContent: "center" },
+  ttsBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   hintText: { fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   readingCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
   readingText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 27 },
