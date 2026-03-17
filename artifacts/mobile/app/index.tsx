@@ -104,237 +104,264 @@ export default function HomeScreen() {
         }}
       >
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: topPad + 24, paddingBottom: botPad + 32 },
+          ]}
           showsVerticalScrollIndicator={false}
           alwaysBounceVertical={false}
         >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish B</Text>
-            <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable
-              onPress={handleFlashcards}
-              style={({ pressed }) => [
-                styles.historyBtn,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="bookmark-outline" size={22} color="#8E44AD" />
-            </Pressable>
-            <Pressable
-              onPress={handleHistory}
-              style={({ pressed }) => [
-                styles.historyBtn,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="time-outline" size={22} color={theme.tint} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Progress card */}
-        <View
-          style={[
-            styles.progressCard,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-        >
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>
-              Progreso de temas
-            </Text>
-            <Text style={[styles.progressCount, { color: theme.tint }]}>
-              {completedThemes}/{totalThemes}
-            </Text>
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: theme.cardAlt }]}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: theme.tint,
-                  width: `${progress * 100}%`,
-                },
-              ]}
-            />
-          </View>
-          <View style={styles.themeChips}>
-            {THEMES.map((t) => {
-              const used = usedThemes.includes(t.id);
-              return (
-                <View
-                  key={t.id}
-                  style={[
-                    styles.themeChip,
+          <View style={styles.inner}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View>
+                <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish B</Text>
+                <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable
+                  onPress={handleFlashcards}
+                  style={({ pressed }) => [
+                    styles.headerBtn,
                     {
-                      backgroundColor: used ? t.color + "22" : theme.cardAlt,
-                      borderColor: used ? t.color : theme.border,
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.7 : 1,
                     },
                   ]}
                 >
+                  <Ionicons name="bookmark-outline" size={22} color="#8E44AD" />
+                </Pressable>
+                <Pressable
+                  onPress={handleHistory}
+                  style={({ pressed }) => [
+                    styles.headerBtn,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="time-outline" size={22} color={theme.tint} />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Progress card */}
+            <View
+              style={[
+                styles.progressCard,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <View style={styles.progressHeader}>
+                <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>
+                  Progreso de temas
+                </Text>
+                <Text style={[styles.progressCount, { color: theme.tint }]}>
+                  {completedThemes}/{totalThemes}
+                </Text>
+              </View>
+              <View style={[styles.progressBar, { backgroundColor: theme.cardAlt }]}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: theme.tint,
+                      width: `${progress * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.themeChips}>
+                {THEMES.map((t) => {
+                  const used = usedThemes.includes(t.id);
+                  return (
+                    <View
+                      key={t.id}
+                      style={[
+                        styles.themeChip,
+                        {
+                          backgroundColor: used ? t.color + "22" : theme.cardAlt,
+                          borderColor: used ? t.color : theme.border,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.themeChipDot,
+                          { backgroundColor: used ? t.color : theme.border },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.themeChipText,
+                          { color: used ? t.color : theme.textSecondary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t.nameShort}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Stats row */}
+            <View style={styles.statsRow}>
+              <View
+                style={[
+                  styles.statCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              >
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {sessions.length}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+                  Sesiones
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              >
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {totalThemes - usedThemes.filter((t) => t).length}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+                  Temas pendientes
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              >
+                <Text style={[styles.statValue, { color: theme.tint }]}>B2</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+                  Nivel objetivo
+                </Text>
+              </View>
+            </View>
+
+            {/* Info box */}
+            <View
+              style={[
+                styles.infoBox,
+                { backgroundColor: theme.accent, borderColor: theme.border },
+              ]}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={theme.tint}
+                style={{ marginTop: 1 }}
+              />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                El examinador hablará en español. Responde con frases completas para practicar tu expresión oral.
+              </Text>
+            </View>
+
+            {/* Section divider */}
+            <View style={styles.sectionDivider}>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+                MODOS DE PRÁCTICA
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            </View>
+
+            {/* Primary action — oral exam */}
+            <Pressable
+              onPress={handleStartExam}
+              style={({ pressed }) => [
+                styles.startBtn,
+                { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+              ]}
+            >
+              <LinearGradient
+                colors={[theme.tint, theme.tintDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.startBtnGradient}
+              >
+                <Ionicons name="mic-outline" size={22} color="#fff" />
+                <Text style={styles.startBtnText}>Comenzar examen oral</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </LinearGradient>
+            </Pressable>
+
+            {/* Secondary practice buttons */}
+            <View style={styles.practiceGrid}>
+              {[
+                {
+                  icon: "image-outline" as const,
+                  label: "Práctica con imagen",
+                  badge: "IB Oral",
+                  color: theme.tint,
+                  onPress: handleImagePractice,
+                },
+                {
+                  icon: "headset-outline" as const,
+                  label: "Comprensión auditiva",
+                  badge: "IB Listening",
+                  color: "#3498DB",
+                  onPress: handleListening,
+                },
+                {
+                  icon: "book-outline" as const,
+                  label: "Comprensión lectora",
+                  badge: "IB Reading",
+                  color: "#27AE60",
+                  onPress: handleReading,
+                },
+                {
+                  icon: "create-outline" as const,
+                  label: "Práctica de escritura",
+                  badge: "IB Writing",
+                  color: "#E67E22",
+                  onPress: handleWriting,
+                },
+              ].map((item) => (
+                <Pressable
+                  key={item.label}
+                  onPress={item.onPress}
+                  style={({ pressed }) => [
+                    styles.practiceBtn,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.8 : 1,
+                      transform: [{ scale: pressed ? 0.98 : 1 }],
+                    },
+                  ]}
+                >
+                  <View style={[styles.practiceBtnIcon, { backgroundColor: item.color + "18" }]}>
+                    <Ionicons name={item.icon} size={20} color={item.color} />
+                  </View>
+                  <Text style={[styles.practiceBtnText, { color: theme.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
                   <View
                     style={[
-                      styles.themeChipDot,
-                      { backgroundColor: used ? t.color : theme.border },
+                      styles.practiceBtnBadge,
+                      { backgroundColor: item.color + "18", borderColor: item.color + "40" },
                     ]}
-                  />
-                  <Text
-                    style={[
-                      styles.themeChipText,
-                      { color: used ? t.color : theme.textSecondary },
-                    ]}
-                    numberOfLines={1}
                   >
-                    {t.nameShort}
-                  </Text>
-                </View>
-              );
-            })}
+                    <Text style={[styles.practiceBtnBadgeText, { color: item.color }]}>
+                      {item.badge}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
-
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.statValue, { color: theme.text }]}>
-              {sessions.length}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Sesiones
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.statValue, { color: theme.text }]}>
-              {totalThemes - usedThemes.filter(t => t).length}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Temas pendientes
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.statValue, { color: theme.tint }]}>B2</Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Nivel objetivo
-            </Text>
-          </View>
-        </View>
-
-        {/* Info text */}
-        <View style={[styles.infoBox, { backgroundColor: theme.accent, borderColor: theme.border }]}>
-          <Ionicons name="information-circle-outline" size={18} color={theme.tint} style={{ marginTop: 1 }} />
-          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-            El examinador hablará en español. Responde con frases completas para practicar tu expresión oral.
-          </Text>
-        </View>
-
-        <View style={styles.spacer} />
-
-        {/* Start button */}
-        <Pressable
-          onPress={handleStartExam}
-          style={({ pressed }) => [
-            styles.startBtn,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <LinearGradient
-            colors={[theme.tint, theme.tintDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.startBtnGradient}
-          >
-            <Ionicons name="mic-outline" size={22} color="#fff" />
-            <Text style={styles.startBtnText}>Comenzar examen oral</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-          </LinearGradient>
-        </Pressable>
-
-        {/* Image practice button */}
-        <Pressable
-          onPress={handleImagePractice}
-          style={({ pressed }) => [
-            styles.imageBtn,
-            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <Ionicons name="image-outline" size={20} color={theme.tint} />
-          <Text style={[styles.imageBtnText, { color: theme.text }]}>Práctica con imagen</Text>
-          <View style={[styles.imageBtnBadge, { backgroundColor: theme.tint + "20", borderColor: theme.tint + "40" }]}>
-            <Text style={[styles.imageBtnBadgeText, { color: theme.tint }]}>IB Oral</Text>
-          </View>
-        </Pressable>
-
-        {/* Listening practice button */}
-        <Pressable
-          onPress={handleListening}
-          style={({ pressed }) => [
-            styles.imageBtn,
-            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <Ionicons name="headset-outline" size={20} color="#3498DB" />
-          <Text style={[styles.imageBtnText, { color: theme.text }]}>Comprensión auditiva</Text>
-          <View style={[styles.imageBtnBadge, { backgroundColor: "#3498DB20", borderColor: "#3498DB40" }]}>
-            <Text style={[styles.imageBtnBadgeText, { color: "#3498DB" }]}>IB Listening</Text>
-          </View>
-        </Pressable>
-
-        {/* Reading practice button */}
-        <Pressable
-          onPress={handleReading}
-          style={({ pressed }) => [
-            styles.imageBtn,
-            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <Ionicons name="book-outline" size={20} color="#27AE60" />
-          <Text style={[styles.imageBtnText, { color: theme.text }]}>Comprensión lectora</Text>
-          <View style={[styles.imageBtnBadge, { backgroundColor: "#27AE6020", borderColor: "#27AE6040" }]}>
-            <Text style={[styles.imageBtnBadgeText, { color: "#27AE60" }]}>IB Reading</Text>
-          </View>
-        </Pressable>
-
-        {/* Writing practice button */}
-        <Pressable
-          onPress={handleWriting}
-          style={({ pressed }) => [
-            styles.imageBtn,
-            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <Ionicons name="create-outline" size={20} color="#E67E22" />
-          <Text style={[styles.imageBtnText, { color: theme.text }]}>Práctica de escritura</Text>
-          <View style={[styles.imageBtnBadge, { backgroundColor: "#E67E2220", borderColor: "#E67E2240" }]}>
-            <Text style={[styles.imageBtnBadgeText, { color: "#E67E22" }]}>IB Writing</Text>
-          </View>
-        </Pressable>
         </ScrollView>
       </Animated.View>
     </View>
@@ -344,47 +371,51 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: 20,
     flexGrow: 1,
+    alignItems: "center",
+  },
+  inner: {
+    width: "100%",
+    maxWidth: 540,
+    paddingHorizontal: 22,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 24,
+    marginBottom: 28,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1.5,
+    letterSpacing: 2,
     textTransform: "uppercase",
     marginBottom: 4,
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.5,
   },
-  historyBtn: {
+  headerBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
   },
   progressCard: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
     marginBottom: 16,
   },
   progressHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   progressLabel: {
     fontSize: 13,
@@ -436,13 +467,14 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    padding: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     alignItems: "center",
   },
   statValue: {
     fontSize: 24,
     fontFamily: "Inter_700Bold",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 11,
@@ -452,9 +484,10 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: "row",
     gap: 10,
-    padding: 14,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 28,
   },
   infoText: {
     flex: 1,
@@ -462,18 +495,32 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 20,
   },
-  spacer: { flex: 1 },
+  sectionDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1.5,
+  },
   startBtn: {
     borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 8,
+    marginBottom: 14,
   },
   startBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    paddingVertical: 18,
+    paddingVertical: 19,
     paddingHorizontal: 24,
   },
   startBtnText: {
@@ -483,28 +530,37 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
   },
-  imageBtn: {
+  practiceGrid: {
+    gap: 12,
+  },
+  practiceBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    gap: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 12,
   },
-  imageBtnText: {
+  practiceBtnIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  practiceBtnText: {
     flex: 1,
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },
-  imageBtnBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  practiceBtnBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
   },
-  imageBtnBadgeText: {
+  practiceBtnBadgeText: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
   },

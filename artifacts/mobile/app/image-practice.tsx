@@ -333,6 +333,27 @@ export default function ImagePracticeScreen() {
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
+  // ── Image full-screen modal (F31) ────────────────────────────────────────────
+  const [imgModalVisible, setImgModalVisible] = useState(false);
+  const imgModalOpacity = useRef(new Animated.Value(0)).current;
+  const imgModalScale = useRef(new Animated.Value(0.88)).current;
+
+  const openImageModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setImgModalVisible(true);
+    Animated.parallel([
+      Animated.timing(imgModalOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(imgModalScale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 220 }),
+    ]).start();
+  };
+
+  const closeImageModal = () => {
+    Animated.parallel([
+      Animated.timing(imgModalOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(imgModalScale, { toValue: 0.88, duration: 180, useNativeDriver: true }),
+    ]).start(() => setImgModalVisible(false));
+  };
+
   // ── Image error tracking ─────────────────────────────────────────────────────
   const [imageErrored, setImageErrored] = useState(false);
 
@@ -802,8 +823,8 @@ export default function ImagePracticeScreen() {
         </View>
 
         <ScrollView contentContainerStyle={[sc.prepContent, { paddingBottom: botPad + 24 }]} showsVerticalScrollIndicator={false}>
-          {/* Image */}
-          <View style={sc.prepImageWrapper}>
+          {/* Image — tap to expand */}
+          <Pressable onPress={openImageModal} style={sc.prepImageWrapper}>
             <Image
               source={{ uri: imageUri ?? selectedImage.url }}
               style={sc.prepImage}
@@ -812,7 +833,10 @@ export default function ImagePracticeScreen() {
             />
             <LinearGradient colors={["transparent", "rgba(0,0,0,0.7)"]} style={sc.prepImageGrad} />
             <Text style={sc.prepImageCaption}>{selectedImage.caption}</Text>
-          </View>
+            <View style={sc.prepImageZoomBadge}>
+              <Ionicons name="expand-outline" size={14} color="#fff" />
+            </View>
+          </Pressable>
 
           {/* Timer card — only when started */}
           {prepStarted && (
@@ -868,6 +892,24 @@ export default function ImagePracticeScreen() {
             </Pressable>
           )}
         </ScrollView>
+
+        {/* Image full-screen modal (F31) */}
+        <Modal transparent visible={imgModalVisible} onRequestClose={closeImageModal} statusBarTranslucent>
+          <Animated.View style={[sc.imgModalOverlay, { opacity: imgModalOpacity }]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeImageModal} />
+            <Animated.View style={{ transform: [{ scale: imgModalScale }], width: "92%", maxWidth: 500 }}>
+              <Image
+                source={{ uri: imageUri ?? selectedImage.url }}
+                style={sc.imgModalImage}
+                resizeMode="contain"
+              />
+              <Text style={sc.imgModalCaption}>{selectedImage.caption}</Text>
+            </Animated.View>
+            <Pressable onPress={closeImageModal} style={sc.imgModalClose}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </Pressable>
+          </Animated.View>
+        </Modal>
       </View>
     );
   }
@@ -917,11 +959,14 @@ export default function ImagePracticeScreen() {
         <ScrollView contentContainerStyle={[sc.feedbackContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false}>
           {/* Image thumbnail */}
           {selectedImage && (
-            <View style={sc.fbThumbWrapper}>
+            <Pressable onPress={openImageModal} style={sc.fbThumbWrapper}>
               <Image source={{ uri: imageUri ?? selectedImage.url }} style={sc.fbThumb} resizeMode="cover" />
               <LinearGradient colors={["transparent", "rgba(0,0,0,0.65)"]} style={StyleSheet.absoluteFillObject} />
               <Text style={sc.fbThumbCaption}>{selectedImage.caption}</Text>
-            </View>
+              <View style={sc.prepImageZoomBadge}>
+                <Ionicons name="expand-outline" size={14} color="#fff" />
+              </View>
+            </Pressable>
           )}
 
           {feedbackLoading ? (
@@ -1027,6 +1072,26 @@ export default function ImagePracticeScreen() {
             </LinearGradient>
           </Pressable>
         </ScrollView>
+
+        {/* Image full-screen modal (F31) */}
+        {selectedImage && (
+          <Modal transparent visible={imgModalVisible} onRequestClose={closeImageModal} statusBarTranslucent>
+            <Animated.View style={[sc.imgModalOverlay, { opacity: imgModalOpacity }]}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeImageModal} />
+              <Animated.View style={{ transform: [{ scale: imgModalScale }], width: "92%", maxWidth: 500 }}>
+                <Image
+                  source={{ uri: imageUri ?? selectedImage.url }}
+                  style={sc.imgModalImage}
+                  resizeMode="contain"
+                />
+                <Text style={sc.imgModalCaption}>{selectedImage.caption}</Text>
+              </Animated.View>
+              <Pressable onPress={closeImageModal} style={sc.imgModalClose}>
+                <Ionicons name="close" size={22} color="#fff" />
+              </Pressable>
+            </Animated.View>
+          </Modal>
+        )}
       </View>
     );
   }
@@ -1088,12 +1153,17 @@ export default function ImagePracticeScreen() {
       {/* Thumbnail strip with image visible throughout (F27) */}
       {selectedImage && (
         <View style={[sc.thumbStrip, { borderBottomColor: colors.border }]}>
-          <Image
-            source={{ uri: imageUri ?? selectedImage.url }}
-            style={sc.thumb}
-            resizeMode="cover"
-            onError={() => setImageErrored(true)}
-          />
+          <Pressable onPress={openImageModal} style={sc.thumbPressable}>
+            <Image
+              source={{ uri: imageUri ?? selectedImage.url }}
+              style={sc.thumb}
+              resizeMode="cover"
+              onError={() => setImageErrored(true)}
+            />
+            <View style={sc.thumbExpandIcon}>
+              <Ionicons name="expand-outline" size={11} color="#fff" />
+            </View>
+          </Pressable>
           <Text style={[sc.thumbHint, { color: colors.textSecondary }]}>
             Toca cualquier palabra del examinador para traducirla
           </Text>
@@ -1261,6 +1331,26 @@ export default function ImagePracticeScreen() {
           </View>
         )}
       </View>
+
+      {/* Image full-screen modal (F31) */}
+      {selectedImage && (
+        <Modal transparent visible={imgModalVisible} onRequestClose={closeImageModal} statusBarTranslucent>
+          <Animated.View style={[sc.imgModalOverlay, { opacity: imgModalOpacity }]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeImageModal} />
+            <Animated.View style={{ transform: [{ scale: imgModalScale }], width: "92%", maxWidth: 500 }}>
+              <Image
+                source={{ uri: imageUri ?? selectedImage.url }}
+                style={sc.imgModalImage}
+                resizeMode="contain"
+              />
+              <Text style={sc.imgModalCaption}>{selectedImage.caption}</Text>
+            </Animated.View>
+            <Pressable onPress={closeImageModal} style={sc.imgModalClose}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </Pressable>
+          </Animated.View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -1515,4 +1605,60 @@ const sc = StyleSheet.create({
     paddingVertical: 16,
   },
   fbHomeText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+
+  // Image full-screen modal (F31)
+  imgModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.82)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imgModalImage: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderRadius: 14,
+  },
+  imgModalCaption: {
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    marginTop: 12,
+    opacity: 0.85,
+    paddingHorizontal: 8,
+  },
+  imgModalClose: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prepImageZoomBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbPressable: { position: "relative" },
+  thumbExpandIcon: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
