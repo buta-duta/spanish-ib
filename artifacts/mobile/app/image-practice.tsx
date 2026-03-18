@@ -4,6 +4,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { fetch as expoFetch } from "expo/fetch";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -52,7 +53,7 @@ type FeedbackData = {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PREP_SECONDS = 10 * 60;
-const EXAM_SECONDS = 5 * 60;
+const EXAM_DURATION_OPTIONS = [1, 2, 3, 5, 7, 10]; // minutes
 const generateId = () => Math.random().toString(36).slice(2);
 const imgAudioCache = new Map<string, string>();
 
@@ -291,7 +292,8 @@ export default function ImagePracticeScreen() {
   };
 
   // ── Exam timer (F33) ─────────────────────────────────────────────────────────
-  const [examTimeLeft, setExamTimeLeft] = useState(EXAM_SECONDS);
+  const [examSeconds, setExamSeconds] = useState(5 * 60); // user-configurable
+  const [examTimeLeft, setExamTimeLeft] = useState(5 * 60);
   const [examTimerRunning, setExamTimerRunning] = useState(false);
   const [examTimeUp, setExamTimeUp] = useState(false);
   const examTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -396,6 +398,7 @@ export default function ImagePracticeScreen() {
   }, [recordingState]);
 
   const beginExam = () => {
+    setExamTimeLeft(examSeconds);
     setPhase("exam");
   };
 
@@ -483,7 +486,7 @@ export default function ImagePracticeScreen() {
 
       try {
         const apiMessages = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-        const response = await (globalThis as any).fetch(`${getApiUrl()}api/exam/image-chat`, {
+        const response = await expoFetch(`${getApiUrl()}api/exam/image-chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
           body: JSON.stringify({
@@ -540,7 +543,10 @@ export default function ImagePracticeScreen() {
           }
         }
 
-        // Audio auto-play removed — user taps the play button manually
+        // Auto-play TTS for the AI response when streaming is complete
+        if (fullContent && assistantMsgId) {
+          playTTS(fullContent, assistantMsgId);
+        }
       } catch {
         setShowTyping(false);
         setMessages((prev) => [
@@ -874,6 +880,39 @@ export default function ImagePracticeScreen() {
               </View>
             ))}
           </View>
+
+          {/* Exam duration selector */}
+          {!prepStarted && (
+            <View style={[sc.durationCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={sc.durationHeader}>
+                <Ionicons name="hourglass-outline" size={18} color={themeColor} />
+                <Text style={[sc.durationTitle, { color: colors.text }]}>Tiempo de examen</Text>
+              </View>
+              <View style={sc.durationRow}>
+                {EXAM_DURATION_OPTIONS.map((mins) => {
+                  const secs = mins * 60;
+                  const active = examSeconds === secs;
+                  return (
+                    <Pressable
+                      key={mins}
+                      onPress={() => setExamSeconds(secs)}
+                      style={[
+                        sc.durationBtn,
+                        {
+                          backgroundColor: active ? themeColor : colors.cardAlt,
+                          borderColor: active ? themeColor : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[sc.durationBtnText, { color: active ? "#fff" : colors.textSecondary }]}>
+                        {mins}m
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {/* Start timer button (F29) */}
           {!prepStarted ? (
@@ -1451,6 +1490,14 @@ const sc = StyleSheet.create({
   tipNum: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   tipNumText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   tipText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+
+  // Exam duration selector
+  durationCard: { padding: 16, borderRadius: 14, borderWidth: 1, gap: 12 },
+  durationHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  durationTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  durationRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  durationBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  durationBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Start timer / skip buttons (F29)
   startTimerBtn: { borderRadius: 14, overflow: "hidden", marginTop: 4 },
