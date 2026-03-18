@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "IB Spanish Oral Exam",
-    "slug": "mobile",
+    "name": "IB Spanish B/Ab Practice",
+    "slug": "ibspanishbabpractice",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "ibspanishbabpractice",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -16,10 +16,15 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
-      }
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      },
+      "bundleIdentifier": "com.ibspanishbabpractice.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.ibspanishbabpractice.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
