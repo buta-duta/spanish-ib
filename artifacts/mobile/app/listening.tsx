@@ -109,11 +109,6 @@ export default function ListeningScreen() {
 
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const nativeSoundRef = useRef<Audio.Sound | null>(null);
-  const seekBarLayoutRef = useRef<{ x: number; width: number } | null>(null);
-
-  // Progress tracking
-  const [progressMs, setProgressMs] = useState(0);
-  const [durationMs, setDurationMs] = useState(0);
 
   // ── Questions state ───────────────────────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -191,29 +186,6 @@ export default function ListeningScreen() {
     await loadAudio(text);
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-  const formatTime = (ms: number) => {
-    const s = Math.floor(Math.max(0, ms) / 1000);
-    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
-  };
-
-  const seekTo = useCallback(async (ms: number) => {
-    const clamped = Math.max(0, Math.min(ms, durationMs));
-    setProgressMs(clamped);
-    if (Platform.OS === "web") {
-      if (webAudioRef.current) webAudioRef.current.currentTime = clamped / 1000;
-    } else {
-      await nativeSoundRef.current?.setStatusAsync({ positionMillis: clamped }).catch(() => {});
-    }
-  }, [durationMs]);
-
-  const handleSeekBar = useCallback((locationX: number) => {
-    const layout = seekBarLayoutRef.current;
-    if (!layout || durationMs === 0) return;
-    const fraction = Math.max(0, Math.min(1, locationX / layout.width));
-    seekTo(fraction * durationMs);
-  }, [durationMs, seekTo]);
-
   // ── Audio playback ────────────────────────────────────────────────────────────
   const playAudio = useCallback(async () => {
     if (!audioBase64) return;
@@ -230,42 +202,12 @@ export default function ListeningScreen() {
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         const blobUrl = URL.createObjectURL(blob);
 
-        // Create element WITHOUT src so all handlers are attached before any events fire
-        const audio = new (window as any).Audio() as HTMLAudioElement;
-        // Force full buffering — required for accurate duration on Safari/mobile
-        audio.preload = "auto";
+        const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
-
-        // Text-length fallback: ~160 words/min Spanish TTS shown immediately,
-        // overwritten by the real duration once canplaythrough fires.
-        const srcText = (passage || manualPassage || "").trim();
-        const wordCount = srcText ? srcText.split(/\s+/).filter(Boolean).length : 0;
-        if (wordCount > 10) {
-          setDurationMs(Math.round((wordCount / 160) * 60 * 1000));
-        }
-
-        const captureDuration = () => {
-          const d = audio.duration;
-          // Reject Infinity (streaming placeholder) and obviously wrong values
-          if (d && isFinite(d) && d > 0) setDurationMs(Math.floor(d * 1000));
-        };
-
-        // canplaythrough = browser has buffered the whole clip → most accurate
-        audio.oncanplaythrough = captureDuration;
-        // Keep these as earlier-firing backups (may be less accurate but better than nothing)
-        audio.onloadedmetadata = captureDuration;
-        audio.ondurationchange = captureDuration;
-
-        audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
-        audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
+        audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); };
         audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ready"); };
-
-        // Assign src AFTER handlers — avoids race where loadedmetadata fires before handler is set
-        audio.src = blobUrl;
-
         setPlayCount((c) => c + 1);
-        setProgressMs(0);
       } else {
         webAudioRef.current.playbackRate = playbackSpeed;
       }
@@ -274,11 +216,6 @@ export default function ListeningScreen() {
     } else {
       try {
         if (!nativeSoundRef.current) {
-          // Text-length fallback shown while expo-av loads (overwritten by real durationMillis)
-          const srcText = (passage || manualPassage || "").trim();
-          const wordCount = srcText ? srcText.split(/\s+/).filter(Boolean).length : 0;
-          if (wordCount > 10) setDurationMs(Math.round((wordCount / 160) * 60 * 1000));
-
           await Audio.setAudioModeAsync({
             staysActiveInBackground: true,
             playsInSilentModeIOS: true,
@@ -290,18 +227,13 @@ export default function ListeningScreen() {
           nativeSoundRef.current = sound;
           sound.setOnPlaybackStatusUpdate((s) => {
             if (!s.isLoaded) return;
-            // durationMillis from AVFoundation/ExoPlayer is always accurate
-            if (s.durationMillis && s.durationMillis > 0) setDurationMs(s.durationMillis);
-            setProgressMs(s.positionMillis ?? 0);
             if (s.didJustFinish) {
               nativeSoundRef.current = null;
               sound.unloadAsync().catch(() => {});
               setPlayStatus("ended");
-              setProgressMs(0);
             }
           });
           setPlayCount((c) => c + 1);
-          setProgressMs(0);
         }
         await nativeSoundRef.current!.setStatusAsync({
           shouldPlay: true,
@@ -313,7 +245,7 @@ export default function ListeningScreen() {
         setPlayStatus("ready");
       }
     }
-  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays, passage, manualPassage]);
+  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays]);
 
   const pauseAudio = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -715,52 +647,6 @@ export default function ListeningScreen() {
                 )}
               </View>
             </View>
-
-            {/* Seek / Progress bar */}
-            {durationMs > 0 && (
-              <View style={s.seekWrap}>
-                {/*
-                  Tall transparent hit-area owns the Responder so locationX is
-                  always relative to the full-width bar, never to a child.
-                  All visual children are pointerEvents="none" so they can't
-                  steal the touch and corrupt locationX.
-                */}
-                <View
-                  style={s.seekHitArea}
-                  onLayout={(e) => {
-                    seekBarLayoutRef.current = { x: 0, width: e.nativeEvent.layout.width };
-                  }}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onStartShouldSetResponderCapture={() => true}
-                  onResponderGrant={(e) => handleSeekBar(e.nativeEvent.locationX)}
-                  onResponderMove={(e) => handleSeekBar(e.nativeEvent.locationX)}
-                >
-                  {/* Visual track — pointer-events disabled so hit-area keeps locationX ownership */}
-                  <View style={[s.seekTrack, { backgroundColor: colors.cardAlt }]} pointerEvents="none">
-                    <View
-                      pointerEvents="none"
-                      style={[s.seekFill, {
-                        width: `${(progressMs / durationMs) * 100}%` as any,
-                        backgroundColor: themeColor,
-                      }]}
-                    />
-                    <View
-                      pointerEvents="none"
-                      style={[s.seekThumb, {
-                        left: `${(progressMs / durationMs) * 100}%` as any,
-                        backgroundColor: themeColor,
-                        borderColor: colors.card,
-                      }]}
-                    />
-                  </View>
-                </View>
-                <View style={s.seekTimeRow}>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs)}</Text>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs)}</Text>
-                </View>
-              </View>
-            )}
 
             {/* Speed selector */}
             <Text style={[s.speedLabel, { color: colors.textSecondary }]}>Velocidad de reproducción</Text>
@@ -1169,13 +1055,6 @@ const s = StyleSheet.create({
   playerMeta: { flex: 1, gap: 3 },
   playerStatus: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   playerPlayCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  seekWrap: { gap: 4 },
-  seekHitArea: { height: 44, justifyContent: "center" },   // 44pt min touch target; owns locationX
-  seekTrack: { height: 6, borderRadius: 3, overflow: "visible", position: "relative" },
-  seekFill: { position: "absolute", left: 0, top: 0, height: 6, borderRadius: 3 },
-  seekThumb: { position: "absolute", top: -5, width: 16, height: 16, borderRadius: 8, marginLeft: -8, borderWidth: 2, elevation: 3, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
-  seekTimeRow: { flexDirection: "row", justifyContent: "space-between" },
-  seekTime: { fontSize: 11, fontFamily: "Inter_400Regular" },
   speedLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   speedRow: { gap: 8, paddingVertical: 2 },
   speedBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
