@@ -225,23 +225,45 @@ export default function ListeningScreen() {
 
     if (Platform.OS === "web") {
       if (!webAudioRef.current) {
-        // null means: never loaded, or ended/errored (ref cleared in those callbacks)
-        // Convert base64 → Blob URL so browsers fire loadedmetadata reliably.
-        // Data URIs can return NaN/~10s duration on mobile Safari/Chrome.
+        // Convert base64 → Blob URL (data URIs return NaN/~5s duration on mobile Safari)
         const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         const blobUrl = URL.createObjectURL(blob);
-        const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
+
+        // Create element WITHOUT src so all handlers are attached before any events fire
+        const audio = new (window as any).Audio() as HTMLAudioElement;
+        // Force full buffering — required for accurate duration on Safari/mobile
+        audio.preload = "auto";
         webAudioRef.current = audio;
         audio.playbackRate = playbackSpeed;
+
+        // Text-length fallback: ~160 words/min Spanish TTS shown immediately,
+        // overwritten by the real duration once canplaythrough fires.
+        const srcText = (passage || manualPassage || "").trim();
+        const wordCount = srcText ? srcText.split(/\s+/).filter(Boolean).length : 0;
+        if (wordCount > 10) {
+          setDurationMs(Math.round((wordCount / 160) * 60 * 1000));
+        }
+
         const captureDuration = () => {
-          if (audio.duration && isFinite(audio.duration)) setDurationMs(Math.floor(audio.duration * 1000));
+          const d = audio.duration;
+          // Reject Infinity (streaming placeholder) and obviously wrong values
+          if (d && isFinite(d) && d > 0) setDurationMs(Math.floor(d * 1000));
         };
+
+        // canplaythrough = browser has buffered the whole clip → most accurate
+        audio.oncanplaythrough = captureDuration;
+        // Keep these as earlier-firing backups (may be less accurate but better than nothing)
         audio.onloadedmetadata = captureDuration;
         audio.ondurationchange = captureDuration;
+
         audio.ontimeupdate = () => setProgressMs(Math.floor((audio.currentTime ?? 0) * 1000));
         audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); setProgressMs(0); };
         audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ready"); };
+
+        // Assign src AFTER handlers — avoids race where loadedmetadata fires before handler is set
+        audio.src = blobUrl;
+
         setPlayCount((c) => c + 1);
         setProgressMs(0);
       } else {
@@ -252,7 +274,11 @@ export default function ListeningScreen() {
     } else {
       try {
         if (!nativeSoundRef.current) {
-          // null means: never loaded, or ended/errored (ref cleared in those callbacks)
+          // Text-length fallback shown while expo-av loads (overwritten by real durationMillis)
+          const srcText = (passage || manualPassage || "").trim();
+          const wordCount = srcText ? srcText.split(/\s+/).filter(Boolean).length : 0;
+          if (wordCount > 10) setDurationMs(Math.round((wordCount / 160) * 60 * 1000));
+
           await Audio.setAudioModeAsync({
             staysActiveInBackground: true,
             playsInSilentModeIOS: true,
@@ -264,7 +290,8 @@ export default function ListeningScreen() {
           nativeSoundRef.current = sound;
           sound.setOnPlaybackStatusUpdate((s) => {
             if (!s.isLoaded) return;
-            if (s.durationMillis) setDurationMs(s.durationMillis);
+            // durationMillis from AVFoundation/ExoPlayer is always accurate
+            if (s.durationMillis && s.durationMillis > 0) setDurationMs(s.durationMillis);
             setProgressMs(s.positionMillis ?? 0);
             if (s.didJustFinish) {
               nativeSoundRef.current = null;
@@ -286,7 +313,7 @@ export default function ListeningScreen() {
         setPlayStatus("ready");
       }
     }
-  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays]);
+  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays, passage, manualPassage]);
 
   const pauseAudio = useCallback(async () => {
     if (Platform.OS === "web") {
