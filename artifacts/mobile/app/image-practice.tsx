@@ -419,6 +419,7 @@ export default function ImagePracticeScreen() {
     } else {
       if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
       setIsTTSPlaying(true);
+      await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true, allowsRecordingIOS: false });
       const path = (FileSystem.cacheDirectory ?? "") + "img_tts.mp3";
       await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
       const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
@@ -617,7 +618,7 @@ export default function ImagePracticeScreen() {
     try {
       setMicError(null);
       await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, staysActiveInBackground: true });
       const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       nativeRecordingRef.current = recording;
       setRecordingState("recording");

@@ -253,6 +253,11 @@ export default function ListeningScreen() {
       try {
         if (!nativeSoundRef.current) {
           // null means: never loaded, or ended/errored (ref cleared in those callbacks)
+          await Audio.setAudioModeAsync({
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+            allowsRecordingIOS: false,
+          });
           const path = (FileSystem.cacheDirectory ?? "") + "listening.mp3";
           await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
           const { sound } = await Audio.Sound.createAsync({ uri: path });
@@ -724,8 +729,8 @@ export default function ListeningScreen() {
                   </View>
                 </View>
                 <View style={s.seekTimeRow}>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs / playbackSpeed)}</Text>
-                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs / playbackSpeed)}</Text>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(progressMs)}</Text>
+                  <Text style={[s.seekTime, { color: colors.textSecondary }]}>{formatTime(durationMs)}</Text>
                 </View>
               </View>
             )}

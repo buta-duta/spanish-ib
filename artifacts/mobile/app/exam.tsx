@@ -421,6 +421,7 @@ export default function ExamScreen() {
         nativeSoundRef.current = null;
       }
       setIsTTSPlaying(true);
+      await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true, allowsRecordingIOS: false });
       const path = (FileSystem.cacheDirectory ?? "") + "exam_tts.mp3";
       await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
       const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
@@ -578,7 +579,7 @@ export default function ExamScreen() {
         return;
       }
 
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, staysActiveInBackground: true });
 
       const recording = new Audio.Recording();
       await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
@@ -608,7 +609,7 @@ export default function ExamScreen() {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       nativeRecordingRef.current = null;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, staysActiveInBackground: true });
 
       if (!uri) { setRecordingState("idle"); return; }
 
