@@ -82,10 +82,14 @@ Do NOT include the title inside the text field. Return ONLY valid JSON.`,
 
 // ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
-  const { text, title = "" } = req.body as { text: string; title?: string };
+  const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
   if (!text || text.length < 50) {
     return res.status(400).json({ error: "Texto demasiado corto." });
   }
+
+  const mcqCount = Math.max(1, Math.round(count * 0.4));
+  const tfCount  = Math.max(1, Math.round(count * 0.35));
+  const synCount = Math.max(1, count - mcqCount - tfCount);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -95,12 +99,12 @@ router.post("/reading/questions", async (req, res) => {
           role: "system",
           content: `You are an IB Spanish B examiner creating reading comprehension questions.
 
-Given a Spanish text, generate exactly 10–12 questions in Spanish that test reading comprehension, inference, and vocabulary.
+Given a Spanish text, generate exactly ${count} questions in Spanish that test reading comprehension, inference, and vocabulary.
 
 Mix EXACTLY these question types:
-- 4–5 multiple choice (type: "mcq") with options A, B, C, D
-- 3–4 true/false (type: "tf") with a statement the student evaluates
-- 2–3 synonym (type: "synonym") asking to find a word in the text that means the same as a given word
+- ${mcqCount} multiple choice (type: "mcq") with options A, B, C, D
+- ${tfCount} true/false (type: "tf") with a statement the student evaluates
+- ${synCount} synonym (type: "synonym") asking to find a word in the text that means the same as a given word
 
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.

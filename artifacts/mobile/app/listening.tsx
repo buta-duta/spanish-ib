@@ -52,6 +52,7 @@ type AnswerRecord = {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 4];
 const DEFAULT_MAX_PLAYS = 3;
+const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
 
 const PASSAGE_TYPES: { id: PassageType; label: string; icon: string; desc: string }[] = [
   { id: "conversation", label: "Conversación", icon: "chatbubbles-outline", desc: "Diálogo entre dos personas" },
@@ -113,6 +114,7 @@ export default function ListeningScreen() {
   // ── Questions state ───────────────────────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [numQuestions, setNumQuestions] = useState(6);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [checkingAnswer, setCheckingAnswer] = useState(false);
@@ -273,7 +275,6 @@ export default function ListeningScreen() {
     } catch {}
     if (playStatus === "playing" || playStatus === "paused") {
       setPlayStatus("ready");
-      setProgressMs(0);
     }
   }, [playStatus]);
 
@@ -289,7 +290,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage, count: 6 }),
+        body: JSON.stringify({ passage, count: numQuestions }),
       });
       if (!res.ok) throw new Error("Question generation failed");
       const data = await res.json();
@@ -698,6 +699,31 @@ export default function ListeningScreen() {
             </View>
           )}
 
+          {/* Number of questions picker */}
+          <View style={[s.countPickerWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.countPickerLabel, { color: colors.textSecondary }]}>Número de preguntas</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.countPickerRow}>
+              {QUESTION_COUNT_OPTIONS.map((n) => {
+                const active = numQuestions === n;
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => { setNumQuestions(n); Haptics.selectionAsync(); }}
+                    style={[
+                      s.countPill,
+                      {
+                        backgroundColor: active ? themeColor : colors.cardAlt,
+                        borderColor: active ? themeColor : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[s.countPillText, { color: active ? "#fff" : colors.textSecondary }]}>{n}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           {/* Generate questions button */}
           <Pressable
             onPress={generateQuestions}
@@ -740,6 +766,15 @@ export default function ListeningScreen() {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <LinearGradient colors={isDark ? ["#0D1B2A", "#0F1117"] : ["#E8F4FD", "#F5F6FA"]} style={StyleSheet.absoluteFill} />
+
+        {wordPopup && (
+          <WordModal
+            word={wordPopup.word}
+            context={wordPopup.context}
+            themeColor={themeColor}
+            onClose={() => setWordPopup(null)}
+          />
+        )}
 
         {/* Header */}
         <View style={[s.header, { paddingTop: topPad + 8, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -819,7 +854,11 @@ export default function ListeningScreen() {
                     Pregunta {currentQIndex + 1} de {questions.length}
                   </Text>
                 </View>
-                <Text style={[s.qText, { color: colors.text }]}>{q.question}</Text>
+                <TappableText
+                  text={q.question}
+                  textStyle={[s.qText, { color: colors.text }]}
+                  onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+                />
               </View>
 
               {/* Options for MC and TF */}
@@ -1065,6 +1104,11 @@ const s = StyleSheet.create({
   passageCardText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   glossaryHint: { flexDirection: "row", alignItems: "center", gap: 5, paddingTop: 8, borderTopWidth: 1 },
   glossaryHintText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  countPickerWrap: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  countPickerLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  countPickerRow: { gap: 8, paddingVertical: 2 },
+  countPill: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20, borderWidth: 1, minWidth: 44, alignItems: "center" },
+  countPillText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   questionsBtn: { borderRadius: 14, overflow: "hidden" },
   questionsBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16 },
   questionsBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },

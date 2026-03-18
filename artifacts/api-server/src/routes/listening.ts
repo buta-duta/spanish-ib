@@ -185,50 +185,51 @@ router.post("/listening/questions", async (req, res) => {
   const { passage, count = 6 } = req.body;
   if (!passage) { res.status(400).json({ error: "Missing passage" }); return; }
 
-  const prompt = `You are an IB Spanish B examiner. Generate ${count} listening comprehension questions based on this passage:
+  const prompt = `Eres un examinador del IB Spanish B. Genera ${count} preguntas de comprensión auditiva basadas en este texto:
 
 ---
 ${passage}
 ---
 
-Create a balanced mix of these question types:
-- multiple-choice (2-3 options A/B/C/D)
-- true-false (with justification)
-- short-answer (factual detail from the text)
-- detail (specific information)
-- inference (reading between the lines)
+Crea una mezcla equilibrada de estos tipos de preguntas:
+- multiple-choice (opciones A/B/C/D)
+- true-false (con justificación)
+- short-answer (detalle factual del texto)
+- detail (información específica)
+- inference (inferencia a partir del contexto)
 
-Guidelines:
-- Questions should be in ENGLISH (as in real IB exams)
-- Answers should be findable in the text (no opinion questions)
-- Vary difficulty: start accessible, end challenging
-- For multiple-choice: make distractors plausible
+Directrices:
+- TODAS las preguntas y opciones deben estar en ESPAÑOL
+- Las respuestas deben estar en el texto (sin preguntas de opinión)
+- Varía la dificultad: empieza accesible, termina desafiante
+- Para opción múltiple: los distractores deben ser plausibles
+- Para verdadero/falso: usa "Verdadero" y "Falso" como opciones
 
-Return ONLY valid JSON:
+Devuelve SOLO JSON válido:
 {
   "questions": [
     {
       "id": "q1",
       "type": "multiple-choice",
-      "question": "Question text in English",
+      "question": "Texto de la pregunta en español",
       "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
       "correctAnswer": "A) ...",
-      "explanation": "Brief explanation citing text evidence"
+      "explanation": "Breve explicación citando evidencia del texto"
     },
     {
       "id": "q2",
       "type": "true-false",
-      "question": "Statement to evaluate as True or False",
-      "options": ["True", "False"],
-      "correctAnswer": "True",
-      "explanation": "Quote or paraphrase from text that confirms/denies"
+      "question": "Afirmación para evaluar como Verdadero o Falso",
+      "options": ["Verdadero", "Falso"],
+      "correctAnswer": "Verdadero",
+      "explanation": "Cita o paráfrasis del texto que confirma o niega"
     },
     {
       "id": "q3",
       "type": "short-answer",
-      "question": "Specific detail question",
-      "correctAnswer": "Expected answer (key words acceptable)",
-      "explanation": "Explanation and accepted variations"
+      "question": "Pregunta sobre un detalle específico",
+      "correctAnswer": "Respuesta esperada (palabras clave aceptables)",
+      "explanation": "Explicación y variaciones aceptadas"
     }
   ]
 }`;

@@ -25,6 +25,7 @@ import { WordModal } from "@/components/WordModal";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
+const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
 
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -167,6 +168,7 @@ export default function ReadingScreen() {
 
   // Questions
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [numQuestions, setNumQuestions] = useState(8);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -226,7 +228,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText, title: readingTitle }),
+        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
       });
       const data = await res.json();
       setQuestions(data.questions ?? []);
@@ -664,11 +666,38 @@ export default function ReadingScreen() {
           </View>
 
           {/* Questions section */}
+          {/* Number of questions picker */}
+          {questions.length === 0 && (
+            <View style={[s.countPickerWrap, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 20 }]}>
+              <Text style={[s.countPickerLabel, { color: colors.textSecondary }]}>Número de preguntas</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.countPickerRow}>
+                {QUESTION_COUNT_OPTIONS.map((n) => {
+                  const active = numQuestions === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => setNumQuestions(n)}
+                      style={[
+                        s.countPill,
+                        {
+                          backgroundColor: active ? ACCENT : colors.cardAlt,
+                          borderColor: active ? ACCENT : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[s.countPillText, { color: active ? "#fff" : colors.textSecondary }]}>{n}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
           {questions.length === 0 ? (
             <Pressable
               onPress={generateQuestions}
               disabled={generatingQs}
-              style={({ pressed }) => [s.primaryBtn, { marginTop: 20, opacity: pressed || generatingQs ? 0.8 : 1 }]}
+              style={({ pressed }) => [s.primaryBtn, { marginTop: 12, opacity: pressed || generatingQs ? 0.8 : 1 }]}
             >
               <LinearGradient
                 colors={[ACCENT, ACCENT_DARK]}
@@ -1162,6 +1191,11 @@ const s = StyleSheet.create({
   primaryBtn: { borderRadius: 14, overflow: "hidden" },
   primaryBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 20 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  countPickerWrap: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  countPickerLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  countPickerRow: { gap: 8, paddingVertical: 2 },
+  countPill: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20, borderWidth: 1, minWidth: 44, alignItems: "center" },
+  countPillText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   titleInput: { marginTop: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular" },
   pasteInput: { marginTop: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, minHeight: 180 },
   charCount: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "right", marginTop: 4 },
