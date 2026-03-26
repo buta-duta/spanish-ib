@@ -112,8 +112,7 @@ contexts/
 
 ## Environment Variables
 
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` — auto-set by Replit
-- `AI_INTEGRATIONS_OPENAI_API_KEY` — auto-set by Replit
+- `OPENAI_API_KEY` — OpenAI API key used by backend AI features
 - `DATABASE_URL` — PostgreSQL connection string (Replit managed)
 
 ## TypeScript & Composite Projects
