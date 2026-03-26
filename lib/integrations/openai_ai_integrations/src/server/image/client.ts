@@ -2,8 +2,14 @@ import fs from "node:fs";
 import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error(
+    "OPENAI_API_KEY must be set.",
+  );
+}
+
 export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 /**
