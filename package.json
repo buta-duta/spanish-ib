@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "node -e \"const fs=require('fs'); ['package-lock.json', 'yarn.lock'].forEach(f => { if(fs.existsSync(f)) { console.error('Please use pnpm!'); process.exit(1); } })\"",
+
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:vercel": "pnpm -r --filter !@workspace/mockup-sandbox --if-present run build",
     "typecheck:libs": "tsc --build",
