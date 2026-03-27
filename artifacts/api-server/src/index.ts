@@ -1,4 +1,5 @@
-import app from "./app";
+import "./preamble.ts";
+const { default: app } = await import("./app");
 
 const rawPort = process.env["PORT"];
 

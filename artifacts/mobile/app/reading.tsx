@@ -30,7 +30,7 @@ const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/`;
-  return "http://localhost:80/";
+  return "http://localhost:5000/";
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
