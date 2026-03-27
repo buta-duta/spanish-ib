@@ -26,6 +26,7 @@ import { WordModal, TappableText } from "@/components/WordModal";
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/`;
+  if (Platform.OS === "web") return "/";
   return "http://localhost:5000/";
 }
 
