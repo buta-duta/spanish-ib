@@ -1,24 +1,17 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "artifacts/api-server/src/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "artifacts/mobile/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "artifacts/api-server/src/index.ts"
+      "destination": "/artifacts/api-server/src/index.ts"
     },
     {
       "source": "/(.*)",
-      "destination": "artifacts/mobile/$1"
+      "destination": "/artifacts/mobile/dist/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/artifacts/mobile/dist/index.html"
     }
   ]
 }
