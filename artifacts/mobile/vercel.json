@@ -2,6 +2,8 @@
   "version": 2,
   "rewrites": [
     { "source": "/", "destination": "/landing.html" },
-    { "source": "/api/(.*)", "destination": "../../api-server/src/index.ts" }
+    { "source": "/app", "destination": "/index.html" },
+    { "source": "/api/(.*)", "destination": "../../api-server/src/index.ts" },
+    { "source": "/((?!api|landing.html|_expo|static).*)", "destination": "/index.html" }
   ]
 }

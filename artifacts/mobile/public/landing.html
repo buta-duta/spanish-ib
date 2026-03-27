@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IB Spanish B Practice | Live Dashboard</title>
+    <title>IB Spanish B | Practice Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #3B82F6;
-            --primary-hover: #2563EB;
-            --bg: #0F172A;
-            --surface: #1E293B;
-            --text: #F8FAFC;
+            --primary: #8E44AD;
+            --primary-hover: #9B59B6;
+            --bg-top: #1A1030;
+            --bg-bot: #0F1117;
+            --surface: rgba(255, 255, 255, 0.05);
+            --text: #FFFFFF;
             --text-dim: #94A3B8;
-            --border: #334155;
-            --success: #10B981;
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #BB8FCE;
         }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg);
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-bot) 100%);
             color: var(--text);
             display: flex;
             align-items: center;
@@ -30,162 +32,171 @@
 
         .dashboard {
             width: 100%;
-            max-width: 600px;
-            background: var(--surface);
-            border-radius: 20px;
+            max-width: 540px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
             border: 1px solid var(--border);
-            padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 48px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
         }
 
         .header {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
         }
 
-        .logo {
-            width: 64px;
-            height: 64px;
-            background: var(--primary);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: 800;
-        }
-
-        .badge {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            padding: 4px 12px;
-            border-radius: 100px;
+        .subtitle {
             font-size: 12px;
             font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 8px;
         }
 
         h1 {
-            font-size: 24px;
+            font-size: 38px;
+            font-weight: 800;
             margin: 0;
-            letter-spacing: -0.025em;
+            letter-spacing: -1px;
         }
 
         p {
             color: var(--text-dim);
             font-size: 15px;
             line-height: 1.6;
-            margin: 8px 0 0 0;
+            margin: 12px 0 0 0;
         }
 
         .grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-            margin-top: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 40px;
         }
 
         .card {
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: left;
+            position: relative;
+            overflow: hidden;
         }
 
-        .card:hover { border-color: var(--primary); }
+        .card:hover { 
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+        }
 
         .btn {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
             width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            text-align: center;
+            padding: 18px;
+            border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 15px;
+            font-size: 16px;
             cursor: pointer;
             border: none;
             transition: all 0.2s;
-            box-sizing: border-box;
+            margin-top: 16px;
         }
 
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary { 
+            background: linear-gradient(135deg, var(--primary) 0%, #6C3483 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        }
+        .btn-primary:active { transform: scale(0.98); }
 
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        .btn-outline:hover { background: rgba(255,255,255,0.05); }
+        .btn-outline { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--border); 
+            color: var(--text); 
+        }
 
         .qr-area {
             display: flex;
             flex-direction: column;
             align-items: center;
-            text-align: center;
-            margin-top: 32px;
-            padding-top: 32px;
+            margin-top: 40px;
+            padding-top: 40px;
             border-top: 1px solid var(--border);
         }
 
         input {
             width: 100%;
-            background: var(--bg);
+            background: rgba(0,0,0,0.2);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 12px;
-            border-radius: 8px;
+            padding: 14px;
+            border-radius: 12px;
             margin: 12px 0;
             font-size: 14px;
+            outline: none;
         }
+
+        input:focus { border-color: var(--accent); }
 
         #qrImage {
             width: 160px;
             height: 160px;
             background: white;
             padding: 10px;
-            border-radius: 12px;
+            border-radius: 16px;
             margin-bottom: 16px;
+        }
+
+        .eas-info {
+            margin-top: 32px;
+            font-size: 11px;
+            text-align: center;
+            color: var(--text-dim);
+            opacity: 0.6;
         }
     </style>
 </head>
 <body>
     <div class="dashboard">
         <div class="header">
-            <div class="logo">ES</div>
-            <div>
-                <div class="badge">Live & Personalized</div>
-                <h1>Spanish IB Practice</h1>
-                <p>Interactive AI Spanish Exam Prep</p>
-            </div>
+            <div class="subtitle">IB Spanish B</div>
+            <h1>Portal de Práctica</h1>
+            <p>Interactive AI Spanish Exam Prep for Students</p>
         </div>
 
         <div class="grid">
             <div class="card">
-                <span style="font-size: 20px;">💻</span>
-                <h3 style="margin: 12px 0 8px 0;">Web Preview</h3>
-                <p style="margin-bottom: 20px;">Test the application directly in your browser.</p>
-                <a href="/app.html" class="btn btn-primary">Open Web Browser App</a>
+                <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
+                <h3 style="margin: 0; font-size: 18px;">Practice Online</h3>
+                <p>Run the full exam portal in your mobile browser.</p>
+                <a href="/app.html" class="btn btn-primary">Open Web Preview</a>
             </div>
 
             <div class="card">
-                <span style="font-size: 20px;">📱</span>
-                <h3 style="margin: 12px 0 8px 0;">Mobile App (Expo Go)</h3>
-                <p style="margin-bottom: 10px;">Open the full native experience on iOS.</p>
+                <div style="font-size: 24px; margin-bottom: 8px;">🚀</div>
+                <h3 style="margin: 0; font-size: 18px;">Native App (Expo Go)</h3>
+                <p>Best for recording audio and smooth animations.</p>
                 
-                <input type="text" id="expoUrl" placeholder="Paste your Expo Link here (exp://...)">
-                <a id="expoGoButton" href="#" class="btn btn-outline">Open in Expo Go</a>
+                <input type="text" id="expoUrl" placeholder="Paste exp:// link from terminal here...">
+                <a id="expoGoButton" href="#" class="btn btn-outline" style="margin-top: 8px;">Open in Expo Go</a>
             </div>
         </div>
 
         <div class="qr-area">
-            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://expo.dev" alt="Scan me">
-            <p style="font-size: 13px;">Scan this QR code with your iPhone camera to instantly launch the app.</p>
+            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://expo.dev" alt="Scan QR">
+            <p style="font-size: 13px;">Scan with your device camera to connect instantly.</p>
         </div>
 
-        <p style="font-size: 11px; text-align: center; margin-top: 32px; opacity: 0.5;">
-            To make this link permanent for everyone, run <strong>npx eas update</strong>.
-        </p>
+        <div class="eas-info">
+            To make this a permanent link for all students, run <code style="color: var(--accent);">npx eas update</code>
+        </div>
     </div>
 
     <script>
@@ -194,20 +205,19 @@
         const qr = document.getElementById('qrImage');
 
         function update(url) {
-            if (!url) return;
+            if (!url || !url.startsWith('exp://')) return;
             button.href = url;
             qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
             localStorage.setItem('saved_expo_url', url);
         }
 
-        // Load saved URL
         const saved = localStorage.getItem('saved_expo_url');
         if (saved) {
             input.value = saved;
             update(saved);
         }
 
-        input.oninput = (e) => update(e.target.value);
+        input.oninput = (e) => update(e.target.value.trim());
     </script>
 </body>
 </html>
