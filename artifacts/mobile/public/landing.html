@@ -136,19 +136,40 @@
             </a>
             
             <!-- Link to Expo Go -->
-            <a href="exp://u.expo.dev/spanish-ib" class="btn btn-secondary">
+            <a href="exp://u.expo.dev/spanish-ib" class="btn btn-secondary" id="expoGoButton">
                 <span>📱</span> Open in Expo Go
             </a>
         </div>
 
         <div class="qr-section">
+            <div style="margin-bottom: 16px;">
+                <label for="expoUrl" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Paste your Expo Go Link (from terminal):</label>
+                <input type="text" id="expoUrl" placeholder="exp://192.168..." style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #DDD; font-size: 14px; box-sizing: border-box;">
+            </div>
+
             <span style="font-weight: 600; font-size: 14px;">Scan with your iPhone camera:</span>
-            <div class="qr-placeholder">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=exp://u.expo.dev/spanish-ib" alt="QR Code for Expo Go" style="width: 100%; height: 100%; border-radius: 8px;">
+            <div class="qr-placeholder" id="qrWrapper">
+                <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=exp://u.expo.dev/spanish-ib" alt="QR Code" style="width: 100%; height: 100%; border-radius: 8px;">
             </div>
             <p style="font-size: 12px; margin-bottom: 0;">Requires the <strong>Expo Go</strong> app installed on your iPhone 15 Plus.</p>
         </div>
     </div>
+
+    <script>
+        const expoUrlInput = document.getElementById('expoUrl');
+        const qrImage = document.getElementById('qrImage');
+        const expoGoButton = document.getElementById('expoGoButton');
+
+        expoUrlInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            if (url.startsWith('exp://')) {
+                // Update QR Code
+                qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+                // Update Button
+                expoGoButton.href = url;
+            }
+        });
+    </script>
     <div class="footer">
         Powered by AI & Expo
     </div>
