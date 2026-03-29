@@ -43,28 +43,36 @@ router.post("/writing/prompt", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Eres un examinador del IB Spanish B. Genera una sola tarea de escritura realista al estilo IB completamente en español.
+          content: `Eres un examinador experto del IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"}.
 
-La pregunta debe:
-- Pedir al estudiante que escriba un/a ${typeName} en español
-- Estar claramente relacionada con el tema del IB: ${themeName}
-- Ser realista y específica (incluir una situación, un propósito y un destinatario o audiencia)
-- Ser adecuada para estudiantes de nivel ${level === "ab_initio" ? "A1-A2 (Ab Initio) de español. Use lenguaje sencillo y directo en la instrucción." : "B1-B2 de español"}
-- Indicar el número de palabras recomendado (${level === "ab_initio" ? "entre 70 y 150 palabras" : "entre 250 y 400 palabras"})
-- Seguir el formato exacto del IB: contexto de la situación, instrucciones claras y audiencia${avoidSection}
-- ${level === "ab_initio" ? "IMPORTANT: Write the prompt instructions using very simple Spanish that an A1-A2 student can understand." : "Use standard academic Spanish for the instructions."}
+OBJETIVO:
+Generar una tarea de escritura realista al estilo IB.
 
-Devuelve ÚNICAMENTE el texto de la pregunta en español. Sin explicaciones, sin JSON. Solo la pregunta tal como aparecería en un examen IB.`,
+${level === "ab_initio" ? `!!! RESTRICCIONES ESTRICTAS PARA AB INITIO !!!
+- NIVEL: A1-A2 (Español de supervivencia).
+- VOCABULARIO: Use SOLAMENTE las 500 palabras más comunes. Evite términos académicos o complejos.
+- INSTRUCCIONES: Escriba las instrucciones en un español EXTREMADAMENTE SENCILLO que un principiante pueda entender.
+- LARGO: Entre 70 y 150 palabras.` : `
+- NIVEL: B1-B2.
+- VOCABULARIO: Académico/Intermedio.
+- LARGO: Entre 250 y 400 palabras.`}
+
+REQUISITOS:
+- Tarea: Escribir un/a ${typeName}
+- Tema: ${themeName}
+- Situación: Realista, con propósito y audiencia clara.${avoidSection}
+
+Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
         },
       ],
-      temperature: 0.9,
+      temperature: 0.8,
     });
 
     const prompt = completion.choices[0]?.message?.content?.trim() ?? "";
-    res.json({ prompt });
+    return res.json({ prompt });
   } catch (err) {
     console.error("writing/prompt error:", err);
-    res.status(500).json({ error: "Error al generar la pregunta." });
+    return res.status(500).json({ error: "Error al generar la pregunta." });
   }
 });
 
@@ -176,10 +184,10 @@ Return a JSON object:
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    res.json(JSON.parse(raw));
+    return res.json(JSON.parse(raw));
   } catch (err) {
     console.error("writing/feedback error:", err);
-    res.status(500).json({ error: "Error al evaluar el texto." });
+    return res.status(500).json({ error: "Error al evaluar el texto." });
   }
 });
 
@@ -221,10 +229,10 @@ Requirements:
     });
 
     const rewritten = completion.choices[0]?.message?.content?.trim() ?? "";
-    res.json({ rewritten });
+    return res.json({ rewritten });
   } catch (err) {
     console.error("writing/rewrite error:", err);
-    res.status(500).json({ error: "Error al reescribir el texto." });
+    return res.status(500).json({ error: "Error al reescribir el texto." });
   }
 });
 

@@ -106,6 +106,7 @@ Content guidelines:
 - Include cultural references relevant to Spanish-speaking countries
 - Use appropriate tenses: ${level === "ab_initio" ? "Present, Preterite, and Imperfect ONLY. AVOID subjunctive, conditional, and passive voice." : "present, preterite, imperfect, conditional, subjunctive where natural"}
 - Make the content engaging and exam-realistic${focusLine}
+- STRICTLY adhere to the specified level constraints. Do not exceed the complexity of the target level.
 
 Return ONLY valid JSON (no markdown):
 {
@@ -118,7 +119,7 @@ Return ONLY valid JSON (no markdown):
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 1200,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },

@@ -40,30 +40,37 @@ router.post("/reading/generate", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} curriculum writer. You create authentic, engaging reading texts for IB Spanish ${level === "ab_initio" ? "Ab Initio students (A1-A2 level)" : "B students (B1-B2 level)"}.
+          content: `You are an expert IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} curriculum writer.
+
+CORE MISSION:
+Generate an authentic ${typeName} for the IB Spanish ${level === "ab_initio" ? "Ab Initio (A1-A2)" : "B (B1-B2)"} course.
+
+${level === "ab_initio" ? `!!! STRICT AB INITIO CONSTRAINTS !!!
+- LEVEL: A1-A2 (Survival Spanish).
+- VOCABULARY: Use ONLY the top 500 most common Spanish words. AVOID all specialized, academic, or formal terms. If you use a word like 'gastronomía', you HAVE FAILED. Use 'comida'.
+- GRAMMAR: Present Indicative ONLY. NO past tenses. NO subjunctive. NO future.
+- STRUCTURE: 5-8 words per sentence. Subject + Verb + Object only.
+- LENGTH: 150-200 words max.` : `
+- LEVEL: B1-B2.
+- VOCABULARY: Intermediate/Advanced IB B vocabulary.
+- GRAMMAR: Complex structures (subjunctive, conditional, etc.).
+- LENGTH: 400-600 words.`}
 
 REQUIREMENTS:
-- Write a ${typeName} in Spanish
 - Theme: ${themeName}
-- Length: ${level === "ab_initio" ? "150-250 words" : "400-600 words"}
-- Use ${level === "ab_initio" ? "high-frequency, basic vocabulary (A1-A2) suited for beginners" : "intermediate to advanced vocabulary (B1-B2)"}
-- Include a clear title
-- Use proper paragraph structure (3–5 paragraphs)
-- Include culturally relevant references to Spanish-speaking countries when appropriate
-- ${level === "ab_initio" ? "Use simple grammatical structures: present, preterite, and imperfect tenses only. AVOID subjunctive, conditional, and passive voice." : "Use a variety of grammatical structures: subjunctive, conditional, passive voice"}
-- Write in a style authentic to a real ${typeName}${focusLine}
+- Include a clear, simple title
+- Paragraphs: 3–4
+- Authenticity: Style must match a real ${typeName}${focusLine}
 
 FORMAT:
-Return a JSON object with exactly these fields:
+Return a JSON object:
 {
-  "title": "Title of the text",
-  "text": "Full body text with paragraphs separated by \\n\\n"
-}
-
-Do NOT include the title inside the text field. Return ONLY valid JSON.`,
+  "title": "...",
+  "text": "..."
+}`,
         },
       ],
-      temperature: 0.8,
+      temperature: 0.7,
       response_format: { type: "json_object" },
     });
 
