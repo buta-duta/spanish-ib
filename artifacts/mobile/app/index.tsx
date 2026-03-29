@@ -115,7 +115,7 @@ export default function HomeScreen() {
             {/* Header */}
             <View style={styles.header}>
               <View>
-                <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish B</Text>
+                <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish</Text>
                 <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 10 }}>
@@ -243,7 +243,7 @@ export default function HomeScreen() {
                   { backgroundColor: theme.card, borderColor: theme.border },
                 ]}
               >
-                <Text style={[styles.statValue, { color: theme.tint }]}>B2</Text>
+                <Text style={[styles.statValue, { color: theme.tint }]}>A2/B2</Text>
                 <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
                   Nivel objetivo
                 </Text>
