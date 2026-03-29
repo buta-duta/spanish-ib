@@ -129,8 +129,8 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
     ];
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
+      model: "gpt-4o-mini",
+      max_completion_tokens: 1500,
       messages: chatMessages,
       stream: true,
     });
@@ -229,8 +229,8 @@ Structure your questions to elicit these elements (don't mention PALMS explicitl
     ];
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
+      model: "gpt-4o-mini",
+      max_completion_tokens: 1500,
       messages: chatMessages,
       stream: true,
     });
@@ -375,8 +375,8 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 4096,
+      model: "gpt-4o",
+      max_completion_tokens: 2048,
       messages: [{ role: "user", content: feedbackPrompt }],
       response_format: { type: "json_object" },
     });
@@ -449,7 +449,7 @@ Be fair, constructive, and specific. Grade ONLY what was actually said. Bands ra
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 1500,
       messages: [{ role: "user", content: feedbackPrompt }],
       response_format: { type: "json_object" },
@@ -471,7 +471,7 @@ router.post("/exam/word", async (req, res) => {
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o-mini",
       max_completion_tokens: 200,
       messages: [
         { role: "system", content: "You are a Spanish language dictionary. Return only valid JSON with no markdown code blocks." },

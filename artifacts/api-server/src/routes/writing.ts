@@ -66,6 +66,7 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
         },
       ],
       temperature: 0.8,
+      max_completion_tokens: 500,
     });
 
     const prompt = completion.choices[0]?.message?.content?.trim() ?? "";
@@ -180,6 +181,7 @@ Return a JSON object:
         },
       ],
       temperature: 0.2,
+      max_completion_tokens: 2048,
       response_format: { type: "json_object" },
     });
 
@@ -226,6 +228,7 @@ Requirements:
         },
       ],
       temperature: 0.5,
+      max_completion_tokens: 1500,
     });
 
     const rewritten = completion.choices[0]?.message?.content?.trim() ?? "";
