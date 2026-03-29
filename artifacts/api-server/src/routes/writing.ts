@@ -23,10 +23,11 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate writing prompt ───────────────────────────────────────────────────
 router.post("/writing/prompt", async (req, res) => {
-  const { theme = "experiencias", textType = "article", previousPrompts = [] } = req.body as {
+  const { theme = "experiencias", textType = "article", previousPrompts = [], level = "b" } = req.body as {
     theme?: string;
     textType?: string;
     previousPrompts?: string[];
+    level?: "b" | "ab_initio";
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -48,8 +49,8 @@ La pregunta debe:
 - Pedir al estudiante que escriba un/a ${typeName} en español
 - Estar claramente relacionada con el tema del IB: ${themeName}
 - Ser realista y específica (incluir una situación, un propósito y un destinatario o audiencia)
-- Ser adecuada para estudiantes de nivel B1-B2 de español
-- Indicar el número de palabras recomendado (entre 250 y 400 palabras)
+- Ser adecuada para estudiantes de nivel ${level === "ab_initio" ? "A1-A2 (Ab Initio)" : "B1-B2"} de español
+- Indicar el número de palabras recomendado (${level === "ab_initio" ? "entre 70 y 150 palabras" : "entre 250 y 400 palabras"})
 - Seguir el formato exacto del IB: contexto de la situación, instrucciones claras y audiencia${avoidSection}
 
 Devuelve ÚNICAMENTE el texto de la pregunta en español. Sin explicaciones, sin JSON. Solo la pregunta tal como aparecería en un examen IB.`,
@@ -68,11 +69,12 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español. Sin explicaciones, sin
 
 // ── Evaluate writing + IB markscheme feedback ─────────────────────────────────
 router.post("/writing/feedback", async (req, res) => {
-  const { prompt, essay, theme, textType } = req.body as {
+  const { prompt, essay, theme, textType, level = "b" } = req.body as {
     prompt: string;
     essay: string;
     theme?: string;
     textType?: string;
+    level?: "b" | "ab_initio";
   };
 
   if (!essay || essay.trim().length < 30) {
@@ -83,16 +85,23 @@ router.post("/writing/feedback", async (req, res) => {
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? textType ?? "text";
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are an experienced IB Spanish B examiner. Evaluate a student's written response using the official IB Spanish B markscheme.
+    const isAbInitio = level === "ab_initio";
+    const criteriaText = isAbInitio
+      ? `IB Markscheme criteria (Total 30 marks):
+- Criterion A: Language (0-12 marks) — grammar accuracy, tense usage, vocabulary range
+- Criterion B: Message (0-12 marks) — clarity, development of ideas, coherence
+- Criterion C: Conceptual understanding (0-6 marks) — relevance to theme, appropriateness to text type
 
-The task required a ${typeName} related to the theme "${themeName}".
+IB Band descriptors (approximate for Ab Initio):
+- 1-2: Very limited, many errors
+- 3-5: Basic, some errors, limited development
+- 6-8: Adequate, mostly accurate
+- 9-10: Good, accurate, well-organized
+- 11-12: Very good, accurate, varied vocabulary
 
-IB Markscheme criteria (each scored /6):
+Convert total mark to IB grade (approximate for Ab Initio):
+0-4: Band 1 | 5-9: Band 2 | 10-13: Band 3 | 14-18: Band 4 | 19-23: Band 5 | 24-27: Band 6 | 28-30: Band 7`
+      : `IB Markscheme criteria (each scored /6):
 - Criterion A: Language — grammar accuracy, tense usage, vocabulary range, syntax variety
 - Criterion B: Message — clarity, organization, development of ideas, coherence
 - Criterion C: Conceptual understanding — relevance to theme, appropriateness to text type, cultural awareness
@@ -107,19 +116,30 @@ IB Band descriptors:
 - 16–18: Outstanding, near-native, highly sophisticated
 
 Convert total mark to IB grade:
-0–5: Band 1 | 6–8: Band 2 | 9–11: Band 3 | 12–14: Band 4 | 15–16: Band 5 | 17: Band 6 | 18: Band 7
+0–5: Band 1 | 6–8: Band 2 | 9–11: Band 3 | 12–14: Band 4 | 15–16: Band 5 | 17: Band 6 | 18: Band 7`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} examiner. Evaluate a student's written response using the official IB Spanish ${isAbInitio ? "Ab Initio" : "B"} markscheme.
+
+The task required a ${typeName} related to the theme "${themeName}".
+
+${criteriaText}
 
 Return a JSON object:
 {
   "criterionA": {
-    "mark": <0-6>,
+    "mark": <0-${isAbInitio ? 12 : 6}>,
     "feedback": "Detailed feedback in English on grammar, tense, vocabulary.",
     "corrections": [
       {"original": "exact phrase from student's text", "corrected": "corrected version", "explanation": "Brief explanation in English"}
     ]
   },
   "criterionB": {
-    "mark": <0-6>,
+    "mark": <0-${isAbInitio ? 12 : 6}>,
     "feedback": "Detailed feedback in English on message clarity and organization."
   },
   "criterionC": {
@@ -164,10 +184,11 @@ Return a JSON object:
 
 // ── Rewrite essay at Band 7 ──────────────────────────────────────────────────
 router.post("/writing/rewrite", async (req, res) => {
-  const { prompt, essay, textType } = req.body as {
+  const { prompt, essay, textType, level = "b" } = req.body as {
     prompt: string;
     essay: string;
     textType?: string;
+    level?: "b" | "ab_initio";
   };
 
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? "text";
@@ -178,13 +199,13 @@ router.post("/writing/rewrite", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert Spanish B writer. Rewrite the student's essay at IB Band 7 level.
+          content: `You are an expert Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} writer. Rewrite the student's essay at a high IB Band 7 level for this course.
 
 Requirements:
 - Keep the SAME structure and main ideas as the original
 - Write the same ${typeName} format with appropriate conventions
-- Use sophisticated, varied vocabulary (B2-C1)
-- Employ complex grammatical structures: subjunctive, conditional, passive voice
+- Use appropriate sophisticated vocabulary (for ${level === "ab_initio" ? "A2-B1 level" : "B2-C1 level"})
+- Employ grammatical structures expected for a 7: ${level === "ab_initio" ? "consistent present, accurate preterite and imperfect, basic future, cohesive devices" : "subjunctive, conditional, passive voice, complex clauses"}
 - Use varied sentence length and strong discourse connectors
 - Maintain cultural authenticity
 - Match the word count of the original (±10%)

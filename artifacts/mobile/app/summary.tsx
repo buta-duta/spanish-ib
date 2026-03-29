@@ -40,7 +40,7 @@ type SessionFeedback = {
     criterionA: CriterionScore;
     criterionB: CriterionScore;
     criterionC: CriterionScore;
-    criterionD: CriterionScore;
+    criterionD?: CriterionScore;
   };
   improvedExamples: ImprovedExample[];
 };
@@ -138,6 +138,7 @@ export default function SummaryScreen() {
         body: JSON.stringify({
           messages: s.messages.map((m) => ({ role: m.role, content: m.content })),
           theme: s.themeId,
+          level: s.level || "b",
         }),
       });
 
@@ -286,15 +287,18 @@ export default function SummaryScreen() {
 
               {/* IB Criteria */}
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Criterios IB (estimados)</Text>
-              {Object.entries(feedback.ibCriteria).map(([key, criterion]) => (
-                <CriterionCard
-                  key={key}
-                  label={`Criterio ${key.replace("criterion", "").toUpperCase()}: ${criterion.label}`}
-                  band={criterion.band}
-                  comments={criterion.comments}
-                  colors={colors}
-                />
-              ))}
+              {Object.entries(feedback.ibCriteria).map(([key, criterion]) => {
+                if (!criterion) return null;
+                return (
+                  <CriterionCard
+                    key={key}
+                    label={`Criterio ${key.replace("criterion", "").toUpperCase()}: ${criterion.label}`}
+                    band={criterion.band}
+                    comments={criterion.comments}
+                    colors={colors}
+                  />
+                );
+              })}
 
               {/* Grammar mistakes */}
               {feedback.languageAnalysis.grammarMistakes.length > 0 && (

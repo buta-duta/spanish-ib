@@ -21,10 +21,11 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
-  const { theme = "experiencias", textType = "article", customFocus } = req.body as {
+  const { theme = "experiencias", textType = "article", customFocus, level = "b" } = req.body as {
     theme?: string;
     textType?: string;
     customFocus?: string;
+    level?: "b" | "ab_initio";
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -39,13 +40,13 @@ router.post("/reading/generate", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert IB Spanish B curriculum writer. You create authentic, engaging reading texts for IB Spanish B students (B1-B2 level).
+          content: `You are an expert IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} curriculum writer. You create authentic, engaging reading texts for IB Spanish ${level === "ab_initio" ? "Ab Initio students (A1-A2 level)" : "B students (B1-B2 level)"}.
 
 REQUIREMENTS:
 - Write a ${typeName} in Spanish
 - Theme: ${themeName}
-- Length: 400–600 words
-- Use intermediate to advanced vocabulary (B1-B2)
+- Length: ${level === "ab_initio" ? "150-250 words" : "400-600 words"}
+- Use ${level === "ab_initio" ? "basic to intermediate vocabulary (A1-A2)" : "intermediate to advanced vocabulary (B1-B2)"}
 - Include a clear title
 - Use proper paragraph structure (3–5 paragraphs)
 - Include culturally relevant references to Spanish-speaking countries when appropriate
@@ -82,7 +83,7 @@ Do NOT include the title inside the text field. Return ONLY valid JSON.`,
 
 // ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
-  const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
+  const { text, title = "", count = 8, level = "b" } = req.body as { text: string; title?: string; count?: number; level?: "b" | "ab_initio" };
   if (!text || text.length < 50) {
     return res.status(400).json({ error: "Texto demasiado corto." });
   }
@@ -97,7 +98,7 @@ router.post("/reading/questions", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an IB Spanish B examiner creating reading comprehension questions.
+          content: `You are an IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} examiner creating reading comprehension questions.
 
 Given a Spanish text, generate exactly ${count} questions in Spanish that test reading comprehension, inference, and vocabulary.
 
@@ -108,7 +109,7 @@ Mix EXACTLY these question types:
 
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.
-For Synonym: pick vocabulary words at B2 level that appear in the text.
+For Synonym: pick vocabulary words at ${level === "ab_initio" ? "A2 level" : "B2 level"} that appear in the text.
 
 Return a JSON object:
 {
@@ -157,10 +158,10 @@ Return ONLY valid JSON.`,
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
-    res.json({ questions: parsed.questions ?? [] });
+    return res.json({ questions: parsed.questions ?? [] });
   } catch (err) {
     console.error("reading/questions error:", err);
-    res.status(500).json({ error: "Error al generar preguntas." });
+    return res.status(500).json({ error: "Error al generar preguntas." });
   }
 });
 

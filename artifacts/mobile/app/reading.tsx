@@ -153,6 +153,7 @@ export default function ReadingScreen() {
   const [inputMode, setInputMode] = useState<InputMode>("generate");
 
   // Generate mode state
+  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
   const [selectedType, setSelectedType] = useState("article");
 
@@ -196,7 +197,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined, level }),
       });
       const data = await res.json();
       setReadingTitle(data.title ?? "Texto de lectura");
@@ -229,7 +230,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
+        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions, level }),
       });
       const data = await res.json();
       setQuestions(data.questions ?? []);
@@ -383,7 +384,7 @@ export default function ReadingScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[s.screenLabel, { color: ACCENT }]}>IB Spanish B</Text>
+            <Text style={[s.screenLabel, { color: ACCENT }]}>IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"}</Text>
             <Text style={[s.screenTitle, { color: colors.text }]}>Lectura</Text>
           </View>
           <View style={[s.badge, { backgroundColor: ACCENT + "20", borderColor: ACCENT + "50" }]}>
@@ -473,6 +474,29 @@ export default function ReadingScreen() {
                         ]}
                       >
                         <Text style={[s.typeChipText, { color: active ? "#fff" : colors.text }]}>{t.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Level selector */}
+              <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                  {(["b", "ab_initio"] as const).map((l) => {
+                    const active = level === l;
+                    return (
+                      <Pressable
+                        key={l}
+                        onPress={() => setLevel(l)}
+                        style={[s.typeChip, {
+                          backgroundColor: active ? ACCENT : colors.cardAlt,
+                          borderColor: active ? ACCENT : colors.border,
+                          flex: 1, alignItems: "center"
+                        }]}
+                      >
+                        <Text style={[s.typeChipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
                       </Pressable>
                     );
                   })}

@@ -45,7 +45,7 @@ type FeedbackData = {
   criterionA: CriterionScore;
   criterionB: CriterionScore;
   criterionC: CriterionScore;
-  criterionD: CriterionScore;
+  criterionD?: CriterionScore;
   estimatedBand: string;
   strengths: string[];
   improvements: string[];
@@ -258,6 +258,7 @@ export default function ImagePracticeScreen() {
 
   // ── Phase state ──────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("select");
+  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedImage, setSelectedImage] = useState<PracticeImage | null>(null);
 
@@ -700,6 +701,7 @@ export default function ImagePracticeScreen() {
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
           imageCaption: selectedImage.caption,
           theme: selectedImage.themeId,
+          level,
         }),
       });
       if (!res.ok) throw new Error("feedback failed");
@@ -709,7 +711,7 @@ export default function ImagePracticeScreen() {
     } finally {
       setFeedbackLoading(false);
     }
-  }, [selectedImage, messages, feedbackLoading]);
+  }, [selectedImage, messages, feedbackLoading, level]);
 
   // ── Exit with confirmation (F34) ──────────────────────────────────────────────
   const cleanupAudio = () => {
@@ -957,7 +959,7 @@ export default function ImagePracticeScreen() {
   // ── FEEDBACK PHASE (F32) ──────────────────────────────────────────────────────
   if (phase === "feedback") {
     const criteria = feedback
-      ? [feedback.criterionA, feedback.criterionB, feedback.criterionC, feedback.criterionD]
+      ? [feedback.criterionA, feedback.criterionB, feedback.criterionC, feedback.criterionD].filter((c): c is CriterionScore => c !== undefined)
       : [];
 
     // Compute per-question response times and answer lengths

@@ -84,6 +84,7 @@ export default function ListeningScreen() {
   const [phase, setPhase] = useState<Phase>("setup");
 
   // ── Setup state ───────────────────────────────────────────────────────────────
+  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedType, setSelectedType] = useState<PassageType>("conversation");
   const [manualPassage, setManualPassage] = useState("");
@@ -133,7 +134,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined, level }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
@@ -291,7 +292,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage, count: numQuestions }),
+        body: JSON.stringify({ passage, count: numQuestions, level }),
       });
       if (!res.ok) throw new Error("Question generation failed");
       const data = await res.json();
@@ -325,6 +326,7 @@ export default function ListeningScreen() {
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
           passage,
+          level,
         }),
       });
       if (!res.ok) throw new Error("Check failed");
@@ -390,7 +392,7 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]}>Comprensión auditiva</Text>
-            <Text style={[s.headerSub, { color: colors.textSecondary }]}>IB Spanish B · Listening Practice</Text>
+            <Text style={[s.headerSub, { color: colors.textSecondary }]}>IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"} · Listening Practice</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -416,6 +418,30 @@ export default function ListeningScreen() {
               </Pressable>
             ))}
           </ScrollView>
+
+          {/* Level selector */}
+          <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Nivel</Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+            {(["b", "ab_initio"] as const).map((l) => {
+              const active = level === l;
+              return (
+                <Pressable
+                  key={l}
+                  onPress={() => setLevel(l)}
+                  style={[
+                    s.typeCard,
+                    {
+                      backgroundColor: active ? themeColor + "18" : colors.card,
+                      borderColor: active ? themeColor : colors.border,
+                      flex: 1, alignItems: "center", paddingVertical: 12
+                    },
+                  ]}
+                >
+                  <Text style={[s.typeLabel, { color: active ? themeColor : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* Passage type */}
           <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Tipo de pasaje</Text>

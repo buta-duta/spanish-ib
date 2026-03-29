@@ -257,13 +257,14 @@ export default function ThemeSelectScreen() {
 
   const [guideThemeId, setGuideThemeId] = useState<string | null>(null);
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
+  const [level, setLevel] = useState<"b" | "ab_initio">("b");
 
   const handleSelectTheme = async (themeId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const wasRepeated = usedThemes.includes(themeId);
     await selectTheme(themeId);
     const theme = THEMES.find((t) => t.id === themeId)!;
-    startSession(themeId, theme.name, wasRepeated);
+    startSession(themeId, theme.name, wasRepeated, level);
     router.push("/exam");
   };
 
@@ -271,7 +272,7 @@ export default function ThemeSelectScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const theme = await selectRandomTheme();
     const wasRepeated = usedThemes.includes(theme.id);
-    startSession(theme.id, theme.name, wasRepeated);
+    startSession(theme.id, theme.name, wasRepeated, level);
     router.push("/exam");
   };
 
@@ -315,6 +316,26 @@ export default function ThemeSelectScreen() {
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           <Text style={[styles.dividerText, { color: colors.textSecondary }]}>o elige un tema específico</Text>
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+        </View>
+
+        {/* Level selector */}
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+          {(["b", "ab_initio"] as const).map((l) => {
+            const active = level === l;
+            return (
+              <Pressable
+                key={l}
+                onPress={() => setLevel(l)}
+                style={{
+                  backgroundColor: active ? colors.tint : colors.card,
+                  borderColor: active ? colors.tint : colors.border,
+                  flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, borderWidth: 1
+                }}
+              >
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: active ? "#fff" : colors.text }}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Theme list */}

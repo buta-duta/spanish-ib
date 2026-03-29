@@ -18,6 +18,7 @@ export type ExamSession = {
   id: string;
   themeId: string;
   themeName: string;
+  level: "b" | "ab_initio";
   messages: Message[];
   startedAt: number;
   completedAt?: number;
@@ -33,7 +34,7 @@ export function generateMsgId(): string {
 type ExamContextType = {
   currentSession: ExamSession | null;
   sessions: ExamSession[];
-  startSession: (themeId: string, themeName: string, wasRepeated: boolean) => ExamSession;
+  startSession: (themeId: string, themeName: string, wasRepeated: boolean, level: "b" | "ab_initio") => ExamSession;
   addMessage: (message: Omit<Message, "id" | "timestamp">) => Message;
   endSession: () => Promise<ExamSession | null>;
   loadSessions: () => Promise<void>;
@@ -59,11 +60,12 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const startSession = useCallback(
-    (themeId: string, themeName: string, wasRepeated: boolean): ExamSession => {
+    (themeId: string, themeName: string, wasRepeated: boolean, level: "b" | "ab_initio"): ExamSession => {
       const session: ExamSession = {
         id: `session-${Date.now()}`,
         themeId,
         themeName,
+        level,
         messages: [],
         startedAt: Date.now(),
         wasRepeated,

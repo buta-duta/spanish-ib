@@ -171,6 +171,7 @@ export default function WritingScreen() {
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   // Setup
+  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
   const [selectedType, setSelectedType] = useState("article");
   const [promptMode, setPromptMode] = useState<PromptMode>("generate");
@@ -213,6 +214,7 @@ export default function WritingScreen() {
           theme: selectedTheme,
           textType: selectedType,
           previousPrompts,
+          level,
         }),
       });
       const data = await res.json();
@@ -248,6 +250,7 @@ export default function WritingScreen() {
           essay,
           theme: selectedTheme,
           textType: selectedType,
+          level,
         }),
       });
       const data = await res.json();
@@ -273,6 +276,7 @@ export default function WritingScreen() {
           prompt: activePrompt,
           essay,
           textType: selectedType,
+          level,
         }),
       });
       const data = await res.json();
@@ -383,6 +387,29 @@ export default function WritingScreen() {
                     }]}
                   >
                     <Text style={[s.chipText, { color: active ? "#fff" : colors.text }]}>{t.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Level */}
+          <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              {(["b", "ab_initio"] as const).map((l) => {
+                const active = level === l;
+                return (
+                  <Pressable
+                    key={l}
+                    onPress={() => setLevel(l)}
+                    style={[s.chip, {
+                      backgroundColor: active ? ACCENT : colors.cardAlt,
+                      borderColor: active ? ACCENT : colors.border,
+                      flex: 1, alignItems: "center"
+                    }]}
+                  >
+                    <Text style={[s.chipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
                   </Pressable>
                 );
               })}
@@ -572,7 +599,7 @@ export default function WritingScreen() {
             <View style={[s.infoRow, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
               <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
               <Text style={[s.infoText, { color: colors.textSecondary }]}>
-                Rango recomendado: 250–400 palabras (IB Spanish B)
+                Rango recomendado: {level === "ab_initio" ? "70–150" : "250–400"} palabras (IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"})
               </Text>
             </View>
 
@@ -594,7 +621,7 @@ export default function WritingScreen() {
             <View style={s.wcRow}>
               <Text style={[s.wcLabel, { color: colors.textSecondary }]}>Palabras:</Text>
               <Text style={[s.wcValue, { color: wcColor }]}>{wc}</Text>
-              <Text style={[s.wcTarget, { color: colors.textSecondary }]}>/ 250–400</Text>
+              <Text style={[s.wcTarget, { color: colors.textSecondary }]}>/ {level === "ab_initio" ? "70–150" : "250–400"}</Text>
             </View>
           </ScrollView>
 
@@ -674,7 +701,7 @@ export default function WritingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.scoreLabel, { color: colors.textSecondary }]}>Puntuación total</Text>
                 <Text style={[s.scoreBig, { color: bc }]}>
-                  {feedback.totalMark}<Text style={s.scoreMax}>/18</Text>
+                  {feedback.totalMark}<Text style={s.scoreMax}>/{level === "ab_initio" ? "30" : "18"}</Text>
                 </Text>
               </View>
               <View style={[s.bandBox, { backgroundColor: bc + "20", borderColor: bc + "50" }]}>
@@ -690,12 +717,13 @@ export default function WritingScreen() {
                 { letter: "B", mark: feedback.criterionB.mark },
                 { letter: "C", mark: feedback.criterionC.mark },
               ].map(({ letter, mark }) => {
-                const p = mark / 6;
+                const max = (level === "ab_initio" && (letter === "A" || letter === "B")) ? 12 : 6;
+                const p = mark / max;
                 const c = p >= 0.75 ? "#27AE60" : p >= 0.5 ? ACCENT : "#E74C3C";
                 return (
                   <View key={letter} style={[s.miniCriterion, { backgroundColor: c + "15" }]}>
                     <Text style={[s.miniLetter, { color: c }]}>{letter}</Text>
-                    <Text style={[s.miniMark, { color: c }]}>{mark}/6</Text>
+                    <Text style={[s.miniMark, { color: c }]}>{mark}/{max}</Text>
                   </View>
                 );
               })}
@@ -707,7 +735,7 @@ export default function WritingScreen() {
             label="Criterion A: Language"
             letter="A"
             mark={feedback.criterionA.mark}
-            maxMark={6}
+            maxMark={level === "ab_initio" ? 12 : 6}
             feedback={feedback.criterionA.feedback}
             corrections={feedback.criterionA.corrections}
             colors={colors}
@@ -718,7 +746,7 @@ export default function WritingScreen() {
             label="Criterion B: Message"
             letter="B"
             mark={feedback.criterionB.mark}
-            maxMark={6}
+            maxMark={level === "ab_initio" ? 12 : 6}
             feedback={feedback.criterionB.feedback}
             colors={colors}
           />
