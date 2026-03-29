@@ -23,11 +23,10 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate writing prompt ───────────────────────────────────────────────────
 router.post("/writing/prompt", async (req, res) => {
-  const { theme = "experiencias", textType = "article", previousPrompts = [], level = "b" } = req.body as {
+  const { theme = "experiencias", textType = "article", previousPrompts = [] } = req.body as {
     theme?: string;
     textType?: string;
     previousPrompts?: string[];
-    level?: "b" | "ab_initio";
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -43,21 +42,15 @@ router.post("/writing/prompt", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Eres un examinador experto del IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"}.
+          content: `Eres un examinador experto del IB Spanish B.
 
 OBJETIVO:
 Generar una tarea de escritura realista al estilo IB.
 
-${level === "ab_initio" ? `!!! CRITICAL: IB CRITERION A - AB INITIO (LITERAL) !!!
-- NIVEL: A1 (Principiante). 
-- SIN METÁFORAS: Prohibido el lenguaje figurado. Reemplace 'raíces' con 'familia/historia'.
-- SOLO LITERAL: Use descripciones directas. No use 'viaje interior', use 'pensar mucho'.
-- VOCABULARIO: Top 1,000 comunes.
-- ORACIONES: Máximo 12 palabras. Divide las largas.
-- GRAMATICA: Presente únicamente.` : `!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
+!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
 - NIVEL: B1-B2.
 - VOCABULARIO TEMÁTICO: Use vocabulario específico y avanzado relacionado con ${themeName}.
-- RIQUEZA: Use expresiones idiomáticas y estructuras complejas.`}
+- RIQUEZA: Use expresiones idiomáticas y estructuras complejas.
 
 REQUISITOS:
 - Tarea: Escribir un/a ${typeName}
@@ -81,12 +74,11 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
 
 // ── Evaluate writing + IB markscheme feedback ─────────────────────────────────
 router.post("/writing/feedback", async (req, res) => {
-  const { prompt, essay, theme, textType, level = "b" } = req.body as {
+  const { prompt, essay, theme, textType } = req.body as {
     prompt: string;
     essay: string;
     theme?: string;
     textType?: string;
-    level?: "b" | "ab_initio";
   };
 
   if (!essay || essay.trim().length < 30) {
@@ -97,23 +89,7 @@ router.post("/writing/feedback", async (req, res) => {
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? textType ?? "text";
 
   try {
-    const isAbInitio = level === "ab_initio";
-    const criteriaText = isAbInitio
-      ? `IB Markscheme criteria (Total 30 marks):
-- Criterion A: Language (0-12 marks) — grammar accuracy, tense usage, vocabulary range
-- Criterion B: Message (0-12 marks) — clarity, development of ideas, coherence
-- Criterion C: Conceptual understanding (0-6 marks) — relevance to theme, appropriateness to text type
-
-IB Band descriptors (approximate for Ab Initio):
-- 1-2: Very limited, many errors
-- 3-5: Basic, some errors, limited development
-- 6-8: Adequate, mostly accurate
-- 9-10: Good, accurate, well-organized
-- 11-12: Very good, accurate, varied vocabulary
-
-Convert total mark to IB grade (approximate for Ab Initio):
-0-4: Band 1 | 5-9: Band 2 | 10-13: Band 3 | 14-18: Band 4 | 19-23: Band 5 | 24-27: Band 6 | 28-30: Band 7`
-      : `IB Markscheme criteria (each scored /6):
+    const criteriaText = `IB Markscheme criteria (each scored /6):
 - Criterion A: Language — grammar accuracy, tense usage, vocabulary range, syntax variety
 - Criterion B: Message — clarity, organization, development of ideas, coherence
 - Criterion C: Conceptual understanding — relevance to theme, appropriateness to text type, cultural awareness
@@ -135,7 +111,7 @@ Convert total mark to IB grade:
       messages: [
         {
           role: "system",
-          content: `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} examiner. Evaluate a student's written response using the official IB Spanish ${isAbInitio ? "Ab Initio" : "B"} markscheme.
+          content: `You are an experienced IB Spanish B examiner. Evaluate a student's written response using the official IB Spanish B markscheme.
 
 The task required a ${typeName} related to the theme "${themeName}".
 
@@ -144,14 +120,14 @@ ${criteriaText}
 Return a JSON object:
 {
   "criterionA": {
-    "mark": <0-${isAbInitio ? 12 : 6}>,
+    "mark": <0-6>,
     "feedback": "Detailed feedback in English on grammar, tense, vocabulary.",
     "corrections": [
       {"original": "exact phrase from student's text", "corrected": "corrected version", "explanation": "Brief explanation in English"}
     ]
   },
   "criterionB": {
-    "mark": <0-${isAbInitio ? 12 : 6}>,
+    "mark": <0-6>,
     "feedback": "Detailed feedback in English on message clarity and organization."
   },
   "criterionC": {
@@ -171,10 +147,9 @@ Return a JSON object:
   ]
 }
 
-- corrections: provide 2–3 major primary grammar corrections
-- vocabularySuggestions: provide 3-5 simple A1-A2 synonyms for complex words they used
-- modelRewrites: rewrite 2 sentences using ONLY present indicative and basic SVO structure
-- CRITICAL: If level is Ab Initio, ALL your feedback strings MUST be written in extremely simple basic English + simple Spanish so they can be understood.
+- corrections: provide 3-5 major primary grammar corrections
+- vocabularySuggestions: provide 3-5 sophisticated B2 synonyms for basic words they used
+- modelRewrites: rewrite 2 sentences using advanced B2-C1 structures and topic vocabulary
 - Return ONLY valid JSON`,
         },
         {
@@ -197,11 +172,10 @@ Return a JSON object:
 
 // ── Rewrite essay at Band 7 ──────────────────────────────────────────────────
 router.post("/writing/rewrite", async (req, res) => {
-  const { prompt, essay, textType, level = "b" } = req.body as {
+  const { prompt, essay, textType } = req.body as {
     prompt: string;
     essay: string;
     textType?: string;
-    level?: "b" | "ab_initio";
   };
 
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? "text";
@@ -212,13 +186,13 @@ router.post("/writing/rewrite", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} writer. Rewrite the student's essay at a high IB Band 7 level for this course.
+          content: `You are an expert Spanish B writer. Rewrite the student's essay at a high IB Band 7 level for this course.
 
 Requirements:
 - Keep the SAME structure and main ideas as the original
 - Write the same ${typeName} format with appropriate conventions
-- Use appropriate vocabulary (${level === "ab_initio" ? "A2-B1 level, high-frequency words" : "B2-C1 level"})
-- Employ grammatical structures expected for a 7: ${level === "ab_initio" ? "consistent present, accurate preterite and imperfect, basic future, cohesive devices (y, pero, también, porque). AVOID subjunctive and passive voice unless in a common fixed phrase." : "subjunctive, conditional, passive voice, complex clauses"}
+- Use appropriate vocabulary (B2-C1 level)
+- Employ grammatical structures expected for a 7: subjunctive, conditional, passive voice, complex clauses
 - Use varied sentence length and strong discourse connectors
 - Maintain cultural authenticity
 - Match the word count of the original (±10%)

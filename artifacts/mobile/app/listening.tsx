@@ -84,7 +84,6 @@ export default function ListeningScreen() {
   const [phase, setPhase] = useState<Phase>("setup");
 
   // ── Setup state ───────────────────────────────────────────────────────────────
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedType, setSelectedType] = useState<PassageType>("conversation");
   const [manualPassage, setManualPassage] = useState("");
@@ -134,7 +133,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined, level }),
+        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
@@ -292,7 +291,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage, count: numQuestions, level }),
+        body: JSON.stringify({ passage, count: numQuestions }),
       });
       if (!res.ok) throw new Error("Question generation failed");
       const data = await res.json();
@@ -326,7 +325,6 @@ export default function ListeningScreen() {
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
           passage,
-          level,
         }),
       });
       if (!res.ok) throw new Error("Check failed");
@@ -392,7 +390,7 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]}>Comprensión auditiva</Text>
-            <Text style={[s.headerSub, { color: colors.textSecondary }]}>IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"} · Listening Practice</Text>
+            <Text style={[s.headerSub, { color: colors.textSecondary }]}>IB Spanish B · Listening Practice</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -419,42 +417,6 @@ export default function ListeningScreen() {
             ))}
           </ScrollView>
 
-          {/* Level Selector (Pill Toggle) */}
-          <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Nivel de dificultad</Text>
-          <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
-            <Pressable
-              onPress={() => {
-                setLevel("b");
-                Haptics.selectionAsync();
-              }}
-              style={[s.modeBtn, level === "b" && { backgroundColor: themeColor }]}
-            >
-              <Ionicons
-                name="school-outline"
-                size={16}
-                color={level === "b" ? "#fff" : colors.textSecondary}
-              />
-              <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
-                Spanish B
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setLevel("ab_initio");
-                Haptics.selectionAsync();
-              }}
-              style={[s.modeBtn, level === "ab_initio" && { backgroundColor: themeColor }]}
-            >
-              <Ionicons
-                name="star-outline"
-                size={16}
-                color={level === "ab_initio" ? "#fff" : colors.textSecondary}
-              />
-              <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
-                Ab Initio
-              </Text>
-            </Pressable>
-          </View>
 
           {/* Passage type */}
           <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Tipo de pasaje</Text>
@@ -606,7 +568,7 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>{passageTitle}</Text>
-            <Text style={[s.headerSub, { color: themeColor }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedTheme.name}</Text>
+            <Text style={[s.headerSub, { color: themeColor }]}>Spanish B • {selectedTheme.name}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>

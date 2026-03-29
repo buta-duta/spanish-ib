@@ -258,7 +258,7 @@ export default function ImagePracticeScreen() {
 
   // ── Phase state ──────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("select");
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
+  const [level, setLevel] = useState<"b">("b");
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedImage, setSelectedImage] = useState<PracticeImage | null>(null);
 
@@ -762,42 +762,6 @@ export default function ImagePracticeScreen() {
           ))}
         </ScrollView>
 
-        <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
-          <View style={[sc.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
-            <Pressable
-              onPress={() => {
-                setLevel("b");
-                Haptics.selectionAsync();
-              }}
-              style={[sc.modeBtn, level === "b" && { backgroundColor: themeColor }]}
-            >
-              <Ionicons
-                name="school-outline"
-                size={16}
-                color={level === "b" ? "#fff" : colors.textSecondary}
-              />
-              <Text style={[sc.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
-                Spanish B
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setLevel("ab_initio");
-                Haptics.selectionAsync();
-              }}
-              style={[sc.modeBtn, level === "ab_initio" && { backgroundColor: themeColor }]}
-            >
-              <Ionicons
-                name="star-outline"
-                size={16}
-                color={level === "ab_initio" ? "#fff" : colors.textSecondary}
-              />
-              <Text style={[sc.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
-                Ab Initio
-              </Text>
-            </Pressable>
-          </View>
-        </View>
 
         <ScrollView contentContainerStyle={sc.imageGrid} showsVerticalScrollIndicator={false}>
           <Text style={[sc.sectionLabel, { color: colors.textSecondary }]}>Selecciona una imagen para practicar</Text>
@@ -835,7 +799,7 @@ export default function ImagePracticeScreen() {
           </Pressable>
           <View style={sc.headerCenter}>
             <Text style={[sc.headerTitle, { color: colors.text }]}>Tiempo de preparación</Text>
-            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedTheme.name}</Text>
+            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>Spanish B • {selectedTheme.name}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -1002,7 +966,7 @@ export default function ImagePracticeScreen() {
           <View style={{ width: 44 }} />
           <View style={sc.headerCenter}>
             <Text style={[sc.headerTitle, { color: colors.text }]}>Resultados IB</Text>
-            <Text style={[sc.headerSub, { color: activeColor }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedImage?.caption ?? ""}</Text>
+            <Text style={[sc.headerSub, { color: activeColor }]}>Spanish B • {selectedImage?.caption ?? ""}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>

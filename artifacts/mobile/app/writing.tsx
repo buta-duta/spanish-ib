@@ -171,7 +171,7 @@ export default function WritingScreen() {
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   // Setup
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
+  const [level, setLevel] = useState<"b">("b");
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
   const [selectedType, setSelectedType] = useState("article");
   const [promptMode, setPromptMode] = useState<PromptMode>("generate");
@@ -192,10 +192,6 @@ export default function WritingScreen() {
   const [rewritten, setRewritten] = useState("");
   const [generatingRewrite, setGeneratingRewrite] = useState(false);
   
-  // Simplification
-  const [isSimplified, setIsSimplified] = useState(false);
-  const [simplifiedPrompt, setSimplifiedPrompt] = useState("");
-  const [simplifying, setSimplifying] = useState(false);
 
   // Phase
   const [phase, setPhase] = useState<Phase>("setup");
@@ -205,7 +201,7 @@ export default function WritingScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
 
-  const activePrompt = isSimplified ? simplifiedPrompt : (promptMode === "generate" ? generatedPrompt : customPrompt);
+  const activePrompt = promptMode === "generate" ? generatedPrompt : customPrompt;
   const wc = wordCount(essay);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -219,7 +215,6 @@ export default function WritingScreen() {
           theme: selectedTheme,
           textType: selectedType,
           previousPrompts,
-          level,
         }),
       });
       const data = await res.json();
@@ -230,39 +225,6 @@ export default function WritingScreen() {
       // silent
     } finally {
       setGeneratingPrompt(false);
-      setIsSimplified(false);
-      setSimplifiedPrompt("");
-    }
-  };
-
-  const toggleSimplify = async () => {
-    if (simplifying) return;
-    if (simplifiedPrompt) {
-      setIsSimplified(!isSimplified);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return;
-    }
-
-    const textToSimplify = promptMode === "generate" ? generatedPrompt : customPrompt;
-    if (!textToSimplify) return;
-
-    setSimplifying(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const res = await fetch(`${getApiUrl()}api/simplify/ab-initio`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: textToSimplify }),
-      });
-      const data = await res.json();
-      if (data.simplifiedText) {
-        setSimplifiedPrompt(data.simplifiedText);
-        setIsSimplified(true);
-      }
-    } catch (err) {
-      console.error("Simplify error:", err);
-    } finally {
-      setSimplifying(false);
     }
   };
 
@@ -288,7 +250,6 @@ export default function WritingScreen() {
           essay,
           theme: selectedTheme,
           textType: selectedType,
-          level,
         }),
       });
       const data = await res.json();
@@ -314,7 +275,6 @@ export default function WritingScreen() {
           prompt: activePrompt,
           essay,
           textType: selectedType,
-          level,
         }),
       });
       const data = await res.json();
@@ -337,8 +297,6 @@ export default function WritingScreen() {
     setCustomPrompt("");
     setPreviousPrompts([]);
     setPromptMode("generate");
-    setIsSimplified(false);
-    setSimplifiedPrompt("");
   };
 
   // ── Header ─────────────────────────────────────────────────────────────────
@@ -433,44 +391,6 @@ export default function WritingScreen() {
             </View>
           </View>
 
-          {/* Level Selector (Pill Toggle) */}
-          <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel de dificultad</Text>
-            <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
-              <Pressable
-                onPress={() => {
-                  setLevel("b");
-                  Haptics.selectionAsync();
-                }}
-                style={[s.modeBtn, level === "b" && { backgroundColor: ACCENT }]}
-              >
-                <Ionicons
-                  name="school-outline"
-                  size={16}
-                  color={level === "b" ? "#fff" : colors.textSecondary}
-                />
-                <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
-                  Spanish B
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setLevel("ab_initio");
-                  Haptics.selectionAsync();
-                }}
-                style={[s.modeBtn, level === "ab_initio" && { backgroundColor: ACCENT }]}
-              >
-                <Ionicons
-                  name="star-outline"
-                  size={16}
-                  color={level === "ab_initio" ? "#fff" : colors.textSecondary}
-                />
-                <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
-                  Ab Initio
-                </Text>
-              </Pressable>
-            </View>
-          </View>
 
           {/* Prompt section */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -518,31 +438,6 @@ export default function WritingScreen() {
                   </Text>
                 </Pressable>
 
-                {generatedPrompt && (
-                  <Pressable
-                    onPress={toggleSimplify}
-                    disabled={simplifying}
-                    style={({ pressed }) => [
-                      s.outlineBtn,
-                      { 
-                        borderColor: ACCENT, 
-                        backgroundColor: isSimplified ? ACCENT : "transparent",
-                        opacity: pressed || simplifying ? 0.7 : 1,
-                        marginTop: 0 
-                      },
-                    ]}
-                  >
-                    {simplifying ? (
-                      <ActivityIndicator color={isSimplified ? "#fff" : ACCENT} size="small" />
-                    ) : (
-                      <Ionicons name={isSimplified ? "flash" : "flash-outline"} size={16} color={isSimplified ? "#fff" : ACCENT} />
-                    )}
-                    <Text style={[s.outlineBtnText, { color: isSimplified ? "#fff" : ACCENT }]}>
-                      {simplifying ? "Simplificando..." : isSimplified ? "Mostrar original" : "Simplificar a Ab Initio"}
-                    </Text>
-                  </Pressable>
-                )}
-
                 {generatedPrompt ? (
                   <View style={[s.promptBox, { backgroundColor: colors.cardAlt, borderColor: ACCENT + "50" }]}>
                     <View style={[s.glossaryHint, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30" }]}>
@@ -570,8 +465,6 @@ export default function WritingScreen() {
                   value={customPrompt}
                   onChangeText={(t) => {
                     setCustomPrompt(t);
-                    setIsSimplified(false);
-                    setSimplifiedPrompt("");
                   }}
                   multiline
                   placeholder="Escribe tu propia pregunta de escritura..."
@@ -583,30 +476,6 @@ export default function WritingScreen() {
                   }]}
                   textAlignVertical="top"
                 />
-                {customPrompt.length > 20 && (
-                  <Pressable
-                    onPress={toggleSimplify}
-                    disabled={simplifying}
-                    style={({ pressed }) => [
-                      s.outlineBtn,
-                      { 
-                        borderColor: ACCENT, 
-                        backgroundColor: isSimplified ? ACCENT : "transparent",
-                        opacity: pressed || simplifying ? 0.7 : 1,
-                        marginTop: 10 
-                      },
-                    ]}
-                  >
-                    {simplifying ? (
-                      <ActivityIndicator color={isSimplified ? "#fff" : ACCENT} size="small" />
-                    ) : (
-                      <Ionicons name={isSimplified ? "flash" : "flash-outline"} size={16} color={isSimplified ? "#fff" : ACCENT} />
-                    )}
-                    <Text style={[s.outlineBtnText, { color: isSimplified ? "#fff" : ACCENT }]}>
-                      {simplifying ? "Simplificando..." : isSimplified ? "Mostrar original" : "Simplificar a Ab Initio"}
-                    </Text>
-                  </Pressable>
-                )}
               </View>
             )}
           </View>
@@ -652,7 +521,7 @@ export default function WritingScreen() {
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <LinearGradient colors={bgColors} style={StyleSheet.absoluteFill} />
         <Header
-          title={`Escribir - ${level === "ab_initio" ? "Ab Initio" : "Spanish B"}`}
+          title="Escribir - Spanish B"
           onBack={() => setPhase("setup")}
           rightElement={
             <Pressable
@@ -708,7 +577,7 @@ export default function WritingScreen() {
             <View style={[s.infoRow, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
               <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
               <Text style={[s.infoText, { color: colors.textSecondary }]}>
-                Rango recomendado: {level === "ab_initio" ? "70–150" : "250–400"} palabras (IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"})
+                Rango recomendado: 250–400 palabras (IB Spanish B)
               </Text>
             </View>
 
@@ -730,7 +599,7 @@ export default function WritingScreen() {
             <View style={s.wcRow}>
               <Text style={[s.wcLabel, { color: colors.textSecondary }]}>Palabras:</Text>
               <Text style={[s.wcValue, { color: wcColor }]}>{wc}</Text>
-              <Text style={[s.wcTarget, { color: colors.textSecondary }]}>/ {level === "ab_initio" ? "70–150" : "250–400"}</Text>
+              <Text style={[s.wcTarget, { color: colors.textSecondary }]}>/ 250–400</Text>
             </View>
           </ScrollView>
 
@@ -810,7 +679,7 @@ export default function WritingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.scoreLabel, { color: colors.textSecondary }]}>Puntuación total</Text>
                 <Text style={[s.scoreBig, { color: bc }]}>
-                  {feedback.totalMark}<Text style={s.scoreMax}>/{level === "ab_initio" ? "30" : "18"}</Text>
+                  {feedback.totalMark}<Text style={s.scoreMax}>/18</Text>
                 </Text>
               </View>
               <View style={[s.bandBox, { backgroundColor: bc + "20", borderColor: bc + "50" }]}>
@@ -826,7 +695,7 @@ export default function WritingScreen() {
                 { letter: "B", mark: feedback.criterionB.mark },
                 { letter: "C", mark: feedback.criterionC.mark },
               ].map(({ letter, mark }) => {
-                const max = (level === "ab_initio" && (letter === "A" || letter === "B")) ? 12 : 6;
+                const max = 6;
                 const p = mark / max;
                 const c = p >= 0.75 ? "#27AE60" : p >= 0.5 ? ACCENT : "#E74C3C";
                 return (
@@ -844,7 +713,7 @@ export default function WritingScreen() {
             label="Criterion A: Language"
             letter="A"
             mark={feedback.criterionA.mark}
-            maxMark={level === "ab_initio" ? 12 : 6}
+            maxMark={6}
             feedback={feedback.criterionA.feedback}
             corrections={feedback.criterionA.corrections}
             colors={colors}
@@ -855,7 +724,7 @@ export default function WritingScreen() {
             label="Criterion B: Message"
             letter="B"
             mark={feedback.criterionB.mark}
-            maxMark={level === "ab_initio" ? 12 : 6}
+            maxMark={6}
             feedback={feedback.criterionB.feedback}
             colors={colors}
           />

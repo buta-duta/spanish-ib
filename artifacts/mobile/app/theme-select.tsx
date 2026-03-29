@@ -257,7 +257,7 @@ export default function ThemeSelectScreen() {
 
   const [guideThemeId, setGuideThemeId] = useState<string | null>(null);
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
+  const [level, setLevel] = useState<"b">("b");
 
   const handleSelectTheme = async (themeId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -318,41 +318,6 @@ export default function ThemeSelectScreen() {
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
-        {/* Level Selector (Pill Toggle) */}
-        <View style={[styles.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginBottom: 20 }]}>
-          <Pressable
-            onPress={() => {
-              setLevel("b");
-              Haptics.selectionAsync();
-            }}
-            style={[styles.modeBtn, level === "b" && { backgroundColor: colors.tint }]}
-          >
-            <Ionicons
-              name="school-outline"
-              size={16}
-              color={level === "b" ? "#fff" : colors.textSecondary}
-            />
-            <Text style={[styles.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
-              Spanish B
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setLevel("ab_initio");
-              Haptics.selectionAsync();
-            }}
-            style={[styles.modeBtn, level === "ab_initio" && { backgroundColor: colors.tint }]}
-          >
-            <Ionicons
-              name="star-outline"
-              size={16}
-              color={level === "ab_initio" ? "#fff" : colors.textSecondary}
-            />
-            <Text style={[styles.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
-              Ab Initio
-            </Text>
-          </Pressable>
-        </View>
 
         {/* Theme list */}
         <View style={styles.themeList}>

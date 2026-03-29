@@ -80,7 +80,7 @@ function parseDialogue(text: string): DialogueSeg[] {
 
 // ── Generate passage (F35) ────────────────────────────────────────────────────
 router.post("/listening/passage", async (req, res) => {
-  const { theme, passageType, customFocus, level = "b" } = req.body;
+  const { theme, passageType, customFocus } = req.body;
   const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
   const themeName = THEME_NAMES[themeKey] || "Identidades";
   const type = passageType || "conversation";
@@ -100,11 +100,11 @@ router.post("/listening/passage", async (req, res) => {
 ${formatInstructions[type] || formatInstructions.conversation}
 
 Content guidelines:
-- Spanish level: ${level === "ab_initio" ? "A1-A2 (IB Spanish Ab Initio)" : "B2-C1 (IB Spanish B Higher Level)"}
-- Length: ${level === "ab_initio" ? "150-250 words" : "220–350 words"} (spoken words only, excluding speaker labels)
+- Spanish level: B2-C1 (IB Spanish B Higher Level)
+- Length: 220–350 words (spoken words only, excluding speaker labels)
 - Theme content: Explore a specific aspect of "${themeName}" with depth
 - Include cultural references relevant to Spanish-speaking countries
-- Use appropriate tenses: ${level === "ab_initio" ? "Present, Preterite, and Imperfect ONLY. AVOID subjunctive, conditional, and passive voice." : "present, preterite, imperfect, conditional, subjunctive where natural"}
+- Use appropriate tenses: present, preterite, imperfect, conditional, subjunctive where natural
 - Make the content engaging and exam-realistic${focusLine}
 - STRICTLY adhere to the specified level constraints. Do not exceed the complexity of the target level.
 
@@ -183,10 +183,10 @@ router.post("/listening/tts", async (req, res) => {
 
 // ── Generate IB comprehension questions (F36) ─────────────────────────────────
 router.post("/listening/questions", async (req, res) => {
-  const { passage, count = 6, level = "b" } = req.body;
+  const { passage, count = 6 } = req.body;
   if (!passage) { res.status(400).json({ error: "Missing passage" }); return; }
 
-  const prompt = `Eres un examinador del IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"}. Genera ${count} preguntas de comprensión auditiva basadas en este texto:
+  const prompt = `Eres un examinador del IB Spanish B. Genera ${count} preguntas de comprensión auditiva basadas en este texto:
 
 ---
 ${passage}
@@ -205,7 +205,7 @@ Directrices:
 - Varía la dificultad: empieza accesible, termina desafiante
 - Para opción múltiple: los distractores deben ser plausibles
 - Para verdadero/falso: usa "Verdadero" y "Falso" como opciones
-- ${level === "ab_initio" ? "IMPORTANT: Use only simple A1-A2 vocabulary for all questions and options. Avoid any complex sentence structures." : "Use standard academic Spanish for questions."}
+- Use standard academic Spanish for questions.
 
 Devuelve SOLO JSON válido:
 {
@@ -238,9 +238,9 @@ Devuelve SOLO JSON válido:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 1500,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "system", content: prompt }],
       response_format: { type: "json_object" },
     });
 
@@ -255,10 +255,10 @@ Devuelve SOLO JSON válido:
 
 // ── Check answer (F37) ────────────────────────────────────────────────────────
 router.post("/listening/check", async (req, res) => {
-  const { question, questionType, studentAnswer, correctAnswer, explanation, passage, level = "b" } = req.body;
+  const { question, questionType, studentAnswer, correctAnswer, explanation, passage } = req.body;
   if (!question || !studentAnswer) { res.status(400).json({ error: "Missing fields" }); return; }
 
-  const prompt = `You are an IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} examiner marking a listening comprehension answer.
+  const prompt = `You are an IB Spanish B examiner marking a listening comprehension answer.
 
 Question: "${question}"
 Question type: ${questionType || "short-answer"}
@@ -276,9 +276,9 @@ Return ONLY valid JSON:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 200,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "system", content: prompt }],
       response_format: { type: "json_object" },
     });
 

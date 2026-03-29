@@ -65,7 +65,7 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
 `;
 
 router.post("/exam/chat", async (req, res) => {
-  const { messages, theme, sessionTurn, regenerate, skip, level = "b" } = req.body;
+  const { messages, theme, sessionTurn, regenerate, skip } = req.body;
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -91,31 +91,7 @@ router.post("/exam/chat", async (req, res) => {
 - Do not dwell on the skipped question.`
     : "";
 
-  const isAbInitio = level === "ab_initio";
-  const baseInstructions = `
-IMPORTANT INSTRUCTIONS:
-1. QUESTIONS: Always ask questions in Spanish. Never switch to English when asking.
-2. Ask ONE focused question at a time. Never ask multiple questions in a single turn.
-3. RESPONSE FORMAT after the student answers (follow this exact order every time):
-   a) Brief encouraging comment in Spanish (1 sentence, e.g. "¡Muy bien!", "¡Interesante punto!")
-   b) ONE English language tip marked with "💡" — pick ONE of:
-      - Grammar correction: "💡 Grammar: Instead of '[their error]', say '[correct form]' ([brief reason])"
-      - Vocabulary upgrade: "💡 Vocab: '[their word]' works — try '[advanced word]' for a stronger ${isAbInitio ? 'A2/B1' : 'B2'} impression"
-      - Structure tip: "💡 Tip: Using ${isAbInitio ? 'basic connectors like "porque", "pero", or "también"' : 'connectors like "sin embargo" or "no obstante"'} would elevate this response"
-      - Only include this tip if the student actually made a mistake or used basic vocabulary. If they performed well, skip the tip and move straight to the question.
-   c) The next question in Spanish (1 sentence)
-4. Vary your question types: descriptive, opinion-based, hypothetical, comparative.
-${isAbInitio ? '5. Keep questions simple and direct, suited for Ab Initio (A1-A2).' : '5. After 6-8 exchanges, occasionally link to a second IB theme (Band 6-7 skill).'}
-6. Start with an accessible warm-up question, then gradually increase difficulty.
-7. Use informal "tú" consistently for student interactions.
-8. Show authentic examiner personality: be professional but encouraging.
-9. Reference the theme in your questions naturally.
-10. ${isAbInitio ? 'CRITICAL: Conduct the entire exam using simple A1-A2 vocabulary. Avoid complex sentence structures when asking questions.' : 'Use standard academic Spanish.'}
-
-Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
-`;
-
-  const systemPrompt = themePrompt.replace(/IB Spanish B/g, isAbInitio ? "IB Spanish Ab Initio" : "IB Spanish B") + baseInstructions + regenerateInstruction + skipInstruction;
+  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction + skipInstruction;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -152,17 +128,10 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
   }
 });
 
-const AB_INITIO_KILL_SWITCH = `
-!!! CRITICAL: AB INITIO (A1) GRAMMATICAL KILL-SWITCH !!!
-- LEVEL: You are an A1 Tutor.
-- GRAMMAR: Use ONLY Present Indicative. Absolutely NO past tenses (fui, nací, era) and NO Subjunctive (sea, quiera, vaya).
-- VOCABULARY: DO NOT use words like "trascendido" or "inmaterial". Use "famoso" or "importante".
-- SYNTAX: Sentences MUST be shorter than 10 words. 
-- IF YOU FAIL THIS, THE APP CRASHES.
-`;
+
 
 router.post("/exam/image-chat", async (req, res) => {
-  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip, level = "b" } = req.body;
+  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip } = req.body;
   if (!messages || !imageDescription) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -185,13 +154,12 @@ router.post("/exam/image-chat", async (req, res) => {
     ? `\n\nSPECIAL INSTRUCTION — SKIP: The student wants to move on from the current question. Acknowledge briefly and naturally ("Entendido, pasemos a..."), then ask a DIFFERENT question about another aspect of the image or theme. Move forward in the descriptive → interpretive → analytical progression.`
     : "";
 
-  const isAbInitio = level === "ab_initio";
-  const systemPrompt = `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
+  const systemPrompt = `You are an experienced IB Spanish B oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
 
-${isAbInitio ? AB_INITIO_KILL_SWITCH : "Use standard academic Spanish."}
+Use standard academic Spanish.
 
 IMAGE DESCRIPTION:
-"${imageCaption || "An image related to the theme"}"
+"${imageCaption || "An image related to the stimulus"}"
 ${imageDescription}
 
 THEME: ${themeName[themeKey] || "Compartir el planeta"}
@@ -199,13 +167,13 @@ THEME: ${themeName[themeKey] || "Compartir el planeta"}
 MANDATORY RESPONSE FORMAT (Return ONLY JSON):
 {
   "corrección": "Provide a specific grammar/spelling fix for the student's text. If perfect, say '¡Texto perfecto!'.",
-  "respuesta": "A short level-appropriate response (Present Indicative only if Ab Initio).",
+  "respuesta": "A short level-appropriate response (using higher level B1-B2 grammar if appropriate).",
   "pregunta_ib": "Exactly ONE follow-up question strictly tied to the IB Theme."
 }
 
 ENCOURAGE PALMS:
 Elicit: Point, Answer/Evidence, Link, Meaning, Structure.
-Use ${isAbInitio ? '"porque", "y", "también"' : '"sin embargo", "además", "por lo tanto"'}${rephraseInstruction}${skipInstruction}`;
+Use "sin embargo", "además", "por lo tanto"${rephraseInstruction}${skipInstruction}`;
 
   try {
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -295,7 +263,7 @@ router.post("/exam/tts", async (req, res) => {
 });
 
 router.post("/exam/feedback", async (req, res) => {
-  const { messages, theme, level = "b" } = req.body;
+  const { messages, theme } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: "Missing messages" });
@@ -314,8 +282,7 @@ router.post("/exam/feedback", async (req, res) => {
     .map((m: { role: string; content: string }) => `${m.role === "user" ? "Student" : "Examiner"}: ${m.content}`)
     .join("\n");
 
-  const isAbInitio = level === "ab_initio";
-  const feedbackPrompt = `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} examiner providing detailed feedback on a student's oral exam performance.
+  const feedbackPrompt = `You are an experienced IB Spanish B examiner providing detailed feedback on a student's oral exam performance.
 
 EXAM TRANSCRIPT:
 ${conversationText}
@@ -341,15 +308,15 @@ Analyse this oral exam conversation and provide structured feedback in ENGLISH. 
   "ibCriteria": {
     "criterionA": { "band": 6, "label": "Language", "comments": "Specific assessment of grammar, vocabulary, register" },
     "criterionB": { "band": 5, "label": "Message", "comments": "Specific assessment of ideas, arguments, detail" },
-    ${isAbInitio ? `"criterionC": { "band": 3, "label": "Interactive Skills", "comments": "Assessment of responsiveness and communication" }` : `"criterionC": { "band": 5, "label": "Conceptual Understanding", "comments": "Assessment of theme engagement and analysis" },
-    "criterionD": { "band": 6, "label": "Interaction", "comments": "Assessment of responsiveness and conversation flow" }`}
+    "criterionC": { "band": 5, "label": "Conceptual Understanding", "comments": "Assessment of theme engagement and analysis" },
+    "criterionD": { "band": 6, "label": "Interaction", "comments": "Assessment of responsiveness and conversation flow" }
   },
   "improvedExamples": [
     { "original": "student's actual sentence", "improved": "better version in Spanish", "note": "explanation of improvement" }
   ]
 }
 
-Use the student's ACTUAL words from the transcript in grammarMistakes and improvedExamples. IB bands use the official max marks: ${isAbInitio ? "A: 1-12, B: 1-12, C: 1-6" : "A, B, C, D are 1-10 or 1-7 depending on criteria"}. Be specific and constructive.`;
+Use the student's ACTUAL words from the transcript in grammarMistakes and improvedExamples. IB bands use the official max marks. Be specific and constructive.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -375,7 +342,7 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
 
 // ── IB image oral feedback ────────────────────────────────────────────────────
 router.post("/exam/image-feedback", async (req, res) => {
-  const { messages, imageCaption, theme, level = "b" } = req.body;
+  const { messages, imageCaption, theme } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: "Missing messages" });
@@ -389,8 +356,7 @@ router.post("/exam/image-feedback", async (req, res) => {
     )
     .join("\n");
 
-  const isAbInitio = level === "ab_initio";
-  const feedbackPrompt = `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} examiner grading a student's Individual Oral (IO) based on an image stimulus.
+  const feedbackPrompt = `You are an experienced IB Spanish B examiner grading a student's Individual Oral (IO) based on an image stimulus.
 
 Image: "${imageCaption || "Image-based oral"}"
 Theme: ${theme || "General"}
@@ -398,32 +364,32 @@ Theme: ${theme || "General"}
 EXAM CONVERSATION:
 ${conversationText}
 
-Grade the student using the official IB Spanish ${isAbInitio ? "Ab Initio" : "B"} Individual Oral criteria. Return ONLY valid JSON:
+Grade the student using the official IB Spanish B Individual Oral criteria (Standard Level or Higher Level). Return ONLY valid JSON:
 
 {
   "criterionA": {
-    "score": <${isAbInitio ? "1-12" : "1-10"}>,
+    "score": <1-10>,
     "label": "Lengua",
     "feedback": "2-3 sentence specific assessment of grammar accuracy, vocabulary range, register, tense variety, and sentence complexity. Reference ACTUAL quotes from the student."
   },
   "criterionB": {
-    "score": <${isAbInitio ? "1-12" : "1-10"}>,
+    "score": <1-10>,
     "label": "Mensaje",
     "feedback": "2-3 sentence specific assessment of ideas, arguments, relevance to image, detail, examples used, and development of points."
   },
   "criterionC": {
-    "score": <${isAbInitio ? "1-6" : "1-10"}>,
-    "label": "${isAbInitio ? "Habilidades interactivas" : "Comprensión conceptual"}",
+    "score": <1-10>,
+    "label": "Comprensión conceptual",
     "feedback": "2-3 sentence specific assessment of engagement with the IB theme, cultural references, cross-theme connections, and depth of analysis."
-  }${isAbInitio ? `` : `,
+  },
   "criterionD": {
     "score": <1-10>,
     "label": "Interacción",
     "feedback": "2-3 sentence specific assessment of responsiveness to examiner questions, spontaneity, conversation flow, and ability to maintain and develop discussion."
-  }`}
+  }
 }
 
-Be fair, constructive, and specific. Grade ONLY what was actually said. Bands range from 1–10 per criterion (or 1-12/1-6 for Ab Initio).`;
+Be fair, constructive, and specific. Grade ONLY what was actually said. Bands range from 1–10 per criterion.`;
 
   try {
     const response = await openai.chat.completions.create({

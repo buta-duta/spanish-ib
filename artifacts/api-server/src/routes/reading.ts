@@ -21,11 +21,10 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
-  const { theme = "experiencias", textType = "article", customFocus, level = "b" } = req.body as {
+  const { theme = "experiencias", textType = "article", customFocus } = req.body as {
     theme?: string;
     textType?: string;
     customFocus?: string;
-    level?: "b" | "ab_initio";
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -40,21 +39,15 @@ router.post("/reading/generate", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} curriculum writer.
+          content: `You are an expert IB Spanish B curriculum writer.
 
 CORE MISSION:
-Generate an authentic ${typeName} for the IB Spanish ${level === "ab_initio" ? "Ab Initio (A1-A2)" : "B (B1-B2)"} course.
+Generate an authentic ${typeName} for the IB Spanish B (B1-B2) course.
 
-${level === "ab_initio" ? `!!! CRITICAL: IB CRITERION A - AB INITIO (LITERAL) !!!
-- LEVEL: A1 (New Beginner). 
-- NO METAPHORS: Absolutely no figurative language. Replace 'viaje interior' with 'pensar mucho', 'raíces' with 'familia/historia'.
-- LITERAL ONLY: Use only direct, literal descriptions of the world.
-- VOCABULARY: Top 1,000 common words.
-- SENTENCE LIMIT: Max 12 words per sentence. Split long ones.
-- GRAMMAR: Present Indicative ONLY.` : `!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
+!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
 - LEVEL: B1-B2.
 - TOPIC VOCABULARY: Use specific, advanced vocabulary related to ${themeName}. 
-- VARIETY: Use a wide range of idiomatic expressions and complex structures.`}
+- VARIETY: Use a wide range of idiomatic expressions and complex structures.
 
 REQUIREMENTS:
 - Theme: ${themeName}
@@ -91,7 +84,7 @@ Return a JSON object:
 
 // ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
-  const { text, title = "", count = 8, level = "b" } = req.body as { text: string; title?: string; count?: number; level?: "b" | "ab_initio" };
+  const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
   if (!text || text.length < 50) {
     return res.status(400).json({ error: "Texto demasiado corto." });
   }
@@ -106,7 +99,7 @@ router.post("/reading/questions", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are an IB Spanish ${level === "ab_initio" ? "Ab Initio" : "B"} examiner creating reading comprehension questions.
+          content: `You are an IB Spanish B examiner creating reading comprehension questions.
 
 Given a Spanish text, generate exactly ${count} questions in Spanish that test reading comprehension, inference, and vocabulary.
 
@@ -117,8 +110,7 @@ Mix EXACTLY these question types:
 
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.
-For Synonym: pick vocabulary words at ${level === "ab_initio" ? "A2 level" : "B2 level"} that appear in the text.
-${level === "ab_initio" ? "\nCRITICAL: All questions, multiple-choice options, true/false statements, and instructions MUST be written using extremely simple A1-A2 vocabulary so the Ab Initio student can easily understand exactly what is being asked. Avoid any complex sentence structures or rare words.\n" : ""}
+For Synonym: pick vocabulary words at B2 level that appear in the text.
 Return a JSON object:
 {
   "questions": [

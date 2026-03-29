@@ -153,7 +153,6 @@ export default function ReadingScreen() {
   const [inputMode, setInputMode] = useState<InputMode>("generate");
 
   // Generate mode state
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
   const [selectedType, setSelectedType] = useState("article");
 
@@ -168,11 +167,6 @@ export default function ReadingScreen() {
   const [readingTitle, setReadingTitle] = useState("");
   const [readingText, setReadingText] = useState("");
 
-  // Simplified content (Ab Initio Toggle)
-  const [isSimplified, setIsSimplified] = useState(false);
-  const [simplifiedTitle, setSimplifiedTitle] = useState("");
-  const [simplifiedText, setSimplifiedText] = useState("");
-  const [simplifying, setSimplifying] = useState(false);
 
   // Questions
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -203,14 +197,11 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined, level }),
+        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
       });
       const data = await res.json();
       setReadingTitle(data.title ?? "Texto de lectura");
       setReadingText(data.text ?? "");
-      setSimplifiedText("");
-      setSimplifiedTitle("");
-      setIsSimplified(false);
       setQuestions([]);
       setAnswers({});
       setSubmitted(false);
@@ -227,9 +218,6 @@ export default function ReadingScreen() {
     if (trimmed.length < 50) return;
     setReadingTitle(pastedTitle.trim() || "Texto de lectura");
     setReadingText(trimmed);
-    setSimplifiedText("");
-    setSimplifiedTitle("");
-    setIsSimplified(false);
     setQuestions([]);
     setAnswers({});
     setSubmitted(false);
@@ -242,7 +230,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions, level }),
+        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
       });
       const data = await res.json();
       setQuestions(data.questions ?? []);
@@ -267,8 +255,6 @@ export default function ReadingScreen() {
     setPhase("setup");
     setReadingText("");
     setReadingTitle("");
-    setSimplifiedText("");
-    setIsSimplified(false);
     setQuestions([]);
     setAnswers({});
     setSubmitted(false);
@@ -372,34 +358,6 @@ export default function ReadingScreen() {
     }
   };
 
-  const toggleSimplify = async () => {
-    if (simplifying) return;
-    if (simplifiedText) {
-      setIsSimplified(!isSimplified);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return;
-    }
-
-    setSimplifying(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const res = await fetch(`${getApiUrl()}api/simplify/ab-initio`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText }),
-      });
-      const data = await res.json();
-      if (data.simplifiedText) {
-        setSimplifiedText(data.simplifiedText);
-        setSimplifiedTitle(data.simplifiedTitle || readingTitle);
-        setIsSimplified(true);
-      }
-    } catch (err) {
-      console.error("Simplify error:", err);
-    } finally {
-      setSimplifying(false);
-    }
-  };
 
   const setAnswer = (id: number, val: string) => {
     setAnswers((prev) => ({ ...prev, [id]: val }));
@@ -427,7 +385,7 @@ export default function ReadingScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[s.screenLabel, { color: ACCENT }]}>IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"}</Text>
+            <Text style={[s.screenLabel, { color: ACCENT }]}>IB Spanish B</Text>
             <Text style={[s.screenTitle, { color: colors.text }]}>Lectura</Text>
           </View>
           <View style={[s.badge, { backgroundColor: ACCENT + "20", borderColor: ACCENT + "50" }]}>
@@ -469,44 +427,6 @@ export default function ReadingScreen() {
             </Pressable>
           </View>
 
-          {/* Level selector (Pill Toggle) */}
-          <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel de dificultad</Text>
-            <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
-              <Pressable
-                onPress={() => {
-                  setLevel("b");
-                  Haptics.selectionAsync();
-                }}
-                style={[s.modeBtn, level === "b" && { backgroundColor: ACCENT }]}
-              >
-                <Ionicons
-                  name="school-outline"
-                  size={16}
-                  color={level === "b" ? "#fff" : colors.textSecondary}
-                />
-                <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
-                  Spanish B
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setLevel("ab_initio");
-                  Haptics.selectionAsync();
-                }}
-                style={[s.modeBtn, level === "ab_initio" && { backgroundColor: ACCENT }]}
-              >
-                <Ionicons
-                  name="star-outline"
-                  size={16}
-                  color={level === "ab_initio" ? "#fff" : colors.textSecondary}
-                />
-                <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
-                  Ab Initio
-                </Text>
-              </Pressable>
-            </View>
-          </View>
 
           {inputMode === "generate" ? (
             <>
@@ -675,36 +595,10 @@ export default function ReadingScreen() {
               {readingTitle}
             </Text>
             <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: ACCENT }}>
-              IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"}{isSimplified ? " (Versión Simplificada)" : ""}
+              IB Spanish B
             </Text>
           </View>
 
-          {/* Simplify Toggle */}
-          <Pressable
-            onPress={toggleSimplify}
-            disabled={simplifying}
-            style={({ pressed }) => [
-              s.simplifyBtn,
-              {
-                backgroundColor: isSimplified ? ACCENT : colors.cardAlt,
-                borderColor: isSimplified ? ACCENT : colors.border,
-                opacity: pressed || simplifying ? 0.8 : 1
-              }
-            ]}
-          >
-            {simplifying ? (
-              <ActivityIndicator size="small" color={isSimplified ? "#fff" : ACCENT} />
-            ) : (
-              <Ionicons
-                name={isSimplified ? "flash" : "flash-outline"}
-                size={16}
-                color={isSimplified ? "#fff" : colors.textSecondary}
-              />
-            )}
-            <Text style={[s.simplifyBtnText, { color: isSimplified ? "#fff" : colors.textSecondary }]}>
-              {simplifying ? "Simplificando..." : isSimplified ? "Original" : "Simplificar"}
-            </Text>
-          </Pressable>
           <Pressable
             onPress={resetToSetup}
             style={[s.resetBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}
@@ -771,11 +665,11 @@ export default function ReadingScreen() {
 
           {/* Reading text — paragraphs */}
           <View style={[s.readingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {(isSimplified ? simplifiedText : readingText).split("\n\n").filter(Boolean).map((para, pi) => (
+            {readingText.split("\n\n").filter(Boolean).map((para, pi) => (
               <ReadableText
                 key={pi}
                 content={para}
-                textStyle={[s.readingText, { color: colors.text, marginBottom: para.split("\n\n").length - 1 ? 14 : 0 }]}
+                textStyle={[s.readingText, { color: colors.text, marginBottom: 14 }]}
                 onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
               />
             ))}
