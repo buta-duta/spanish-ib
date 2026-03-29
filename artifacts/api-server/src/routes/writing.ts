@@ -48,16 +48,16 @@ router.post("/writing/prompt", async (req, res) => {
 OBJETIVO:
 Generar una tarea de escritura realista al estilo IB.
 
-${level === "ab_initio" ? `!!! CRITICAL: A1 LEXICAL PROFILE ONLY !!!
-- NIVEL: A1 (Principante). 
-- VOCABULARIO: Use SOLAMENTE las 1,000 palabras más comunes.
-- EJEMPLO: Reemplace 'introspección' con 'pensar', 'gastronomía' con 'comida'.
-- LÍMITE DE ORACIÓN: PROHIBIDO oraciones de más de 12 palabras. Divide oraciones largas en dos.
-- GRAMATICA: Presente de Indicativo ÚNICAMENTE.
-- LARGO: Entre 70 y 100 palabras.` : `
+${level === "ab_initio" ? `!!! CRITICAL: IB CRITERION A - AB INITIO (LITERAL) !!!
+- NIVEL: A1 (Principiante). 
+- SIN METÁFORAS: Prohibido el lenguaje figurado. Reemplace 'raíces' con 'familia/historia'.
+- SOLO LITERAL: Use descripciones directas. No use 'viaje interior', use 'pensar mucho'.
+- VOCABULARIO: Top 1,000 comunes.
+- ORACIONES: Máximo 12 palabras. Divide las largas.
+- GRAMATICA: Presente únicamente.` : `!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
 - NIVEL: B1-B2.
-- VOCABULARIO: Académico/Intermedio.
-- LARGO: Entre 250 y 400 palabras.`}
+- VOCABULARIO TEMÁTICO: Use vocabulario específico y avanzado relacionado con ${themeName}.
+- RIQUEZA: Use expresiones idiomáticas y estructuras complejas.`}
 
 REQUISITOS:
 - Tarea: Escribir un/a ${typeName}

@@ -45,18 +45,16 @@ router.post("/reading/generate", async (req, res) => {
 CORE MISSION:
 Generate an authentic ${typeName} for the IB Spanish ${level === "ab_initio" ? "Ab Initio (A1-A2)" : "B (B1-B2)"} course.
 
-${level === "ab_initio" ? `!!! CRITICAL: A1 LEXICAL PROFILE ONLY !!!
+${level === "ab_initio" ? `!!! CRITICAL: IB CRITERION A - AB INITIO (LITERAL) !!!
 - LEVEL: A1 (New Beginner). 
-- VOCABULARY: Use ONLY the top 1,000 most common Spanish words. 
-- EXAMPLE SWAPS: introspección -> pensar, gastronomía -> comida, infraestructura -> edificios, laborar -> trabajar.
-- SENTENCE LIMIT: ABSOLUTELY NO sentences longer than 12 words. If a sentence is long, split it into two short ones.
-- GRAMMAR: Present Indicative ONLY. Absolutely no past, future, or subjunctive.
-- STRUCTURE: Subject + Verb + Object (SVO) only. No complex clauses.
-- LENGTH: 100-120 words max.` : `
+- NO METAPHORS: Absolutely no figurative language. Replace 'viaje interior' with 'pensar mucho', 'raíces' with 'familia/historia'.
+- LITERAL ONLY: Use only direct, literal descriptions of the world.
+- VOCABULARY: Top 1,000 common words.
+- SENTENCE LIMIT: Max 12 words per sentence. Split long ones.
+- GRAMMAR: Present Indicative ONLY.` : `!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
 - LEVEL: B1-B2.
-- VOCABULARY: Intermediate/Advanced IB B vocabulary.
-- GRAMMAR: Complex structures (subjunctive, conditional, etc.).
-- LENGTH: 400-600 words.`}
+- TOPIC VOCABULARY: Use specific, advanced vocabulary related to ${themeName}. 
+- VARIETY: Use a wide range of idiomatic expressions and complex structures.`}
 
 REQUIREMENTS:
 - Theme: ${themeName}
