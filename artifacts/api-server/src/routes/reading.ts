@@ -45,14 +45,14 @@ router.post("/reading/generate", async (req, res) => {
 CORE MISSION:
 Generate an authentic ${typeName} for the IB Spanish ${level === "ab_initio" ? "Ab Initio (A1-A2)" : "B (B1-B2)"} course.
 
-${level === "ab_initio" ? `!!! CRITICAL: AB INITIO (A1-A2) SURVIVAL SPANISH ONLY !!!
-- LEVEL: A1-A2 (Beginner). 
-- VOCABULARY: Use ONLY the top 500-1000 high-frequency words. 
-- FORBIDDEN WORDS (REPLACE THESE): gastronomía (comida), infraestructura (edificios/calles), transporte (coche/tren), residente (persona que vive), laborar (trabajar), establecimiento (tienda), incrementar (subir), disminuir (bajar), obsequiar (dar), retorno (volver).
-- GRAMMAR: Present Indicative ONLY (Yo como, Ella vive). 
-- ABSOLUTELY NO: Subjunctive, Conditional, Future, Preterite, or Imperfect.
-- SENTENCE STRUCTURE: Subject + Verb + Object. Max 8 words per sentence.
-- LENGTH: 120-150 words max.` : `
+${level === "ab_initio" ? `!!! CRITICAL: A1 LEXICAL PROFILE ONLY !!!
+- LEVEL: A1 (New Beginner). 
+- VOCABULARY: Use ONLY the top 1,000 most common Spanish words. 
+- EXAMPLE SWAPS: introspección -> pensar, gastronomía -> comida, infraestructura -> edificios, laborar -> trabajar.
+- SENTENCE LIMIT: ABSOLUTELY NO sentences longer than 12 words. If a sentence is long, split it into two short ones.
+- GRAMMAR: Present Indicative ONLY. Absolutely no past, future, or subjunctive.
+- STRUCTURE: Subject + Verb + Object (SVO) only. No complex clauses.
+- LENGTH: 100-120 words max.` : `
 - LEVEL: B1-B2.
 - VOCABULARY: Intermediate/Advanced IB B vocabulary.
 - GRAMMAR: Complex structures (subjunctive, conditional, etc.).

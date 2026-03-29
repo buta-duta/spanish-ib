@@ -48,14 +48,13 @@ router.post("/writing/prompt", async (req, res) => {
 OBJETIVO:
 Generar una tarea de escritura realista al estilo IB.
 
-${level === "ab_initio" ? `!!! CRITICAL: AB INITIO (A1-A2) SURVIVAL SPANISH ONLY !!!
-- NIVEL: A1-A2 (Beginner). 
-- VOCABULARIO: Use SOLAMENTE las 500 palabras más comunes. 
-- FORBIDDEN WORDS (REPLACE THESE): gastronomía (comida), infraestructura (edificios/calles), transporte (coche/tren), residente (persona que vive), laborar (trabajar), establecimiento (tienda), incrementar (subir), disminuir (bajar), obsequiar (dar), retorno (volver).
-- GRAMMAR: Presente de Indicativo SOLAMENTE. 
-- ABSOLUTELY NO: Subjuntivo, Condicional, Futuro, Pretéritos e Imperfectos.
-- INSTRUCCIONES: Escriba instrucciones de menos de 10 palabras por oración.
-- LARGO: Entre 70 y 120 palabras.` : `
+${level === "ab_initio" ? `!!! CRITICAL: A1 LEXICAL PROFILE ONLY !!!
+- NIVEL: A1 (Principante). 
+- VOCABULARIO: Use SOLAMENTE las 1,000 palabras más comunes.
+- EJEMPLO: Reemplace 'introspección' con 'pensar', 'gastronomía' con 'comida'.
+- LÍMITE DE ORACIÓN: PROHIBIDO oraciones de más de 12 palabras. Divide oraciones largas en dos.
+- GRAMATICA: Presente de Indicativo ÚNICAMENTE.
+- LARGO: Entre 70 y 100 palabras.` : `
 - NIVEL: B1-B2.
 - VOCABULARIO: Académico/Intermedio.
 - LARGO: Entre 250 y 400 palabras.`}

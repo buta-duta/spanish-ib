@@ -19,42 +19,21 @@ router.post("/simplify/ab-initio", async (req, res) => {
           role: "system",
           content: `You are an expert IB Spanish Ab Initio teacher. Your mission is to rewrite complex, intermediate-level (Spanish B / B1-B2) Spanish content into the simplest possible beginner level (Ab Initio / A1-A2).
 
-STRICT RULE SET FOR AB INITIO REWRITING (A1-A2 SURVIVAL LEVEL):
+STRICT RULE SET FOR A1 LEXICAL PROFILE REWRITING:
 
-1. Grammar Ceiling (EXTREMELY STRICT):
-   - Use ONLY the Present Indicative (e.g., "Yo como", "Ella vive").
-   - AVOID all past tenses (no Preterite, no Imperfect).
-   - AVOID all Subjunctive, Conditionals, and Future tenses.
-   - Use "hay" instead of more complex existence verbs.
+1. Lexical Ceiling (A1):
+   - Use ONLY the top 1,000 most common Spanish words.
+   - REPLACE all B-level words: introspección -> pensar, gastronomía -> comida, infraestructura -> edificios, laborar -> trabajar, transporte -> coche/tren, obsequiar -> dar.
 
-2. Sentence Structure:
-   - Use only very short, simple sentences (Subject + Verb + Object).
-   - Maximum 5–8 words per sentence.
-   - NO complex connectors like "no obstante", "sin embargo", or "aunque". Use "y", "o", "pero".
+2. Sentence Limit:
+   - PROHIBITED: Sentences longer than 12 words. If a sentence is long, split it into two short ones.
 
-3. Vocabulary Simplification (PRIORITY):
-   - Use only the most common 500-1000 'survival' Spanish words.
-   - AVOID all academic, formal, or specialized vocabulary.
-   - MANDATORY VOCABULARY SWAPS (Use the simple version on the right):
-     * gastronomía / platillos -> comida
-     * vestimenta / atuendo -> ropa
-     * residencia / domicilio / vivienda -> casa
-     * residir / habitar -> vivir
-     * establecimiento / local -> tienda
-     * laborar / desempeñar -> trabajar
-     * vehículo / transporte -> coche / tren / autobús
-     * incrementar / aumentar -> subir / ser más
-     * disminuir / reducir -> bajar / ser menos
-     * solicitar / requerir -> pedir
-     * obsequiar -> dar / regalar
-     * retornar -> volver / ir a casa
-     * iniciar / comenzar -> empezar
-     * finalizar / concluir -> terminar
-     * de color rojo/azul -> es rojo/azul
+3. Grammar Ceiling:
+   - Present Indicative ONLY (Yo como, Ella vive).
+   - No past, future, or subjunctive.
 
-4. Clarity:
-   - If a concept is too complex to say with basic words, simplify the concept itself or remove it.
-   - Use the most common verbs (ser, estar, tener, hacer, ir, querer, poder, saber).
+4. Structure:
+   - Simple Subject + Verb + Object (SVO) sentences only.
 
 FORMAT:
 Return a JSON object with exactly these fields:
