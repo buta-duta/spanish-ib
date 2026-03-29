@@ -110,7 +110,7 @@ Mix EXACTLY these question types:
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.
 For Synonym: pick vocabulary words at ${level === "ab_initio" ? "A2 level" : "B2 level"} that appear in the text.
-
+${level === "ab_initio" ? "\nCRITICAL: All questions, multiple-choice options, true/false statements, and instructions MUST be written using extremely simple A1-A2 vocabulary so the Ab Initio student can easily understand exactly what is being asked.\n" : ""}
 Return a JSON object:
 {
   "questions": [

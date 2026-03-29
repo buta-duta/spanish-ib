@@ -89,16 +89,15 @@ export async function convertToWav(audioBuffer: Buffer): Promise<Buffer> {
 }
 
 /**
- * Auto-detect and convert audio to OpenAI-compatible format.
+ * Auto-detect and keep the audio format for OpenAI compatibility.
+ * OpenAI Whisper supports mp3, mp4, mpeg, mpga, m4a, wav, and webm.
  */
 export async function ensureCompatibleFormat(
   audioBuffer: Buffer
-): Promise<{ buffer: Buffer; format: "wav" | "mp3" }> {
+): Promise<{ buffer: Buffer; format: AudioFormat }> {
   const detected = detectAudioFormat(audioBuffer);
-  if (detected === "wav") return { buffer: audioBuffer, format: "wav" };
-  if (detected === "mp3") return { buffer: audioBuffer, format: "mp3" };
-  const wavBuffer = await convertToWav(audioBuffer);
-  return { buffer: wavBuffer, format: "wav" };
+  // Default unknown to webm since it's common on mobile browsers
+  return { buffer: audioBuffer, format: detected === "unknown" ? "webm" : detected };
 }
 
 /** Voice Chat: audio-in, audio-out using gpt-audio. */
@@ -212,7 +211,7 @@ export async function textToSpeechStream(
 /** Speech-to-Text using gpt-4o-mini-transcribe. */
 export async function speechToText(
   audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
+  format: AudioFormat = "wav"
 ): Promise<string> {
   const file = await toFile(audioBuffer, `audio.${format}`);
   const response = await openai.audio.transcriptions.create({
@@ -225,7 +224,7 @@ export async function speechToText(
 /** Streaming Speech-to-Text. */
 export async function speechToTextStream(
   audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
+  format: AudioFormat = "wav"
 ): Promise<AsyncIterable<string>> {
   const file = await toFile(audioBuffer, `audio.${format}`);
   const stream = await openai.audio.transcriptions.create({
