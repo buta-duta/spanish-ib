@@ -66,7 +66,18 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
+    banner: {
+      js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+    },
   });
+
+  // Create a CJS shim for Render which still expects index.cjs
+  // This dynamically imports the ESM bundle.
+  const { writeFile } = await import("fs/promises");
+  await writeFile(
+    path.resolve(distDir, "index.cjs"),
+    "import('./index.js').catch(err => { console.error('Error starting server from CJS shim:', err); process.exit(1); });\n"
+  );
 }
 
 buildAll().catch((err) => {
