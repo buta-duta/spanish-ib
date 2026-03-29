@@ -104,7 +104,7 @@ Content guidelines:
 - Length: ${level === "ab_initio" ? "150-250 words" : "220–350 words"} (spoken words only, excluding speaker labels)
 - Theme content: Explore a specific aspect of "${themeName}" with depth
 - Include cultural references relevant to Spanish-speaking countries
-- Use varied tenses: present, preterite, imperfect, conditional, subjunctive where natural
+- Use appropriate tenses: ${level === "ab_initio" ? "Present, Preterite, and Imperfect ONLY. AVOID subjunctive, conditional, and passive voice." : "present, preterite, imperfect, conditional, subjunctive where natural"}
 - Make the content engaging and exam-realistic${focusLine}
 
 Return ONLY valid JSON (no markdown):
@@ -204,6 +204,7 @@ Directrices:
 - Varía la dificultad: empieza accesible, termina desafiante
 - Para opción múltiple: los distractores deben ser plausibles
 - Para verdadero/falso: usa "Verdadero" y "Falso" como opciones
+- ${level === "ab_initio" ? "IMPORTANT: Use only simple A1-A2 vocabulary for all questions and options. Avoid any complex sentence structures." : "Use standard academic Spanish for questions."}
 
 Devuelve SOLO JSON válido:
 {

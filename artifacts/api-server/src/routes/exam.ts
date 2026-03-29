@@ -110,6 +110,7 @@ ${isAbInitio ? '5. Keep questions simple and direct, suited for Ab Initio (A1-A2
 7. Use informal "tú" consistently for student interactions.
 8. Show authentic examiner personality: be professional but encouraging.
 9. Reference the theme in your questions naturally.
+10. ${isAbInitio ? 'CRITICAL: Conduct the entire exam using simple A1-A2 vocabulary. Avoid complex sentence structures when asking questions.' : 'Use standard academic Spanish.'}
 
 Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
 `;
@@ -206,6 +207,7 @@ ${isAbInitio
 8. Use informal "tú" throughout.
 9. Show the personality of a professional but encouraging examiner.
 10. If the student is on turn ${sessionTurn || 0} of the exam, calibrate difficulty accordingly.
+11. ${isAbInitio ? 'CRITICAL: Use only simple A1-A2 vocabulary for all your questions and feedback.' : 'Use standard academic Spanish.'}
 
 ENCOURAGE PALMS-STYLE RESPONSES:
 Structure your questions to elicit these elements (don't mention PALMS explicitly):

@@ -46,11 +46,11 @@ REQUIREMENTS:
 - Write a ${typeName} in Spanish
 - Theme: ${themeName}
 - Length: ${level === "ab_initio" ? "150-250 words" : "400-600 words"}
-- Use ${level === "ab_initio" ? "basic to intermediate vocabulary (A1-A2)" : "intermediate to advanced vocabulary (B1-B2)"}
+- Use ${level === "ab_initio" ? "high-frequency, basic vocabulary (A1-A2) suited for beginners" : "intermediate to advanced vocabulary (B1-B2)"}
 - Include a clear title
 - Use proper paragraph structure (3–5 paragraphs)
 - Include culturally relevant references to Spanish-speaking countries when appropriate
-- Use a variety of grammatical structures: subjunctive, conditional, passive voice
+- ${level === "ab_initio" ? "Use simple grammatical structures: present, preterite, and imperfect tenses only. AVOID subjunctive, conditional, and passive voice." : "Use a variety of grammatical structures: subjunctive, conditional, passive voice"}
 - Write in a style authentic to a real ${typeName}${focusLine}
 
 FORMAT:
@@ -110,7 +110,7 @@ Mix EXACTLY these question types:
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.
 For Synonym: pick vocabulary words at ${level === "ab_initio" ? "A2 level" : "B2 level"} that appear in the text.
-${level === "ab_initio" ? "\nCRITICAL: All questions, multiple-choice options, true/false statements, and instructions MUST be written using extremely simple A1-A2 vocabulary so the Ab Initio student can easily understand exactly what is being asked.\n" : ""}
+${level === "ab_initio" ? "\nCRITICAL: All questions, multiple-choice options, true/false statements, and instructions MUST be written using extremely simple A1-A2 vocabulary so the Ab Initio student can easily understand exactly what is being asked. Avoid any complex sentence structures or rare words.\n" : ""}
 Return a JSON object:
 {
   "questions": [

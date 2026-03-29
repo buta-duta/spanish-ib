@@ -49,9 +49,10 @@ La pregunta debe:
 - Pedir al estudiante que escriba un/a ${typeName} en español
 - Estar claramente relacionada con el tema del IB: ${themeName}
 - Ser realista y específica (incluir una situación, un propósito y un destinatario o audiencia)
-- Ser adecuada para estudiantes de nivel ${level === "ab_initio" ? "A1-A2 (Ab Initio)" : "B1-B2"} de español
+- Ser adecuada para estudiantes de nivel ${level === "ab_initio" ? "A1-A2 (Ab Initio) de español. Use lenguaje sencillo y directo en la instrucción." : "B1-B2 de español"}
 - Indicar el número de palabras recomendado (${level === "ab_initio" ? "entre 70 y 150 palabras" : "entre 250 y 400 palabras"})
 - Seguir el formato exacto del IB: contexto de la situación, instrucciones claras y audiencia${avoidSection}
+- ${level === "ab_initio" ? "IMPORTANT: Write the prompt instructions using very simple Spanish that an A1-A2 student can understand." : "Use standard academic Spanish for the instructions."}
 
 Devuelve ÚNICAMENTE el texto de la pregunta en español. Sin explicaciones, sin JSON. Solo la pregunta tal como aparecería en un examen IB.`,
         },
@@ -204,8 +205,8 @@ router.post("/writing/rewrite", async (req, res) => {
 Requirements:
 - Keep the SAME structure and main ideas as the original
 - Write the same ${typeName} format with appropriate conventions
-- Use appropriate sophisticated vocabulary (for ${level === "ab_initio" ? "A2-B1 level" : "B2-C1 level"})
-- Employ grammatical structures expected for a 7: ${level === "ab_initio" ? "consistent present, accurate preterite and imperfect, basic future, cohesive devices" : "subjunctive, conditional, passive voice, complex clauses"}
+- Use appropriate vocabulary (${level === "ab_initio" ? "A2-B1 level, high-frequency words" : "B2-C1 level"})
+- Employ grammatical structures expected for a 7: ${level === "ab_initio" ? "consistent present, accurate preterite and imperfect, basic future, cohesive devices (y, pero, también, porque). AVOID subjunctive and passive voice unless in a common fixed phrase." : "subjunctive, conditional, passive voice, complex clauses"}
 - Use varied sentence length and strong discourse connectors
 - Maintain cultural authenticity
 - Match the word count of the original (±10%)
