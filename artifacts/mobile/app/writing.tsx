@@ -191,6 +191,11 @@ export default function WritingScreen() {
   // Rewrite
   const [rewritten, setRewritten] = useState("");
   const [generatingRewrite, setGeneratingRewrite] = useState(false);
+  
+  // Simplification
+  const [isSimplified, setIsSimplified] = useState(false);
+  const [simplifiedPrompt, setSimplifiedPrompt] = useState("");
+  const [simplifying, setSimplifying] = useState(false);
 
   // Phase
   const [phase, setPhase] = useState<Phase>("setup");
@@ -200,7 +205,7 @@ export default function WritingScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
 
-  const activePrompt = promptMode === "generate" ? generatedPrompt : customPrompt;
+  const activePrompt = isSimplified ? simplifiedPrompt : (promptMode === "generate" ? generatedPrompt : customPrompt);
   const wc = wordCount(essay);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -225,6 +230,39 @@ export default function WritingScreen() {
       // silent
     } finally {
       setGeneratingPrompt(false);
+      setIsSimplified(false);
+      setSimplifiedPrompt("");
+    }
+  };
+
+  const toggleSimplify = async () => {
+    if (simplifying) return;
+    if (simplifiedPrompt) {
+      setIsSimplified(!isSimplified);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
+
+    const textToSimplify = promptMode === "generate" ? generatedPrompt : customPrompt;
+    if (!textToSimplify) return;
+
+    setSimplifying(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const res = await fetch(`${getApiUrl()}api/simplify/ab-initio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textToSimplify }),
+      });
+      const data = await res.json();
+      if (data.simplifiedText) {
+        setSimplifiedPrompt(data.simplifiedText);
+        setIsSimplified(true);
+      }
+    } catch (err) {
+      console.error("Simplify error:", err);
+    } finally {
+      setSimplifying(false);
     }
   };
 
@@ -299,6 +337,8 @@ export default function WritingScreen() {
     setCustomPrompt("");
     setPreviousPrompts([]);
     setPromptMode("generate");
+    setIsSimplified(false);
+    setSimplifiedPrompt("");
   };
 
   // ── Header ─────────────────────────────────────────────────────────────────
@@ -478,6 +518,31 @@ export default function WritingScreen() {
                   </Text>
                 </Pressable>
 
+                {generatedPrompt && (
+                  <Pressable
+                    onPress={toggleSimplify}
+                    disabled={simplifying}
+                    style={({ pressed }) => [
+                      s.outlineBtn,
+                      { 
+                        borderColor: ACCENT, 
+                        backgroundColor: isSimplified ? ACCENT : "transparent",
+                        opacity: pressed || simplifying ? 0.7 : 1,
+                        marginTop: 0 
+                      },
+                    ]}
+                  >
+                    {simplifying ? (
+                      <ActivityIndicator color={isSimplified ? "#fff" : ACCENT} size="small" />
+                    ) : (
+                      <Ionicons name={isSimplified ? "flash" : "flash-outline"} size={16} color={isSimplified ? "#fff" : ACCENT} />
+                    )}
+                    <Text style={[s.outlineBtnText, { color: isSimplified ? "#fff" : ACCENT }]}>
+                      {simplifying ? "Simplificando..." : isSimplified ? "Mostrar original" : "Simplificar a Ab Initio"}
+                    </Text>
+                  </Pressable>
+                )}
+
                 {generatedPrompt ? (
                   <View style={[s.promptBox, { backgroundColor: colors.cardAlt, borderColor: ACCENT + "50" }]}>
                     <View style={[s.glossaryHint, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30" }]}>
@@ -503,7 +568,11 @@ export default function WritingScreen() {
               <View style={{ marginTop: 12 }}>
                 <TextInput
                   value={customPrompt}
-                  onChangeText={setCustomPrompt}
+                  onChangeText={(t) => {
+                    setCustomPrompt(t);
+                    setIsSimplified(false);
+                    setSimplifiedPrompt("");
+                  }}
                   multiline
                   placeholder="Escribe tu propia pregunta de escritura..."
                   placeholderTextColor={colors.textSecondary}
@@ -514,6 +583,30 @@ export default function WritingScreen() {
                   }]}
                   textAlignVertical="top"
                 />
+                {customPrompt.length > 20 && (
+                  <Pressable
+                    onPress={toggleSimplify}
+                    disabled={simplifying}
+                    style={({ pressed }) => [
+                      s.outlineBtn,
+                      { 
+                        borderColor: ACCENT, 
+                        backgroundColor: isSimplified ? ACCENT : "transparent",
+                        opacity: pressed || simplifying ? 0.7 : 1,
+                        marginTop: 10 
+                      },
+                    ]}
+                  >
+                    {simplifying ? (
+                      <ActivityIndicator color={isSimplified ? "#fff" : ACCENT} size="small" />
+                    ) : (
+                      <Ionicons name={isSimplified ? "flash" : "flash-outline"} size={16} color={isSimplified ? "#fff" : ACCENT} />
+                    )}
+                    <Text style={[s.outlineBtnText, { color: isSimplified ? "#fff" : ACCENT }]}>
+                      {simplifying ? "Simplificando..." : isSimplified ? "Mostrar original" : "Simplificar a Ab Initio"}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             )}
           </View>

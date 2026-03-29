@@ -59,6 +59,7 @@ STRICT RULE SET FOR AB INITIO REWRITING (A1-A2 SURVIVAL LEVEL):
 FORMAT:
 Return a JSON object with exactly these fields:
 {
+  "simplifiedTitle": "A very short simple title (3-5 words)",
   "simplifiedText": "The rewritten simple text",
   "simplifiedQuestion": "The rewritten simple question"
 }
@@ -71,12 +72,14 @@ Return ONLY valid JSON with no extra text.`,
         },
       ],
       temperature: 0.1,
+      max_completion_tokens: 1500,
       response_format: { type: "json_object" },
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
     return res.json({
+      simplifiedTitle: parsed.simplifiedTitle ?? "",
       simplifiedText: parsed.simplifiedText ?? "",
       simplifiedQuestion: parsed.simplifiedQuestion ?? "",
     });

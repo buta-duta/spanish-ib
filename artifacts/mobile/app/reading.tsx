@@ -209,6 +209,7 @@ export default function ReadingScreen() {
       setReadingTitle(data.title ?? "Texto de lectura");
       setReadingText(data.text ?? "");
       setSimplifiedText("");
+      setSimplifiedTitle("");
       setIsSimplified(false);
       setQuestions([]);
       setAnswers({});
@@ -227,6 +228,7 @@ export default function ReadingScreen() {
     setReadingTitle(pastedTitle.trim() || "Texto de lectura");
     setReadingText(trimmed);
     setSimplifiedText("");
+    setSimplifiedTitle("");
     setIsSimplified(false);
     setQuestions([]);
     setAnswers({});
@@ -387,10 +389,13 @@ export default function ReadingScreen() {
         body: JSON.stringify({ text: readingText }),
       });
       const data = await res.json();
-      setSimplifiedText(data.simplifiedText ?? "");
-      setIsSimplified(true);
-    } catch {
-      // silent
+      if (data.simplifiedText) {
+        setSimplifiedText(data.simplifiedText);
+        setSimplifiedTitle(data.simplifiedTitle || readingTitle);
+        setIsSimplified(true);
+      }
+    } catch (err) {
+      console.error("Simplify error:", err);
     } finally {
       setSimplifying(false);
     }
