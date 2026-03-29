@@ -464,26 +464,42 @@ export default function ReadingScreen() {
             </Pressable>
           </View>
 
-          {/* Level selector (Always Visible) */}
+          {/* Level selector (Pill Toggle) */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              {(["b", "ab_initio"] as const).map((l) => {
-                const active = level === l;
-                return (
-                  <Pressable
-                    key={l}
-                    onPress={() => setLevel(l)}
-                    style={[s.typeChip, {
-                      backgroundColor: active ? ACCENT : colors.cardAlt,
-                      borderColor: active ? ACCENT : colors.border,
-                      flex: 1, alignItems: "center"
-                    }]}
-                  >
-                    <Text style={[s.typeChipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
-                  </Pressable>
-                );
-              })}
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel de dificultad</Text>
+            <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
+              <Pressable
+                onPress={() => {
+                  setLevel("b");
+                  Haptics.selectionAsync();
+                }}
+                style={[s.modeBtn, level === "b" && { backgroundColor: ACCENT }]}
+              >
+                <Ionicons
+                  name="school-outline"
+                  size={16}
+                  color={level === "b" ? "#fff" : colors.textSecondary}
+                />
+                <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
+                  Spanish B
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setLevel("ab_initio");
+                  Haptics.selectionAsync();
+                }}
+                style={[s.modeBtn, level === "ab_initio" && { backgroundColor: ACCENT }]}
+              >
+                <Ionicons
+                  name="star-outline"
+                  size={16}
+                  color={level === "ab_initio" ? "#fff" : colors.textSecondary}
+                />
+                <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
+                  Ab Initio
+                </Text>
+              </Pressable>
             </View>
           </View>
 
@@ -540,8 +556,6 @@ export default function ReadingScreen() {
                   })}
                 </View>
               </View>
-
-              {/* Level selector moved outside conditional */}
 
               {/* Custom Focus (Feature 27) */}
               <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -756,7 +770,7 @@ export default function ReadingScreen() {
               <ReadableText
                 key={pi}
                 content={para}
-                textStyle={[s.readingText, { color: colors.text, marginBottom: pi < (isSimplified ? simplifiedText : readingText).split("\n\n").length - 1 ? 14 : 0 }]}
+                textStyle={[s.readingText, { color: colors.text, marginBottom: para.split("\n\n").length - 1 ? 14 : 0 }]}
                 onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
               />
             ))}

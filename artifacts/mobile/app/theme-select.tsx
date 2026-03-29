@@ -318,24 +318,40 @@ export default function ThemeSelectScreen() {
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
-        {/* Level selector */}
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
-          {(["b", "ab_initio"] as const).map((l) => {
-            const active = level === l;
-            return (
-              <Pressable
-                key={l}
-                onPress={() => setLevel(l)}
-                style={{
-                  backgroundColor: active ? colors.tint : colors.card,
-                  borderColor: active ? colors.tint : colors.border,
-                  flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, borderWidth: 1
-                }}
-              >
-                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: active ? "#fff" : colors.text }}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
-              </Pressable>
-            );
-          })}
+        {/* Level Selector (Pill Toggle) */}
+        <View style={[styles.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginBottom: 20 }]}>
+          <Pressable
+            onPress={() => {
+              setLevel("b");
+              Haptics.selectionAsync();
+            }}
+            style={[styles.modeBtn, level === "b" && { backgroundColor: colors.tint }]}
+          >
+            <Ionicons
+              name="school-outline"
+              size={16}
+              color={level === "b" ? "#fff" : colors.textSecondary}
+            />
+            <Text style={[styles.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
+              Spanish B
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setLevel("ab_initio");
+              Haptics.selectionAsync();
+            }}
+            style={[styles.modeBtn, level === "ab_initio" && { backgroundColor: colors.tint }]}
+          >
+            <Ionicons
+              name="star-outline"
+              size={16}
+              color={level === "ab_initio" ? "#fff" : colors.textSecondary}
+            />
+            <Text style={[styles.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
+              Ab Initio
+            </Text>
+          </Pressable>
         </View>
 
         {/* Theme list */}
@@ -383,6 +399,9 @@ const styles = StyleSheet.create({
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  modeToggle: { flexDirection: "row", borderRadius: 10, borderWidth: 1, padding: 3, gap: 3 },
+  modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 8 },
+  modeBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   themeList: { gap: 10 },
   themeCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 14, borderWidth: 1 },
   themeIcon: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", alignSelf: "flex-start", marginTop: 2 },

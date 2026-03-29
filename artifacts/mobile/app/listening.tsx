@@ -419,28 +419,41 @@ export default function ListeningScreen() {
             ))}
           </ScrollView>
 
-          {/* Level selector */}
-          <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Nivel</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-            {(["b", "ab_initio"] as const).map((l) => {
-              const active = level === l;
-              return (
-                <Pressable
-                  key={l}
-                  onPress={() => setLevel(l)}
-                  style={[
-                    s.typeCard,
-                    {
-                      backgroundColor: active ? themeColor + "18" : colors.card,
-                      borderColor: active ? themeColor : colors.border,
-                      flex: 1, alignItems: "center", paddingVertical: 12
-                    },
-                  ]}
-                >
-                  <Text style={[s.typeLabel, { color: active ? themeColor : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
-                </Pressable>
-              );
-            })}
+          {/* Level Selector (Pill Toggle) */}
+          <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Nivel de dificultad</Text>
+          <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
+            <Pressable
+              onPress={() => {
+                setLevel("b");
+                Haptics.selectionAsync();
+              }}
+              style={[s.modeBtn, level === "b" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons
+                name="school-outline"
+                size={16}
+                color={level === "b" ? "#fff" : colors.textSecondary}
+              />
+              <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
+                Spanish B
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setLevel("ab_initio");
+                Haptics.selectionAsync();
+              }}
+              style={[s.modeBtn, level === "ab_initio" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons
+                name="star-outline"
+                size={16}
+                color={level === "ab_initio" ? "#fff" : colors.textSecondary}
+              />
+              <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
+                Ab Initio
+              </Text>
+            </Pressable>
           </View>
 
           {/* Passage type */}
@@ -1081,6 +1094,9 @@ const s = StyleSheet.create({
   typeCard: { width: "47.5%", borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
   typeLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   typeDesc: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  modeToggle: { flexDirection: "row", borderRadius: 10, borderWidth: 1, padding: 3, gap: 3 },
+  modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 8 },
+  modeBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   customFocusCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
   customFocusHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
   customFocusLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

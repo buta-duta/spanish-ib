@@ -790,6 +790,43 @@ export default function ImagePracticeScreen() {
           ))}
         </ScrollView>
 
+        <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+          <View style={[sc.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+            <Pressable
+              onPress={() => {
+                setLevel("b");
+                Haptics.selectionAsync();
+              }}
+              style={[sc.modeBtn, level === "b" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons
+                name="school-outline"
+                size={16}
+                color={level === "b" ? "#fff" : colors.textSecondary}
+              />
+              <Text style={[sc.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
+                Spanish B
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setLevel("ab_initio");
+                Haptics.selectionAsync();
+              }}
+              style={[sc.modeBtn, level === "ab_initio" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons
+                name="star-outline"
+                size={16}
+                color={level === "ab_initio" ? "#fff" : colors.textSecondary}
+              />
+              <Text style={[sc.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
+                Ab Initio
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         <ScrollView contentContainerStyle={sc.imageGrid} showsVerticalScrollIndicator={false}>
           <Text style={[sc.sectionLabel, { color: colors.textSecondary }]}>Selecciona una imagen para practicar</Text>
           <View style={sc.grid}>
@@ -1460,6 +1497,9 @@ const sc = StyleSheet.create({
   sectionLabel: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   gridCell: { width: "48%" },
+  modeToggle: { flexDirection: "row", borderRadius: 10, borderWidth: 1, padding: 3, gap: 3 },
+  modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 8 },
+  modeBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Prep
   prepContent: { paddingHorizontal: 16, paddingTop: 16, gap: 14 },

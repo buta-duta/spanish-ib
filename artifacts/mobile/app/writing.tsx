@@ -393,26 +393,42 @@ export default function WritingScreen() {
             </View>
           </View>
 
-          {/* Level */}
+          {/* Level Selector (Pill Toggle) */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              {(["b", "ab_initio"] as const).map((l) => {
-                const active = level === l;
-                return (
-                  <Pressable
-                    key={l}
-                    onPress={() => setLevel(l)}
-                    style={[s.chip, {
-                      backgroundColor: active ? ACCENT : colors.cardAlt,
-                      borderColor: active ? ACCENT : colors.border,
-                      flex: 1, alignItems: "center"
-                    }]}
-                  >
-                    <Text style={[s.chipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
-                  </Pressable>
-                );
-              })}
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel de dificultad</Text>
+            <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border, marginTop: 10 }]}>
+              <Pressable
+                onPress={() => {
+                  setLevel("b");
+                  Haptics.selectionAsync();
+                }}
+                style={[s.modeBtn, level === "b" && { backgroundColor: ACCENT }]}
+              >
+                <Ionicons
+                  name="school-outline"
+                  size={16}
+                  color={level === "b" ? "#fff" : colors.textSecondary}
+                />
+                <Text style={[s.modeBtnText, { color: level === "b" ? "#fff" : colors.textSecondary }]}>
+                  Spanish B
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setLevel("ab_initio");
+                  Haptics.selectionAsync();
+                }}
+                style={[s.modeBtn, level === "ab_initio" && { backgroundColor: ACCENT }]}
+              >
+                <Ionicons
+                  name="star-outline"
+                  size={16}
+                  color={level === "ab_initio" ? "#fff" : colors.textSecondary}
+                />
+                <Text style={[s.modeBtnText, { color: level === "ab_initio" ? "#fff" : colors.textSecondary }]}>
+                  Ab Initio
+                </Text>
+              </Pressable>
             </View>
           </View>
 
