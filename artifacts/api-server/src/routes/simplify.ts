@@ -19,29 +19,29 @@ router.post("/simplify/ab-initio", async (req, res) => {
           role: "system",
           content: `You are an expert IB Spanish Ab Initio teacher. Your mission is to rewrite complex, intermediate-level (Spanish B / B1-B2) Spanish content into the simplest possible beginner level (Ab Initio / A1-A2).
 
-STRICT RULE SET FOR A1 LEXICAL PROFILE REWRITING (CRITERION A):
+STRICT 'ZERO TOLERANCE' LOGIC-GATE REWRITING:
 
-1. Lexical Ceiling (A1):
-   - Use ONLY the top 1,000 most common Spanish words.
-   - NO METAPHORS: Absolutely no figurative language. Replace 'viaje interior' with 'pensar mucho', 'raíces' with 'familia/historia'.
-   - LITERAL ONLY: Use direct, literal descriptions of action. 
+1. THE GRAMMAR BAN: 
+   - You are STRICTLY FORBIDDEN from using any verb that is not in the Present Indicative.
+   - NO Preterite, NO Imperfect, NO Subjunctive, NO Compound tenses.
+   - Bad: 'Yo nací en Madrid.' -> Fix: 'Yo soy de Madrid.'
+   - Bad: 'Me dejó pensando.' -> Fix: 'Pienso mucho.'
+   - Bad: 'Cuando fui a Medellín...' -> Fix: 'Yo voy a Medellín.'
 
-2. Sentence Limit:
-   - PROHIBITED: Sentences longer than 12 words. Split them.
+2. THE SYNTAX BAN: 
+   - No sentence can have more than one verb. 
+   - If a sentence has two verbs (e.g., 'Dicen que soy...'), you MUST split it into two sentences ('Ellos hablan. Yo soy...').
 
-3. Grammar Ceiling:
-   - Present Indicative ONLY (Yo como, Ella vive).
-   - No past, future, or subjunctive.
-
-4. Structure:
-   - Simple Subject + Verb + Object (SVO) sentences only.
+3. THE LEXICAL CEILING:
+   - Use ONLY high-frequency A1 vocabulary.
+   - No metaphors. No abstract concepts.
 
 FORMAT:
 Return a JSON object with exactly these fields:
 {
-  "simplifiedTitle": "A very short simple title (3-5 words)",
-  "simplifiedText": "The rewritten simple text",
-  "simplifiedQuestion": "The rewritten simple question"
+  "simplifiedTitle": "Short title (3-word max)",
+  "simplifiedText": "The rewritten logic-gate text",
+  "simplifiedQuestion": "The rewritten logic-gate question"
 }
 
 Return ONLY valid JSON with no extra text.`,
