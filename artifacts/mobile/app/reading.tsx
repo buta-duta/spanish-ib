@@ -426,6 +426,29 @@ export default function ReadingScreen() {
             </Pressable>
           </View>
 
+          {/* Level selector (Always Visible) */}
+          <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              {(["b", "ab_initio"] as const).map((l) => {
+                const active = level === l;
+                return (
+                  <Pressable
+                    key={l}
+                    onPress={() => setLevel(l)}
+                    style={[s.typeChip, {
+                      backgroundColor: active ? ACCENT : colors.cardAlt,
+                      borderColor: active ? ACCENT : colors.border,
+                      flex: 1, alignItems: "center"
+                    }]}
+                  >
+                    <Text style={[s.typeChipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           {inputMode === "generate" ? (
             <>
               {/* Theme selector */}
@@ -480,28 +503,7 @@ export default function ReadingScreen() {
                 </View>
               </View>
 
-              {/* Level selector */}
-              <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Nivel</Text>
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-                  {(["b", "ab_initio"] as const).map((l) => {
-                    const active = level === l;
-                    return (
-                      <Pressable
-                        key={l}
-                        onPress={() => setLevel(l)}
-                        style={[s.typeChip, {
-                          backgroundColor: active ? ACCENT : colors.cardAlt,
-                          borderColor: active ? ACCENT : colors.border,
-                          flex: 1, alignItems: "center"
-                        }]}
-                      >
-                        <Text style={[s.typeChipText, { color: active ? "#fff" : colors.text }]}>{l === "b" ? "Spanish B" : "Ab Initio"}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
+              {/* Level selector moved outside conditional */}
 
               {/* Custom Focus (Feature 27) */}
               <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -611,9 +613,14 @@ export default function ReadingScreen() {
           <Pressable onPress={resetToSetup} style={s.backBtn}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
-          <Text style={[s.screenTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>
-            {readingTitle}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.screenTitle, { color: colors.text }]} numberOfLines={1}>
+              {readingTitle}
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: ACCENT }}>
+              IB Spanish {level === "ab_initio" ? "Ab Initio" : "B"}
+            </Text>
+          </View>
           <Pressable
             onPress={resetToSetup}
             style={[s.resetBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}

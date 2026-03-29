@@ -543,7 +543,7 @@ export default function WritingScreen() {
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <LinearGradient colors={bgColors} style={StyleSheet.absoluteFill} />
         <Header
-          title="Escribir"
+          title={`Escribir - ${level === "ab_initio" ? "Ab Initio" : "Spanish B"}`}
           onBack={() => setPhase("setup")}
           rightElement={
             <Pressable

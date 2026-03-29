@@ -593,7 +593,7 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>{passageTitle}</Text>
-            <Text style={[s.headerSub, { color: themeColor }]}>{selectedTheme.name}</Text>
+            <Text style={[s.headerSub, { color: themeColor }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedTheme.name}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>

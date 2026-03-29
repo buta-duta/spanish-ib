@@ -826,7 +826,7 @@ export default function ImagePracticeScreen() {
           </Pressable>
           <View style={sc.headerCenter}>
             <Text style={[sc.headerTitle, { color: colors.text }]}>Tiempo de preparación</Text>
-            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>{selectedTheme.name}</Text>
+            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedTheme.name}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -993,7 +993,7 @@ export default function ImagePracticeScreen() {
           <View style={{ width: 44 }} />
           <View style={sc.headerCenter}>
             <Text style={[sc.headerTitle, { color: colors.text }]}>Resultados IB</Text>
-            <Text style={[sc.headerSub, { color: activeColor }]}>{selectedImage?.caption ?? ""}</Text>
+            <Text style={[sc.headerSub, { color: activeColor }]}>{level === "ab_initio" ? "Ab Initio" : "Spanish B"} • {selectedImage?.caption ?? ""}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>

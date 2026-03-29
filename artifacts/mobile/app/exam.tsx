@@ -814,7 +814,7 @@ export default function ExamScreen() {
             <Ionicons name={themeData.iconName as any} size={16} color={themeColor} />
           </View>
           <View>
-            <Text style={[styles.headerTheme, { color: themeColor }]}>Tema actual</Text>
+            <Text style={[styles.headerTheme, { color: themeColor }]}>{currentSession?.level === "ab_initio" ? "AB INITIO" : "SPANISH B"} • TEMA ACTUAL</Text>
             <Text style={[styles.headerThemeName, { color: colors.text }]}>{themeData.name}</Text>
           </View>
         </View>
