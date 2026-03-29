@@ -488,9 +488,9 @@ export default function ImagePracticeScreen() {
 
       try {
         const apiMessages = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-        const response = await expoFetch(`${getApiUrl()}api/exam/image-chat`, {
+        const response = await fetch(`${getApiUrl()}api/exam/image-chat`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: apiMessages,
             theme: selectedImage.themeId,
@@ -499,57 +499,29 @@ export default function ImagePracticeScreen() {
             sessionTurn,
             rephrase,
             skip,
+            level: level || "b",
           }),
         });
 
         if (!response.ok) throw new Error("Failed to get response");
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No response body");
+        const data = await response.json();
+        
+        // Format the structured JSON into a displayable string
+        const formattedContent = `[Corrección]: ${data.corrección}\n\n[Respuesta]: ${data.respuesta}\n\n[Pregunta]: ${data.pregunta_ib}`;
+        const assistantMsgId = generateId();
+        
+        setShowTyping(false);
+        setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: formattedContent, timestamp: Date.now() }]);
+        
+        // Start exam timer on first AI message
+        startExamTimer();
 
-        const decoder = new TextDecoder();
-        let fullContent = "";
-        let buffer = "";
-        let assistantAdded = false;
-        let assistantMsgId = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                fullContent += parsed.content;
-                if (!assistantAdded) {
-                  assistantMsgId = generateId();
-                  setShowTyping(false);
-                  setMessages((prev) => [...prev, { id: assistantMsgId, role: "assistant", content: fullContent, timestamp: Date.now() }]);
-                  assistantAdded = true;
-                  // Start exam timer on first AI message (F33)
-                  startExamTimer();
-                } else {
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullContent };
-                    return updated;
-                  });
-                }
-              }
-            } catch {}
-          }
+        // Auto-play TTS for the AI response
+        if (formattedContent && assistantMsgId) {
+          playTTS(formattedContent, assistantMsgId);
         }
-
-        // Auto-play TTS for the AI response when streaming is complete
-        if (fullContent && assistantMsgId) {
-          playTTS(fullContent, assistantMsgId);
-        }
-      } catch {
+      } catch (error) {
+        console.error("AI Chat Error:", error);
         setShowTyping(false);
         setMessages((prev) => [
           ...prev,
@@ -562,7 +534,7 @@ export default function ImagePracticeScreen() {
         if (hasUser) setSessionTurn((t) => t + 1);
       }
     },
-    [selectedImage, sessionTurn, playTTS, startExamTimer]
+    [selectedImage, sessionTurn, playTTS, startExamTimer, level]
   );
 
   // ── Question controls (F31) ──────────────────────────────────────────────────

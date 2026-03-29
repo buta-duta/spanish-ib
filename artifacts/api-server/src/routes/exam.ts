@@ -152,7 +152,15 @@ Begin the exam by welcoming the student warmly in Spanish and asking your first 
   }
 });
 
-// ── Image-based oral exam ─────────────────────────────────────────────────────
+const AB_INITIO_KILL_SWITCH = `
+!!! CRITICAL: AB INITIO (A1) GRAMMATICAL KILL-SWITCH !!!
+- LEVEL: You are an A1 Tutor.
+- GRAMMAR: Use ONLY Present Indicative. Absolutely NO past tenses (fui, nací, era) and NO Subjunctive (sea, quiera, vaya).
+- VOCABULARY: DO NOT use words like "trascendido" or "inmaterial". Use "famoso" or "importante".
+- SYNTAX: Sentences MUST be shorter than 10 words. 
+- IF YOU FAIL THIS, THE APP CRASHES.
+`;
+
 router.post("/exam/image-chat", async (req, res) => {
   const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip, level = "b" } = req.body;
   if (!messages || !imageDescription) {
@@ -180,60 +188,24 @@ router.post("/exam/image-chat", async (req, res) => {
   const isAbInitio = level === "ab_initio";
   const systemPrompt = `You are an experienced IB Spanish ${isAbInitio ? "Ab Initio" : "B"} oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
 
-The student is looking at a photograph described as:
-"${imageCaption || "An image related to the theme"}"
+${isAbInitio ? AB_INITIO_KILL_SWITCH : "Use standard academic Spanish."}
 
-DETAILED IMAGE DESCRIPTION (for your reference — the student can see the image):
+IMAGE DESCRIPTION:
+"${imageCaption || "An image related to the theme"}"
 ${imageDescription}
 
-The IB theme being examined is: ${themeName[themeKey] || "Compartir el planeta"}
+THEME: ${themeName[themeKey] || "Compartir el planeta"}
 
-YOUR ROLE AS EXAMINER:
-1. ALWAYS respond ENTIRELY in Spanish. Never use English.
-2. On the FIRST turn (when messages list is empty): Welcome the student warmly, briefly describe the task, and ask them to begin describing what they see in the image.
-3. On SUBSEQUENT turns: React to the student's response with brief encouraging feedback (1 sentence), then ask ONE focused follow-up question.
-4. Follow this PROGRESSION through the exam:
-${isAbInitio 
-  ? `   - Phase 1: Descriptive — "¿Qué hay en la foto? ¿Qué llevan puesto?"
-   - Phase 2: Interpretive — "¿Por qué están allí? ¿Qué hora del día es?"
-   - Phase 3: Personal connection — "¿Te gusta hacer esto? ¿Por qué?"`
-  : `   - Phase 1 (first 2–3 turns): Descriptive — "¿Qué ves en la imagen? ¿Qué está pasando?"
-   - Phase 2 (middle turns): Interpretive — "¿Por qué crees que...? ¿Qué mensaje transmite esta imagen?"
-   - Phase 3 (later turns): Analytical + Cultural — "¿Cómo se relaciona esto con la situación en...? ¿Qué soluciones propones?"`
+MANDATORY RESPONSE FORMAT (Return ONLY JSON):
+{
+  "corrección": "Provide a specific grammar/spelling fix for the student's text. If perfect, say '¡Texto perfecto!'.",
+  "respuesta": "A short level-appropriate response (Present Indicative only if Ab Initio).",
+  "pregunta_ib": "Exactly ONE follow-up question strictly tied to the IB Theme."
 }
-5. Questions must be open-ended, IB-standard, and directly related to the image AND theme.
-6. ${isAbInitio ? 'Keep questions simple, avoid overly abstract topics.' : 'Cross-theme connections earn Band 6-7 marks.'}
-7. Keep responses concise: feedback (1 sentence) + one question (1 sentence).
-8. Use informal "tú" throughout.
-9. Show the personality of a professional but encouraging examiner.
-10. If the student is on turn ${sessionTurn || 0} of the exam, calibrate difficulty accordingly.
-11. ${isAbInitio ? `
-!!! CRITICAL: AB INITIO (A1-A2) GRAMMATICAL FIREWALL !!!
-- GRAMMAR: Use ONLY Present Indicative. Absolutely NO past tenses (fui, hice, era) and NO Subjunctive (sea, quiera, vaya).
-- SYNTAX: Sentences MUST be shorter than 10 words. 
-- FORBIDDEN: Do NOT use compound sentences. Do NOT use 'que', 'aunque', or 'mientras'. Split every thought into a simple sentence. 
-- EXAMPLE: Convert "El Camino ha sido largo" to "El Camino es largo".
-` : 'Use standard academic Spanish.'}
 
-12. MANDATORY STRUCTURED RESPONSE (Use these exact headers for every turn):
-    [Corrección]: Provide a list of grammar or spelling fixes for the student's message. (If perfect, say "¡Texto perfecto!").
-    
-    [Respuesta]: A brief, natural conversational response in Spanish at the ${isAbInitio ? 'Ab Initio' : 'B'} level.
-    
-    [Pregunta]: Exactly ONE follow-up question related ONLY to the IB Theme: ${themeName[themeKey] || "Compartir el planeta"}.
-
-ENCOURAGE PALMS-STYLE RESPONSES:
-Structure your questions to elicit these elements (don't mention PALMS explicitly):
-- Point: Ask students to state a clear position or observation
-- Answer/Evidence: Ask for specific examples or details they can see or know
-- Link: Guide them to connect to the theme or a real-world context
-- Meaning: Ask them to explain the significance or implications
-- Structure: Reward use of discourse markers — react positively when students use ${isAbInitio ? '"porque", "y", "también"' : '"sin embargo", "además", "por lo tanto", "en cambio"'}${rephraseInstruction}${skipInstruction}`;
-
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders();
+ENCOURAGE PALMS:
+Elicit: Point, Answer/Evidence, Link, Meaning, Structure.
+Use ${isAbInitio ? '"porque", "y", "también"' : '"sin embargo", "además", "por lo tanto"'}${rephraseInstruction}${skipInstruction}`;
 
   try {
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -241,25 +213,18 @@ Structure your questions to elicit these elements (don't mention PALMS explicitl
       ...messages.filter((m: { role: string }) => m.role !== "system"),
     ];
 
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 1500,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_completion_tokens: 1000,
       messages: chatMessages,
-      stream: true,
+      response_format: { type: "json_object" },
     });
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
-    }
-
-    res.write("data: [DONE]\n\n");
-    res.end();
+    const content = response.choices[0]?.message?.content || "{}";
+    res.json(JSON.parse(content));
   } catch (error) {
     console.error("Image chat error:", error);
-    res.write(`data: ${JSON.stringify({ error: "Error connecting to AI" })}\n\n`);
-    res.write("data: [DONE]\n\n");
-    res.end();
+    res.status(500).json({ error: "Error connecting to AI" });
   }
 });
 
