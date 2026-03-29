@@ -48,11 +48,14 @@ router.post("/writing/prompt", async (req, res) => {
 OBJETIVO:
 Generar una tarea de escritura realista al estilo IB.
 
-${level === "ab_initio" ? `!!! RESTRICCIONES ESTRICTAS PARA AB INITIO !!!
-- NIVEL: A1-A2 (Español de supervivencia).
-- VOCABULARIO: Use SOLAMENTE las 500 palabras más comunes. Evite términos académicos o complejos.
-- INSTRUCCIONES: Escriba las instrucciones en un español EXTREMADAMENTE SENCILLO que un principiante pueda entender.
-- LARGO: Entre 70 y 150 palabras.` : `
+${level === "ab_initio" ? `!!! CRITICAL: AB INITIO (A1-A2) SURVIVAL SPANISH ONLY !!!
+- NIVEL: A1-A2 (Beginner). 
+- VOCABULARIO: Use SOLAMENTE las 500 palabras más comunes. 
+- FORBIDDEN WORDS (REPLACE THESE): gastronomía (comida), infraestructura (edificios/calles), transporte (coche/tren), residente (persona que vive), laborar (trabajar), establecimiento (tienda), incrementar (subir), disminuir (bajar), obsequiar (dar), retorno (volver).
+- GRAMMAR: Presente de Indicativo SOLAMENTE. 
+- ABSOLUTELY NO: Subjuntivo, Condicional, Futuro, Pretéritos e Imperfectos.
+- INSTRUCCIONES: Escriba instrucciones de menos de 10 palabras por oración.
+- LARGO: Entre 70 y 120 palabras.` : `
 - NIVEL: B1-B2.
 - VOCABULARIO: Académico/Intermedio.
 - LARGO: Entre 250 y 400 palabras.`}
@@ -169,10 +172,10 @@ Return a JSON object:
   ]
 }
 
-- corrections: provide 2–5 most important grammar/language corrections
-- vocabularySuggestions: provide 3–5 vocabulary upgrades
-- modelRewrites: rewrite exactly 2–3 of the student's sentences at a higher level
-- Be specific and reference the actual student text
+- corrections: provide 2–3 major primary grammar corrections
+- vocabularySuggestions: provide 3-5 simple A1-A2 synonyms for complex words they used
+- modelRewrites: rewrite 2 sentences using ONLY present indicative and basic SVO structure
+- CRITICAL: If level is Ab Initio, ALL your feedback strings MUST be written in extremely simple basic English + simple Spanish so they can be understood.
 - Return ONLY valid JSON`,
         },
         {
