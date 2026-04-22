@@ -1,0 +1,85 @@
+-----------------------------------
+FEATURE 25: OPTIONAL FLASHCARD SYSTEM (IN-APP)
+-----------------------------------
+
+GOAL:
+Allow users to save vocabulary from glossary interactions into a personal flashcard pile for later review.
+
+-----------------------------------
+FEATURE 25.1: ADD TO FLASHCARDS (FROM GLOSSARY)
+-----------------------------------
+
+- When a user clicks a Spanish word (glossary popup appears):
+
+Add a button:
+  ➕ "Add to Flashcards"
+
+ON CLICK:
+- Save the word into a flashcard collection
+
+Each flashcard must include:
+- Spanish word
+- English meaning
+- Phonetic pronunciation
+- Optional example sentence (if available)
+
+-----------------------------------
+FEATURE 25.2: FLASHCARD STORAGE
+-----------------------------------
+
+- Store flashcards locally (local storage or lightweight database)
+- Avoid duplicates:
+  - If word already exists → do not add again
+  - Optionally show message: "Already saved"
+
+-----------------------------------
+FEATURE 25.3: FLASHCARD DECK VIEW
+-----------------------------------
+
+Create a dedicated section:
+"📚 My Flashcards"
+
+Display:
+- List or card stack of saved words
+
+Each card must support:
+- Flip interaction:
+  - Front → Spanish word
+  - Back → Meaning + pronunciation
+
+-----------------------------------
+FEATURE 25.4: PRACTICE MODE
+-----------------------------------
+
+Add a "Practice Flashcards" mode:
+
+- Show one card at a time
+- User taps to flip
+- Navigation:
+  - Next / Previous buttons
+
+Optional:
+- Shuffle deck
+
+-----------------------------------
+FEATURE 25.5: REMOVE / MANAGE CARDS
+-----------------------------------
+
+- Allow user to:
+  - Delete individual flashcards
+  - Clear entire deck (with confirmation)
+
+-----------------------------------
+FEATURE 25.6: OPTIONAL UX DETAILS
+-----------------------------------
+
+- Smooth card flip animation
+- Clean, minimal mobile-first design
+- Show total number of saved words
+
+-----------------------------------
+GOAL:
+Help users reinforce vocabulary by:
+- Saving useful words during practice
+- Reviewing them later in a simple, interactive format
+- Keeping everything داخل the app (no external tools required)

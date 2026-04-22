@@ -1,0 +1,92 @@
+-----------------------------------
+FEATURE 11: SMART THEME SELECTION SYSTEM
+-----------------------------------
+
+Add a theme selection system with TWO MODES:
+
+1. USER-SELECTED MODE
+- User can manually choose a theme before starting:
+  - Identidades
+  - Experiencias
+  - Ingenio humano
+  - Organización social
+  - Compartir el planeta
+
+- After selection:
+  - Only images and questions from that theme are used
+  - AI examiner focuses ONLY on that theme and its subthemes
+
+-----------------------------------
+
+2. AUTO-ROTATION MODE (DEFAULT)
+- If user does NOT select a theme:
+  - App automatically assigns a theme
+
+- REQUIREMENT:
+  Themes must NOT repeat until all 5 have been used
+
+- Implement logic:
+  - Maintain a "usedThemes" array in local storage
+  - Each session:
+      pick a random theme NOT in usedThemes
+      add it to usedThemes
+  - When all 5 themes are used:
+      reset usedThemes
+
+-----------------------------------
+
+3. UI REQUIREMENTS
+- Add a “Select Theme” screen before starting:
+  - Buttons for each theme
+  - Option: "🎲 Random Theme (Recommended)"
+
+- Display current theme clearly during exam:
+  Example:
+  "Tema actual: Compartir el planeta"
+
+-----------------------------------
+
+4. AI EXAMINER ADAPTATION
+- AI must adapt questions based on selected theme:
+
+Example mappings:
+
+Identidades:
+- personal beliefs, relationships, identity
+
+Experiencias:
+- travel, memories, life events
+
+Ingenio humano:
+- technology, innovation, media
+
+Organización social:
+- education, law, social systems
+
+Compartir el planeta:
+- environment, sustainability, global issues
+
+-----------------------------------
+
+5. ADVANCED MODE (IMPORTANT FOR HIGH SCORES)
+- After follow-up discussion:
+  AI must sometimes LINK to a SECOND theme
+
+Example:
+"¿Cómo se relaciona este tema con la tecnología moderna?"
+
+This trains cross-theme thinking (Band 6–7 skill)
+
+-----------------------------------
+
+6. SESSION SUMMARY
+- At the end, display:
+  - Theme used
+  - Whether it was repeated or new
+  - Suggest next theme to practise
+
+-----------------------------------
+
+GOAL:
+Ensure full coverage of all IB themes while allowing targeted practice,
+prevent repetition, and simulate realistic examiner behavior.

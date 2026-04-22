@@ -1,0 +1,133 @@
+-----------------------------------
+FEATURE 35: IB LISTENING PRACTICE MODE
+-----------------------------------
+
+GOAL:
+Simulate IB Spanish B listening exam practice using AI-generated or user-provided audio passages.
+
+-----------------------------------
+PASSAGE INPUT OPTIONS
+-----------------------------------
+
+Provide TWO options:
+
+1. USER INPUT
+- User can paste a Spanish passage (max ~400 words)
+
+2. AI GENERATION
+- Button: "🎧 Generate Listening Passage"
+- AI generates a passage based on one of the 5 IB themes:
+  - Identidades
+  - Experiencias
+  - Ingenio humano
+  - Organización social
+  - Compartir el planeta
+
+- Passage requirements:
+  - Natural spoken-style Spanish
+  - Clear context (interview, news, conversation, announcement)
+  - Length under 400 words
+
+-----------------------------------
+AUDIO PLAYBACK SYSTEM
+-----------------------------------
+
+- Convert passage into audio using text-to-speech
+
+-----------------------------------
+
+USER CONTROLS:
+- "▶️ Play Audio"
+- "⏸ Pause Audio"
+
+-----------------------------------
+
+SPEED CONTROL:
+- Allow user to select playback speed:
+
+Options:
+0.8x, 1x, 1.25x, 1.5x, 2x, 3x, 4x
+
+- Default = 1x
+
+-----------------------------------
+
+IMPORTANT:
+- Audio ONLY plays when user clicks "Play"
+- Do NOT autoplay
+
+-----------------------------------
+FEATURE 36: QUESTION GENERATION (ON DEMAND)
+-----------------------------------
+
+GOAL:
+Questions are ONLY generated when user requests them
+
+-----------------------------------
+
+REQUIREMENTS:
+- Add button:
+  "❓ Ask Questions"
+
+- ONLY when clicked:
+  - AI generates IB-style listening questions
+
+-----------------------------------
+
+QUESTION TYPES:
+- Multiple choice
+- True/False
+- Short answer
+- Detail comprehension
+- Inference
+
+-----------------------------------
+FEATURE 37: ANSWERING SYSTEM (TEXT INPUT)
+-----------------------------------
+
+- User answers questions via text input (NOT voice)
+
+-----------------------------------
+
+AFTER EACH ANSWER:
+- AI immediately responds with:
+  - "Correct" or "Incorrect"
+  - Short explanation
+
+-----------------------------------
+FEATURE 38: PROGRESS TRACKING
+-----------------------------------
+
+Add a progress bar showing:
+
+- Number of questions completed
+- Number of questions remaining
+
+Example:
+"2 / 6 preguntas completadas"
+
+-----------------------------------
+
+- Update after each answer submission
+
+-----------------------------------
+FEATURE 39: UX REQUIREMENTS
+-----------------------------------
+
+- Clean, mobile-friendly layout
+- Keep audio controls always visible
+- Keep passage accessible (toggle show/hide)
+
+-----------------------------------
+OPTIONAL (HIGH VALUE)
+-----------------------------------
+
+- Allow replay of audio at any time
+- Allow limiting number of plays (exam simulation mode)
+
+-----------------------------------
+GOAL:
+Train listening comprehension under IB conditions with:
+- controlled playback
+- realistic question types
+- immediate feedback

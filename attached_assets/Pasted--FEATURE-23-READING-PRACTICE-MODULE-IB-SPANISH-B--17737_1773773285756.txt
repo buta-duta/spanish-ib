@@ -1,0 +1,122 @@
+-----------------------------------
+FEATURE 23: READING PRACTICE MODULE (IB SPANISH B)
+-----------------------------------
+
+GOAL:
+Create a dedicated reading section that simulates IB Spanish B reading tasks,
+with realistic texts, interactive vocabulary, and exam-style questions.
+
+-----------------------------------
+FEATURE 23.1: TEXT INPUT OPTIONS
+-----------------------------------
+
+Provide TWO ways to get a reading text:
+
+1. USER INPUT MODE
+- User can paste or type a Spanish text
+- Text should be displayed in a clean reading format
+
+2. AI GENERATION MODE
+- User clicks "Generate Text"
+- AI generates a Spanish text suitable for IB Spanish B level
+
+REQUIREMENTS FOR AI TEXT:
+- Maximum length: 600 words
+- Must match IB-style text types, such as:
+  - Article
+  - Blog post
+  - Interview
+  - Email
+  - Report
+
+- Must align with one IB theme:
+  - Identidades
+  - Experiencias
+  - Ingenio humano
+  - Organización social
+  - Compartir el planeta
+
+- Use a mix of:
+  - Intermediate + advanced vocabulary
+  - Clear paragraph structure
+  - Some culturally relevant references
+
+-----------------------------------
+FEATURE 23.2: CLICKABLE GLOSSARY (READING MODE)
+-----------------------------------
+
+- Enable clickable glossary for the reading text
+
+IMPORTANT UI RULE:
+- Do NOT underline or visually clutter every word
+
+INSTEAD:
+- Words become interactive ONLY when tapped/clicked
+- On click:
+  - Show popup with:
+    - English meaning
+    - Phonetic pronunciation
+    - Optional audio 🔊
+
+- Maintain clean reading experience
+
+-----------------------------------
+FEATURE 23.3: QUESTION GENERATION
+-----------------------------------
+
+Add a "Generate Questions" button after text is displayed
+
+REQUIREMENTS:
+
+- Generate 10–12 questions maximum
+- Mix of IB-style question types:
+  1. Multiple choice (A/B/C/D)
+  2. True or False
+  3. Find synonym in the text
+
+- Questions must:
+  - Be based ONLY on the provided text
+  - Test comprehension, inference, and vocabulary
+  - Reflect IB reading difficulty
+
+-----------------------------------
+FEATURE 23.4: QUESTION INTERACTION
+-----------------------------------
+
+- User selects or inputs answers
+
+AFTER SUBMISSION:
+- AI provides:
+  - Correct answers
+  - Explanation in ENGLISH
+  - Reference to where in the text the answer comes from
+
+Clickable glossary is also possible when a question is being posed by AI
+-----------------------------------
+FEATURE 23.5: UI DESIGN
+-----------------------------------
+
+- Clean reading layout (mobile-first)
+- Comfortable line spacing
+- Clear separation:
+  - Text section
+  - Question section
+
+- Include:
+  - "Generate New Text" button
+  - "Regenerate Questions" button
+
+-----------------------------------
+FEATURE 23.6: PERFORMANCE + UX
+-----------------------------------
+
+- Cache generated text and questions during session
+- Avoid regenerating unless user requests
+
+-----------------------------------
+GOAL:
+Help users improve IB Spanish B reading by:
+- Practicing with realistic texts
+- Learning vocabulary in context
+- Answering exam-style questions
+- Understanding answers deeply through explanations

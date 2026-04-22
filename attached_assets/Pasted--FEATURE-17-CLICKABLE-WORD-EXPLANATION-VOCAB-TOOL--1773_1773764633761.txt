@@ -1,0 +1,81 @@
+-----------------------------------
+FEATURE 17: CLICKABLE WORD EXPLANATION (VOCAB TOOL)
+-----------------------------------
+
+GOAL:
+Allow users to tap/click any Spanish word in AI responses to instantly see:
+- Pronunciation (phonetics)
+- English meaning
+
+-----------------------------------
+FUNCTIONAL REQUIREMENTS
+-----------------------------------
+
+1. CLICKABLE TEXT
+- Every AI-generated Spanish response must be:
+  - Tokenized into individual words
+  - Each word must be clickable/tappable
+
+- Words should behave like interactive elements (not plain text)
+
+-----------------------------------
+
+2. ON CLICK ACTION
+When a user taps a word:
+
+Display a small popup / modal / tooltip containing:
+
+- The selected Spanish word
+- Phonetic pronunciation (simple readable format, not IPA only)
+  Example:
+  "desarrollo" → deh-sah-rroh-yoh
+
+- English meaning (context-aware if possible)
+
+-----------------------------------
+
+3. DATA SOURCE
+- Use a dictionary API or internal dataset to fetch:
+  - Meaning
+  - Pronunciation
+
+- If API fails:
+  - Fallback to AI-generated explanation
+
+-----------------------------------
+
+4. UI REQUIREMENTS
+- Highlight word on tap
+- Show popup near the word or centered on screen
+- Include:
+  - Close button (✕)
+  - Clean, minimal design
+
+- Mobile-first:
+  - Easy tapping (no tiny text)
+  - Smooth animation when opening
+
+-----------------------------------
+
+5. OPTIONAL AUDIO (HIGH VALUE)
+- Include a speaker icon 🔊 in the popup
+- When tapped:
+  - Play correct Spanish pronunciation (text-to-speech)
+
+-----------------------------------
+
+6. PERFORMANCE
+- Cache previously clicked words locally
+- Avoid repeated API calls for same word
+
+-----------------------------------
+
+7. CONTEXT AWARENESS (IMPORTANT)
+- If possible:
+  - Show meaning based on sentence context, not just dictionary definition
+
+-----------------------------------
+
+GOAL:
+Help users improve pronunciation and vocabulary in real time
+without interrupting speaking practice flow.

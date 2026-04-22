@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IB Spanish B | Practice Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8E44AD;
+            --primary-hover: #9B59B6;
+            --bg-top: #1A1030;
+            --bg-bot: #0F1117;
+            --surface: rgba(255, 255, 255, 0.05);
+            --text: #FFFFFF;
+            --text-dim: #94A3B8;
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #BB8FCE;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 540px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 48px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 38px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -1px;
+        }
+
+        p {
+            color: var(--text-dim);
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 12px 0 0 0;
+        }
+
+        .grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover { 
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 18px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            margin-top: 16px;
+        }
+
+        .btn-primary { 
+            background: linear-gradient(135deg, var(--primary) 0%, #6C3483 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+
+        .btn-outline { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--border); 
+            color: var(--text); 
+        }
+
+        .qr-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        input {
+            width: 100%;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 14px;
+            border-radius: 12px;
+            margin: 12px 0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent); }
+
+        #qrImage {
+            width: 160px;
+            height: 160px;
+            background: white;
+            padding: 10px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+
+        .eas-info {
+            margin-top: 32px;
+            font-size: 11px;
+            text-align: center;
+            color: var(--text-dim);
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <div class="subtitle">IB Spanish B</div>
+            <h1>Portal de Práctica</h1>
+            <p>Interactive AI Spanish Exam Prep for Students</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
+                <h3 style="margin: 0; font-size: 18px;">Practice Online</h3>
+                <p>Run the full exam portal in your mobile browser.</p>
+                <a href="/index.html" class="btn btn-primary">Open Web App</a>
+            </div>
+
+            <div class="card">
+                <div style="font-size: 24px; margin-bottom: 8px;">🚀</div>
+                <h3 style="margin: 0; font-size: 18px;">Native App (Expo Go)</h3>
+                <p>Best for students. Permanent link for everyone.</p>
+                
+                <input type="text" id="expoUrl" value="exp://u.expo.dev/0492656e-1900-47ae-8df2-c69c14ca4254" placeholder="Paste exp:// link here...">
+                <a id="expoGoButton" href="exp://u.expo.dev/0492656e-1900-47ae-8df2-c69c14ca4254" class="btn btn-outline" style="margin-top: 8px;">Open in Expo Go</a>
+            </div>
+        </div>
+
+        <div class="qr-area">
+            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=exp://u.expo.dev/0492656e-1900-47ae-8df2-c69c14ca4254" alt="Scan QR">
+            <p style="font-size: 13px;">Scan with your device camera to connect instantly.</p>
+        </div>
+
+        <div class="eas-info">
+            To make this a permanent link for all students, run <code style="color: var(--accent);">npx eas update</code>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('expoUrl');
+        const button = document.getElementById('expoGoButton');
+        const qr = document.getElementById('qrImage');
+
+        function update(url) {
+            if (!url || !url.startsWith('exp://')) return;
+            button.href = url;
+            qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+            localStorage.setItem('saved_expo_url', url);
+        }
+
+        const saved = localStorage.getItem('saved_expo_url');
+        if (saved) {
+            input.value = saved;
+            update(saved);
+        }
+
+        input.oninput = (e) => update(e.target.value.trim());
+    </script>
+</body>
+</html>

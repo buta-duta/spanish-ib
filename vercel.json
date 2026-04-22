@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/landing.html" },
+    { "source": "/api/(.*)", "destination": "/artifacts/api-server/src/index.ts" },
+    { "source": "/app", "destination": "/artifacts/mobile/dist/index.html" },
+    { "source": "/app/(.*)", "destination": "/artifacts/mobile/dist/$1" },
+    { "source": "/_expo/(.*)", "destination": "/artifacts/mobile/dist/_expo/$1" },
+    { "source": "/(.*)", "destination": "/artifacts/mobile/dist/$1" }
+  ]
+}

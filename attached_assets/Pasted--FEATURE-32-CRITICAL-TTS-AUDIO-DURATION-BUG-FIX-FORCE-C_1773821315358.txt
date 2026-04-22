@@ -1,0 +1,136 @@
+-----------------------------------
+FEATURE 32: CRITICAL TTS AUDIO DURATION BUG FIX (FORCE CORRECT LENGTH)
+-----------------------------------
+
+PROBLEM:
+- TTS audio always shows ~5 seconds duration
+- Slider and duration are completely inaccurate
+- Previous fixes using "loadedmetadata" are NOT sufficient
+
+-----------------------------------
+ROOT CAUSE (IMPORTANT):
+Most TTS providers return:
+- Streamed audio
+- Blob/base64 data WITHOUT proper duration metadata
+
+This causes:
+- audio.duration = incorrect value (~5s or NaN)
+
+-----------------------------------
+MANDATORY SOLUTION (DO NOT SKIP):
+
+1. FORCE FULL AUDIO LOAD BEFORE USING DURATION
+
+- After creating audio source (blob or URL):
+
+  audio.preload = "auto"
+
+- Wait for FULL load event:
+
+  "canplaythrough"
+
+NOT just:
+  "loadedmetadata"
+
+-----------------------------------
+
+2. RE-CALCULATE DURATION AFTER FULL BUFFER
+
+- After "canplaythrough":
+  - Read:
+    audio.duration
+
+- If still incorrect:
+  → Force re-render of audio element
+
+-----------------------------------
+
+3. HANDLE BLOB AUDIO CORRECTLY
+
+IF using blob/base64:
+
+- Convert to proper object URL:
+
+  const audioUrl = URL.createObjectURL(audioBlob)
+
+- Assign:
+  audio.src = audioUrl
+
+- DO NOT reuse stale blob URLs
+
+-----------------------------------
+
+4. FALLBACK: MANUAL DURATION ESTIMATION (REQUIRED)
+
+If duration is still incorrect:
+
+- Estimate duration using:
+
+  duration ≈ (text length / speaking rate)
+
+Example:
+  ~150 words ≈ 60 seconds
+
+- Use as temporary UI fallback until real duration is available
+
+-----------------------------------
+
+5. FORCE STATE UPDATE
+
+- Ensure duration is stored in state AFTER load:
+
+  setDuration(audio.duration)
+
+- Re-render UI AFTER this update
+
+-----------------------------------
+
+6. SLIDER CONFIG (CRITICAL)
+
+- Slider max:
+  = duration
+
+- Slider value:
+  = currentTime
+
+- DO NOT initialize slider with default values (e.g. 5 or 10)
+
+-----------------------------------
+
+7. DEBUG MODE (MUST IMPLEMENT)
+
+Log:
+- audio.readyState
+- audio.duration
+- audio.src
+
+If:
+- readyState < 4 → audio not fully loaded
+
+-----------------------------------
+
+8. BLOCK UI UNTIL READY
+
+- Show:
+  "Loading audio..."
+
+- Disable slider + controls until:
+  duration is valid (> 0 AND not ~5 seconds default)
+
+-----------------------------------
+
+OPTIONAL (HIGHLY RECOMMENDED):
+
+9. USE BETTER AUDIO FORMAT
+
+- Prefer:
+  .mp3 or .wav from TTS provider
+
+- Avoid:
+  streaming-only responses without file conversion
+
+-----------------------------------
+
+GOAL:
+Ensure TTS audio duration is ALWAYS accurate,
+and slider reflects real playback length (not fake defaults like 5 seconds).

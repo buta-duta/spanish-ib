@@ -1,0 +1,122 @@
+-----------------------------------
+FEATURE 30: WELCOME PAGE SPACING FIX (UI IMPROVEMENT)
+-----------------------------------
+
+PROBLEM:
+- The welcome page looks cramped
+- Elements are too close together
+- Poor readability on mobile
+
+REQUIREMENTS:
+
+1. IMPROVE SPACING SYSTEM
+- Add consistent vertical spacing between elements
+
+Use:
+- Tailwind spacing (or equivalent):
+  space-y-4 (minimum)
+  space-y-6 (preferred for sections)
+
+- Add padding:
+  padding: 16px–24px (mobile friendly)
+
+-----------------------------------
+
+2. SECTION SEPARATION
+- Group content into clear sections:
+  - Header / Title
+  - Description
+  - Action buttons
+
+- Add margin between sections:
+  margin-bottom: 24px–32px
+
+-----------------------------------
+
+3. BUTTON SPACING
+- Ensure buttons are NOT touching
+
+Use:
+- gap-3 or gap-4 for button groups
+
+-----------------------------------
+
+4. MAX WIDTH CONSTRAINT
+- Prevent content from stretching edge-to-edge
+
+Use:
+- max-width container (e.g. max-w-md or max-w-lg)
+- Center content horizontally
+
+-----------------------------------
+
+5. MOBILE-FIRST DESIGN
+- Ensure comfortable touch spacing
+- Avoid overcrowding text
+
+-----------------------------------
+
+GOAL:
+Create a clean, breathable layout that feels modern and easy to use on mobile.
+
+-----------------------------------
+FEATURE 31: IMAGE FULL-SCREEN VIEW (MODAL OVERLAY)
+-----------------------------------
+
+GOAL:
+Allow users to tap an image to view it in a large, focused overlay.
+
+-----------------------------------
+
+1. IMAGE CLICK BEHAVIOR
+- When user taps an image:
+  - Open a modal overlay
+
+-----------------------------------
+
+2. MODAL DESIGN
+- Image should:
+  - Expand to ~75% of screen size
+  - Maintain aspect ratio
+  - Be centered
+
+-----------------------------------
+
+3. BACKGROUND EFFECT
+- Apply a dark semi-transparent overlay behind image
+
+Example:
+  background: rgba(0, 0, 0, 0.6)
+
+(This creates the “gauze / blurred focus” effect)
+
+Optional:
+- Add slight backdrop blur:
+  backdrop-blur-sm
+
+-----------------------------------
+
+4. CLOSE INTERACTION
+- Allow user to close modal by:
+  - Tapping outside image
+  - OR tapping a close button (✕)
+
+-----------------------------------
+
+5. ANIMATION (IMPORTANT)
+- Smooth transition:
+  - Fade-in background
+  - Scale-up image
+
+-----------------------------------
+
+6. MOBILE UX
+- Ensure:
+  - Easy tap to open/close
+  - No accidental scroll behind modal
+
+-----------------------------------
+
+GOAL:
+Improve focus during image analysis by allowing users to view images clearly
+without distractions, similar to modern mobile apps.

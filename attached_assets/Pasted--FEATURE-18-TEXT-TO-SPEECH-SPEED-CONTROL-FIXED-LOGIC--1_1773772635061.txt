@@ -1,0 +1,102 @@
+-----------------------------------
+FEATURE 18: TEXT-TO-SPEECH SPEED CONTROL (FIXED LOGIC)
+-----------------------------------
+
+PROBLEM TO FIX:
+The app currently asks the user to "provide text to repeat" when changing speed. This is incorrect.
+
+CORRECT BEHAVIOR:
+
+- When the user changes playback speed:
+  1. Immediately STOP any ongoing speech playback
+  2. Reset player state to "paused" (NOT auto-playing)
+  3. Do NOT request any new text input
+
+- When user presses the play button again:
+  - Resume playback of the SAME text
+  - Use the NEW selected speed
+
+UI REQUIREMENTS:
+- Replace any "enter text" prompts with a simple speed selector (e.g. 0.75x, 1x, 1.25x, 1.5x)
+- Keep a clear play ▶️ / pause ⏸ toggle button
+
+-----------------------------------
+FEATURE 19: CLICKABLE GLOSSARY (TEXT + QUESTIONS)
+-----------------------------------
+
+- Maintain clickable word functionality across ALL Spanish text in the app, including:
+  1. AI responses
+  2. Reading passages
+  3. Question sections
+
+ON WORD CLICK:
+- Show popup with:
+  - English meaning
+  - Phonetic pronunciation (simple format)
+  - Optional audio 🔊 playback
+
+- This must work consistently everywhere (no exceptions)
+
+-----------------------------------
+FEATURE 20: QUESTION FLOW (SPANISH → ENGLISH FEEDBACK)
+-----------------------------------
+
+QUESTION REQUIREMENTS:
+
+- All questions must be asked in Spanish
+
+AFTER USER ANSWERS (via voice):
+- AI must respond with:
+  - Feedback in ENGLISH
+  - Explanation of:
+    - Mistakes
+    - Better phrasing
+    - Vocabulary improvements
+
+-----------------------------------
+FEATURE 21: RELOAD QUESTION (SMART REGENERATION)
+-----------------------------------
+
+- Add a "Reload Question" button
+
+BEHAVIOR:
+- Keeps the SAME:
+  - Theme
+  - Difficulty level
+  - Question type (e.g. opinion, analysis, inference)
+
+- Changes:
+  - The specific wording/content of the question
+  - Must still relate to the SAME text/image
+
+- Do NOT repeat previous questions
+
+-----------------------------------
+FEATURE 22: NATURAL VOICE UPGRADE
+-----------------------------------
+
+PROBLEM:
+Current voices sound robotic and unnatural.
+
+REQUIREMENT:
+
+- Replace default/basic TTS voices with more natural, human-like voices
+
+OPTIONS:
+- Use high-quality TTS providers such as:
+  - Google Cloud Text-to-Speech
+  - ElevenLabs
+  - Microsoft Azure TTS
+
+VOICE SETTINGS:
+- Use neutral Spanish accent (or allow selection: Spain / Latin America)
+- Natural pacing (not too fast or monotone)
+- Slight variation in tone (to simulate real examiner)
+
+-----------------------------------
+GOAL:
+Create a realistic, high-quality listening and speaking experience by:
+- Fixing playback controls
+- Maintaining interactive vocabulary learning
+- Improving question quality and feedback
+- Upgrading voice realism to near-human level

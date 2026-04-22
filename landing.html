@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IB Spanish B Practice</title>
+    <style>
+        :root {
+            --primary: #3498DB;
+            --primary-dark: #2980B9;
+            --background: #F5F6FA;
+            --text: #2C3E50;
+            --text-secondary: #7F8C8D;
+            --card: #FFFFFF;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 500px;
+            background: var(--card);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            display: inline-flex;
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #E8F4FD;
+            color: var(--primary);
+        }
+
+        .qr-section {
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid #EEE;
+        }
+
+        .qr-placeholder {
+            width: 150px;
+            height: 150px;
+            background: #F9F9F9;
+            border: 2px dashed #DDD;
+            margin: 16px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            color: #AAA;
+        }
+
+        .footer {
+            margin-top: 24px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">ES</div>
+        <h1>IB Spanish B Practice</h1>
+        <p>Practica para tus exámenes de español de una manera inteligente y personalizada.</p>
+
+        <div class="actions">
+            <!-- Link to the mobile app web preview -->
+            <a href="/app" class="btn btn-primary">
+                <span>💻</span> Abrir Vista Previa Web
+            </a>
+            
+            <!-- Link to Expo Go (if they have the app installed) -->
+            <a href="exp://u.expo.dev/spanish-ib" class="btn btn-secondary" id="expoLink">
+                <span>📱</span> Abrir en Expo Go
+            </a>
+        </div>
+
+        <div class="qr-section">
+            <span style="font-weight: 600; font-size: 14px;">Escanea con la cámara de tu iPhone:</span>
+            <div class="qr-placeholder" id="qrContainer">
+                <!-- We will use an online QR generator for simplicity -->
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=exp://u.expo.dev/spanish-ib" alt="QR Code for Expo Go" style="width: 100%; height: 100%; border-radius: 8px;">
+            </div>
+            <p style="font-size: 12px; margin-bottom: 0;">Requieres la aplicación <strong>Expo Go</strong> instalada en tu iPhone 15 Plus.</p>
+        </div>
+    </div>
+    <div class="footer">
+        Powered by AI & Expo
+    </div>
+</body>
+</html>

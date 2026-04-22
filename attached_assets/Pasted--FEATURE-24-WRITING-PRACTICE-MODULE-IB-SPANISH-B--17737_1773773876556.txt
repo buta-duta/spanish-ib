@@ -1,0 +1,152 @@
+-----------------------------------
+FEATURE 24: WRITING PRACTICE MODULE (IB SPANISH B)
+-----------------------------------
+
+GOAL:
+Create a structured writing practice environment that simulates IB Spanish B writing tasks,
+with realistic prompts, controlled inputs, and detailed IB markscheme-based feedback.
+
+-----------------------------------
+FEATURE 24.1: SETUP (USER INPUT FLOW)
+-----------------------------------
+
+Before writing, user must select:
+
+1. THEME (REQUIRED)
+- Identidades
+- Experiencias
+- Ingenio humano
+- Organización social
+- Compartir el planeta
+
+2. TEXT TYPE (REQUIRED)
+Provide IB-style text types such as:
+- Article
+- Blog post
+- Email (formal/informal)
+- Report
+- Review
+- Speech
+
+-----------------------------------
+FEATURE 24.2: QUESTION GENERATION
+-----------------------------------
+
+After selecting theme + text type:
+
+Option A: AI GENERATES QUESTION
+- Generate a prompt that:
+  - Matches the selected theme
+  - Matches the selected text type
+  - Reflects IB Spanish B writing style
+
+Option B: USER WRITES OWN QUESTION
+- Allow user to input their own question
+
+Option C: REGENERATE QUESTION
+- Button: "Regenerate Question"
+- Generates a new prompt that:
+  - Keeps SAME theme
+  - Keeps SAME text type
+  - Changes only the scenario/content
+- Do NOT repeat previous prompts
+
+-----------------------------------
+FEATURE 24.3: WRITING WINDOW
+-----------------------------------
+
+- Provide a clean writing editor
+- User writes response in Spanish
+
+Include:
+- Word count display
+- Optional recommended word range (based on IB)
+
+-----------------------------------
+FEATURE 24.4: AI FEEDBACK (ENGLISH ONLY)
+-----------------------------------
+
+After submission, AI must evaluate the writing based on IB Spanish B markscheme.
+
+FEEDBACK MUST INCLUDE:
+
+-----------------------------------
+1. CRITERION A: LANGUAGE
+-----------------------------------
+- Grammar accuracy
+- Tense usage
+- Vocabulary range
+
+Display:
+- Mark awarded (e.g. 5/6)
+- Specific corrections
+- Suggested improvements
+
+-----------------------------------
+2. CRITERION B: MESSAGE
+-----------------------------------
+- Clarity of ideas
+- Organization
+- Development of response
+
+Display:
+- Mark awarded (e.g. 4/6)
+- Explanation
+
+-----------------------------------
+3. CRITERION C: CONCEPTUAL UNDERSTANDING
+-----------------------------------
+- Relevance to theme
+- Appropriateness to text type
+- Cultural awareness
+
+Display:
+- Mark awarded (e.g. 3/6)
+- Explanation
+
+-----------------------------------
+4. OVERALL SCORE + BAND
+-----------------------------------
+- Total score (sum of criteria)
+- Approximate IB band (1–7)
+
+-----------------------------------
+5. DETAILED IMPROVEMENT
+-----------------------------------
+- Highlight:
+  - Grammar mistakes (with corrected versions)
+  - Better sentence structures
+  - More advanced vocabulary suggestions
+  - Stronger connectors
+
+-----------------------------------
+6. MODEL IMPROVEMENTS
+-----------------------------------
+- Rewrite 2–3 of the user’s sentences in a higher-level (Band 6–7) way in Spanish
+
+-----------------------------------
+FEATURE 24.5: OPTIONAL ENHANCEMENTS
+-----------------------------------
+
+- "Rewrite My Essay (Band 7)" button
+  → AI rewrites full response at high level
+
+- "Highlight Mistakes" mode
+  → visually marks errors in text
+
+-----------------------------------
+UI REQUIREMENTS
+-----------------------------------
+
+- Mobile-friendly writing interface
+- Clear separation:
+  - Prompt
+  - Writing area
+  - Feedback
+
+-----------------------------------
+GOAL:
+Help users improve IB Spanish B writing by:
+- Practicing realistic exam prompts
+- Receiving structured, markscheme-based feedback
+- Understanding exactly how to improve to reach Band 6–7

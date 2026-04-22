@@ -1,0 +1,151 @@
+-----------------------------------
+FEATURE 23: EXAMINER EXPECTATIONS PER THEME
+-----------------------------------
+
+GOAL:
+Provide users with clear guidance on what IB examiners are looking for in each theme.
+
+-----------------------------------
+REQUIREMENTS
+-----------------------------------
+
+- For EACH IB theme:
+  - Identidades
+  - Experiencias
+  - Ingenio humano
+  - Organización social
+  - Compartir el planeta
+
+Add a button:
+"📘 What Examiners Look For"
+
+-----------------------------------
+
+WHEN CLICKED:
+Display a structured guide including:
+
+1. CULTURAL UNDERSTANDING
+- What kind of cultural references are expected
+- Examples (Spain + Latin America)
+
+2. RECOMMENDED TENSES
+- Which tenses to prioritise
+  (e.g. present, past, subjunctive, conditional)
+
+3. CONNECTIVES & STRUCTURE
+- High-level connectors:
+  - "sin embargo"
+  - "por consiguiente"
+  - "desde mi punto de vista"
+  - etc.
+
+4. FOCUS OF RESPONSE
+- What students should emphasise:
+  - description vs analysis
+  - personal vs global link
+  - interpretation depth
+
+5. COMMON MISTAKES
+- What to avoid for that theme
+
+-----------------------------------
+UI REQUIREMENTS
+-----------------------------------
+
+- Clean, scrollable modal/page
+- Mobile-friendly layout
+- Use bullet points and sections
+
+-----------------------------------
+GOAL:
+Help users target Band 6–7 by understanding examiner expectations,
+not just speaking fluently.
+
+-----------------------------------
+FEATURE 24: IMAGE DESCRIPTION PRACTICE MODE
+-----------------------------------
+
+GOAL:
+Simulate the IB Spanish B Individual Oral using realistic image-based tasks.
+
+-----------------------------------
+IMAGE SETUP
+-----------------------------------
+
+- For EACH theme:
+  - Include EXACTLY 5 predetermined images
+  - Total = 25 images
+
+- REQUIREMENTS FOR IMAGES:
+  - Each image must be clearly linked to its theme
+  - Images must be VERY distinct (different settings, people, actions)
+  - Avoid repetition of scenarios
+
+Example:
+Compartir el planeta:
+- pollution
+- recycling
+- climate protest
+- wildlife conservation
+- natural disaster
+
+-----------------------------------
+IMAGE SELECTION UI
+-----------------------------------
+
+- User flow:
+  1. Select theme
+  2. See 5 image options (grid layout)
+  3. Tap one to begin
+
+- Display image clearly before starting
+
+-----------------------------------
+PREPARATION TIMER (REALISTIC MODE)
+-----------------------------------
+
+- After selecting image:
+  - Start a 10-minute preparation timer
+
+- Display as COUNTDOWN (required):
+  Example:
+  "Tiempo de preparación: 09:45"
+
+-----------------------------------
+
+USER CONTROLS:
+- Button: "⏭ Skip Preparation"
+  - Immediately ends timer
+  - Starts exam phase
+
+-----------------------------------
+EXAM FLOW AFTER TIMER
+-----------------------------------
+
+1. AI begins speaking in Spanish automatically
+
+2. User must:
+  - Describe the image (3–4 minutes speaking)
+
+3. AI then:
+  - Asks follow-up questions
+  - Focuses on:
+    - interpretation
+    - cultural context
+    - theme connection
+
+-----------------------------------
+AI REQUIREMENTS
+-----------------------------------
+
+- Questions must be:
+  - Open-ended
+  - IB-style (not generic)
+  - Increasing in difficulty
+
+-----------------------------------
+GOAL:
+Replicate real IB oral conditions with:
+- time pressure
+- structured preparation
+- realistic examiner interaction

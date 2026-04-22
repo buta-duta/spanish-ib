@@ -1,0 +1,100 @@
+-----------------------------------
+FEATURE 29: TTS AUDIO DURATION + SLIDER FIX
+-----------------------------------
+
+PROBLEM:
+- All audio tracks incorrectly display as ~10 seconds
+- Slider does NOT reflect actual TTS audio length
+- Total duration is inaccurate
+
+-----------------------------------
+ROOT CAUSE (LIKELY):
+- TTS audio duration is not being properly loaded from metadata
+- Audio element is not waiting for full load before setting duration
+- Using placeholder/default duration instead of real value
+
+-----------------------------------
+REQUIREMENTS:
+
+1. LOAD REAL AUDIO METADATA
+- Use audio event:
+  "loadedmetadata"
+
+- When triggered:
+  - Set duration = audio.duration
+  - Store this value in state
+
+-----------------------------------
+
+2. HANDLE TTS AUDIO SOURCE CORRECTLY
+- Ensure TTS output is treated as a real audio file/stream
+- If using blob or base64:
+  - Properly create audio URL:
+    URL.createObjectURL(audioBlob)
+
+- Do NOT hardcode duration values
+
+-----------------------------------
+
+3. FIX DURATION DISPLAY
+- Display real duration in format:
+  mm:ss
+
+- Example:
+  02:34 (NOT 00:10 default)
+
+-----------------------------------
+
+4. FIX CURRENT TIME TRACKING
+- Use:
+  "timeupdate" event
+
+- Continuously update:
+  currentTime = audio.currentTime
+
+-----------------------------------
+
+5. SYNC SLIDER WITH REAL VALUES
+- Slider max value:
+  = actual duration
+
+- Slider current value:
+  = currentTime
+
+- When user drags slider:
+  - Update:
+    audio.currentTime = sliderValue
+
+-----------------------------------
+
+6. ENSURE PROPER LOAD FLOW
+- Do NOT allow playback or UI render until:
+  - Metadata is fully loaded
+
+- Add loading state:
+  "Loading audio..."
+
+-----------------------------------
+
+7. DEBUG SAFETY CHECK
+- Log:
+  audio.duration
+
+- If duration = NaN or ~10 seconds:
+  → audio is not fully loaded or incorrectly parsed
+
+-----------------------------------
+
+OPTIONAL (HIGH QUALITY UX):
+
+8. BUFFERING INDICATOR
+- Show loading spinner until duration is known
+
+9. DISABLE CONTROLS UNTIL READY
+- Prevent user interaction before audio is initialized
+
+-----------------------------------
+
+GOAL:
+Ensure accurate, real-time audio playback tracking
+so users can rely on timing for listening practice.

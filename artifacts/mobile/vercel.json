@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/landing.html" },
+    { "source": "/api/(.*)", "destination": "../../api-server/src/index.ts" }
+  ]
+}
