@@ -27,6 +27,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { PRACTICE_IMAGES, type PracticeImage } from "@/constants/practiceImages";
 import { THEMES } from "@/constants/themes";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -258,7 +260,7 @@ export default function ImagePracticeScreen() {
 
   // ── Phase state ──────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("select");
-  const [level, setLevel] = useState<"b">("b");
+  const { level, levelLabel } = useCurriculum();
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedImage, setSelectedImage] = useState<PracticeImage | null>(null);
 
@@ -738,7 +740,9 @@ export default function ImagePracticeScreen() {
           </Pressable>
           <View style={sc.headerCenter}>
             <Text style={[sc.headerTitle, { color: colors.text }]}>Descripción de imagen</Text>
-            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>Elige un tema y luego una imagen</Text>
+            <Text style={[sc.headerSub, { color: colors.textSecondary }]}>
+              {levelLabel} · Elige un tema y luego una imagen
+            </Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -761,6 +765,10 @@ export default function ImagePracticeScreen() {
             </Pressable>
           ))}
         </ScrollView>
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
+          <CurriculumToggle />
+        </View>
 
 
         <ScrollView contentContainerStyle={sc.imageGrid} showsVerticalScrollIndicator={false}>

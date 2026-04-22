@@ -19,6 +19,8 @@ import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam } from "@/contexts/ExamContext";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -27,6 +29,7 @@ export default function HomeScreen() {
   const theme = Colors[isDark ? "dark" : "light"];
   const { usedThemes, selectedTheme } = useIBTheme();
   const { loadSessions, sessions } = useExam();
+  const { levelLabel } = useCurriculum();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -115,7 +118,7 @@ export default function HomeScreen() {
             {/* Header */}
             <View style={styles.header}>
               <View>
-                <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish</Text>
+                <Text style={[styles.subtitle, { color: theme.tint }]}>{levelLabel}</Text>
                 <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 10 }}>
@@ -147,6 +150,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             </View>
+            <CurriculumToggle />
 
             {/* Section divider */}
 

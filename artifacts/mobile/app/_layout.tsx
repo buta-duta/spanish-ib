@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ExamProvider } from "@/contexts/ExamContext";
 import { FlashcardProvider } from "@/contexts/FlashcardContext";
+import { CurriculumProvider } from "@/contexts/CurriculumContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,11 +73,13 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <ThemeProvider>
-                <ExamProvider>
-                  <FlashcardProvider>
-                    <RootLayoutNav />
-                  </FlashcardProvider>
-                </ExamProvider>
+                <CurriculumProvider>
+                  <ExamProvider>
+                    <FlashcardProvider>
+                      <RootLayoutNav />
+                    </FlashcardProvider>
+                  </ExamProvider>
+                </CurriculumProvider>
               </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

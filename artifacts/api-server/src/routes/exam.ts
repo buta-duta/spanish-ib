@@ -64,8 +64,18 @@ IMPORTANT INSTRUCTIONS:
 Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
 `;
 
+const AB_INITIO_INSTRUCTIONS = `
+AB INITIO MODE (MANDATORY):
+- Student level is IB Spanish ab initio (A1-A2 survival Spanish).
+- Use short sentences and high-frequency everyday vocabulary.
+- Ask practical, concrete questions (daily life, routines, basic preferences, simple experiences).
+- Keep one clear idea per question; avoid abstract multi-layer reasoning.
+- Correction tips must stay basic and actionable (agreement, verb endings, word order, articles, common connectors).
+- DO NOT suggest advanced B2/C1 upgrades in this mode.
+`;
+
 router.post("/exam/chat", async (req, res) => {
-  const { messages, theme, sessionTurn, regenerate, skip } = req.body;
+  const { messages, theme, sessionTurn, regenerate, skip, level = "b" } = req.body;
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -91,7 +101,8 @@ router.post("/exam/chat", async (req, res) => {
 - Do not dwell on the skipped question.`
     : "";
 
-  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction + skipInstruction;
+  const levelPrompt = level === "ab_initio" ? AB_INITIO_INSTRUCTIONS : "";
+  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + levelPrompt + regenerateInstruction + skipInstruction;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -131,7 +142,7 @@ router.post("/exam/chat", async (req, res) => {
 
 
 router.post("/exam/image-chat", async (req, res) => {
-  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip } = req.body;
+  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip, level = "b" } = req.body;
   if (!messages || !imageDescription) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -156,7 +167,7 @@ router.post("/exam/image-chat", async (req, res) => {
 
   const systemPrompt = `You are an experienced IB Spanish B oral examiner conducting a formal Individual Oral (IO) exam based on an image stimulus.
 
-Use standard academic Spanish.
+Use ${level === "ab_initio" ? "simple Spanish ab initio (A1-A2) with short and clear sentences." : "standard academic Spanish."}
 
 IMAGE DESCRIPTION:
 "${imageCaption || "An image related to the stimulus"}"
@@ -167,13 +178,13 @@ THEME: ${themeName[themeKey] || "Compartir el planeta"}
 MANDATORY RESPONSE FORMAT (Return ONLY JSON):
 {
   "corrección": "Provide a specific grammar/spelling fix for the student's text. If perfect, say '¡Texto perfecto!'.",
-  "respuesta": "A short level-appropriate response (using higher level B1-B2 grammar if appropriate).",
+  "respuesta": "A short level-appropriate response (${level === "ab_initio" ? "A1-A2 survival Spanish." : "B1-B2 grammar when appropriate."})",
   "pregunta_ib": "Exactly ONE follow-up question strictly tied to the IB Theme."
 }
 
 ENCOURAGE PALMS:
 Elicit: Point, Answer/Evidence, Link, Meaning, Structure.
-Use "sin embargo", "además", "por lo tanto"${rephraseInstruction}${skipInstruction}`;
+${level === "ab_initio" ? 'Prefer basic connectors like "y", "pero", "porque", "también".' : 'Use "sin embargo", "además", "por lo tanto"'}${rephraseInstruction}${skipInstruction}`;
 
   try {
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -263,7 +274,7 @@ router.post("/exam/tts", async (req, res) => {
 });
 
 router.post("/exam/feedback", async (req, res) => {
-  const { messages, theme } = req.body;
+  const { messages, theme, level = "b" } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: "Missing messages" });
@@ -282,7 +293,7 @@ router.post("/exam/feedback", async (req, res) => {
     .map((m: { role: string; content: string }) => `${m.role === "user" ? "Student" : "Examiner"}: ${m.content}`)
     .join("\n");
 
-  const feedbackPrompt = `You are an experienced IB Spanish B examiner providing detailed feedback on a student's oral exam performance.
+  const feedbackPrompt = `You are an experienced ${level === "ab_initio" ? "IB Spanish ab initio" : "IB Spanish B"} examiner providing detailed feedback on a student's oral exam performance.
 
 EXAM TRANSCRIPT:
 ${conversationText}
@@ -303,7 +314,7 @@ Analyse this oral exam conversation and provide structured feedback in ENGLISH. 
   "improvementSuggestions": {
     "betterStructures": ["suggestion 1", "suggestion 2", "suggestion 3"],
     "connectors": ["connector examples to use"],
-    "vocabulary": ["advanced word suggestions with English meaning"]
+    "vocabulary": ["${level === "ab_initio" ? "practical everyday alternatives with English meaning" : "advanced word suggestions with English meaning"}"]
   },
   "ibCriteria": {
     "criterionA": { "band": 6, "label": "Language", "comments": "Specific assessment of grammar, vocabulary, register" },
@@ -342,7 +353,7 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
 
 // ── IB image oral feedback ────────────────────────────────────────────────────
 router.post("/exam/image-feedback", async (req, res) => {
-  const { messages, imageCaption, theme } = req.body;
+  const { messages, imageCaption, theme, level = "b" } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: "Missing messages" });
@@ -356,7 +367,7 @@ router.post("/exam/image-feedback", async (req, res) => {
     )
     .join("\n");
 
-  const feedbackPrompt = `You are an experienced IB Spanish B examiner grading a student's Individual Oral (IO) based on an image stimulus.
+  const feedbackPrompt = `You are an experienced ${level === "ab_initio" ? "IB Spanish ab initio" : "IB Spanish B"} examiner grading a student's Individual Oral (IO) based on an image stimulus.
 
 Image: "${imageCaption || "Image-based oral"}"
 Theme: ${theme || "General"}
@@ -364,7 +375,7 @@ Theme: ${theme || "General"}
 EXAM CONVERSATION:
 ${conversationText}
 
-Grade the student using the official IB Spanish B Individual Oral criteria (Standard Level or Higher Level). Return ONLY valid JSON:
+Grade the student using the official ${level === "ab_initio" ? "IB Spanish ab initio" : "IB Spanish B"} Individual Oral criteria. Return ONLY valid JSON:
 
 {
   "criterionA": {

@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { WordModal, TappableText } from "@/components/WordModal";
+import { useCurriculum } from "@/contexts/CurriculumContext";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
 
 const ACCENT = "#E67E22";
 const ACCENT_DARK = "#CA6F1E";
@@ -169,9 +171,9 @@ export default function WritingScreen() {
   const colors = Colors[isDark ? "dark" : "light"];
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const { level, levelLabel } = useCurriculum();
 
   // Setup
-  const [level, setLevel] = useState<"b">("b");
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
   const [selectedType, setSelectedType] = useState("article");
   const [promptMode, setPromptMode] = useState<PromptMode>("generate");
@@ -215,6 +217,7 @@ export default function WritingScreen() {
           theme: selectedTheme,
           textType: selectedType,
           previousPrompts,
+          level,
         }),
       });
       const data = await res.json();
@@ -250,6 +253,7 @@ export default function WritingScreen() {
           essay,
           theme: selectedTheme,
           textType: selectedType,
+          level,
         }),
       });
       const data = await res.json();
@@ -275,6 +279,7 @@ export default function WritingScreen() {
           prompt: activePrompt,
           essay,
           textType: selectedType,
+          level,
         }),
       });
       const data = await res.json();
@@ -345,6 +350,8 @@ export default function WritingScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 24, gap: 16 }}
           showsVerticalScrollIndicator={false}
         >
+          <CurriculumToggle />
+          <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>{levelLabel}</Text>
           {/* Theme */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Tema IB</Text>

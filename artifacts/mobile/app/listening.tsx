@@ -22,6 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { WordModal, TappableText } from "@/components/WordModal";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -79,6 +81,7 @@ export default function ListeningScreen() {
   const colors = Colors[isDark ? "dark" : "light"];
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const { level, levelLabel } = useCurriculum();
 
   // ── Phase ─────────────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("setup");
@@ -133,7 +136,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined, level }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
@@ -291,7 +294,7 @@ export default function ListeningScreen() {
       const res = await fetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage, count: numQuestions }),
+        body: JSON.stringify({ passage, count: numQuestions, level }),
       });
       if (!res.ok) throw new Error("Question generation failed");
       const data = await res.json();
@@ -390,12 +393,13 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]}>Comprensión auditiva</Text>
-            <Text style={[s.headerSub, { color: colors.textSecondary }]}>IB Spanish B · Listening Practice</Text>
+            <Text style={[s.headerSub, { color: colors.textSecondary }]}>{levelLabel} · Listening Practice</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
 
         <ScrollView contentContainerStyle={[s.setupContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false}>
+          <CurriculumToggle />
           {/* Theme selector */}
           <Text style={[s.sectionTitle, { color: colors.text }]}>Tema IB</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.themeRow}>

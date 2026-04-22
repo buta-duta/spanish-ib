@@ -21,6 +21,8 @@ import { THEMES } from "@/constants/themes";
 import { EXAMINER_GUIDES } from "@/constants/examinerGuide";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam } from "@/contexts/ExamContext";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 // ── Examiner Guide Modal ──────────────────────────────────────────────────────
 
@@ -257,7 +259,7 @@ export default function ThemeSelectScreen() {
 
   const [guideThemeId, setGuideThemeId] = useState<string | null>(null);
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
-  const [level, setLevel] = useState<"b">("b");
+  const { level, levelLabel } = useCurriculum();
 
   const handleSelectTheme = async (themeId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -289,12 +291,15 @@ export default function ThemeSelectScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Elige un tema</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>{remainingCount} temas sin practicar</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+            {remainingCount} temas sin practicar · {levelLabel}
+          </Text>
         </View>
         <View style={{ width: 44 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <CurriculumToggle />
         {/* Random button */}
         <Pressable onPress={handleRandom} style={({ pressed }) => [styles.randomBtn, { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
           <LinearGradient colors={[colors.tint, colors.tintDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.randomBtnGradient}>

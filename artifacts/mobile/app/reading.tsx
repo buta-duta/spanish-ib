@@ -22,6 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { WordModal } from "@/components/WordModal";
+import { CurriculumToggle } from "@/components/CurriculumToggle";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
@@ -147,6 +149,7 @@ export default function ReadingScreen() {
   const colors = Colors[isDark ? "dark" : "light"];
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const { level, levelLabel } = useCurriculum();
 
   // Phase
   const [phase, setPhase] = useState<Phase>("setup");
@@ -197,7 +200,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined, level }),
       });
       const data = await res.json();
       setReadingTitle(data.title ?? "Texto de lectura");
@@ -230,7 +233,7 @@ export default function ReadingScreen() {
       const res = await fetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
+        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions, level }),
       });
       const data = await res.json();
       setQuestions(data.questions ?? []);
@@ -385,7 +388,7 @@ export default function ReadingScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[s.screenLabel, { color: ACCENT }]}>IB Spanish B</Text>
+            <Text style={[s.screenLabel, { color: ACCENT }]}>{levelLabel}</Text>
             <Text style={[s.screenTitle, { color: colors.text }]}>Lectura</Text>
           </View>
           <View style={[s.badge, { backgroundColor: ACCENT + "20", borderColor: ACCENT + "50" }]}>
@@ -397,6 +400,7 @@ export default function ReadingScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 20, gap: 16 }}
           showsVerticalScrollIndicator={false}
         >
+          <CurriculumToggle />
           {/* Mode toggle */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
             <Pressable

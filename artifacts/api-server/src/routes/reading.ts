@@ -21,10 +21,11 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
-  const { theme = "experiencias", textType = "article", customFocus } = req.body as {
+  const { theme = "experiencias", textType = "article", customFocus, level = "b" } = req.body as {
     theme?: string;
     textType?: string;
     customFocus?: string;
+    level?: "b" | "ab_initio";
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -32,6 +33,16 @@ router.post("/reading/generate", async (req, res) => {
   const focusLine = customFocus?.trim()
     ? `\n- Custom focus: Naturally incorporate the following into the text: "${customFocus.trim()}"`
     : "";
+
+  const levelInstruction =
+    level === "ab_initio"
+      ? `- LEVEL: A1-A2 (ab initio survival Spanish).
+- Keep sentences short and direct.
+- Prioritize familiar high-frequency vocabulary and concrete contexts.
+- Avoid advanced idioms and low-frequency abstract vocabulary.`
+      : `- LEVEL: B1-B2.
+- TOPIC VOCABULARY: Use specific, advanced vocabulary related to ${themeName}. 
+- VARIETY: Use a wide range of idiomatic expressions and complex structures.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -45,9 +56,7 @@ CORE MISSION:
 Generate an authentic ${typeName} for the IB Spanish B (B1-B2) course.
 
 !!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
-- LEVEL: B1-B2.
-- TOPIC VOCABULARY: Use specific, advanced vocabulary related to ${themeName}. 
-- VARIETY: Use a wide range of idiomatic expressions and complex structures.
+${levelInstruction}
 
 REQUIREMENTS:
 - Theme: ${themeName}
@@ -84,7 +93,12 @@ Return a JSON object:
 
 // ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
-  const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
+  const { text, title = "", count = 8, level = "b" } = req.body as {
+    text: string;
+    title?: string;
+    count?: number;
+    level?: "b" | "ab_initio";
+  };
   if (!text || text.length < 50) {
     return res.status(400).json({ error: "Texto demasiado corto." });
   }
@@ -102,6 +116,9 @@ router.post("/reading/questions", async (req, res) => {
           content: `You are an IB Spanish B examiner creating reading comprehension questions.
 
 Given a Spanish text, generate exactly ${count} questions in Spanish that test reading comprehension, inference, and vocabulary.
+
+Difficulty mode: ${level === "ab_initio" ? "IB Spanish ab initio (A1-A2)" : "IB Spanish B (B1-B2)"}.
+${level === "ab_initio" ? "Keep wording simple and direct. Use practical, everyday comprehension targets." : "Use standard IB Spanish B complexity."}
 
 Mix EXACTLY these question types:
 - ${mcqCount} multiple choice (type: "mcq") with options A, B, C, D

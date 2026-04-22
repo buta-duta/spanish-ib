@@ -26,6 +26,7 @@ import { getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
 import { WordModal, tokenizeText } from "@/components/WordModal";
+import { useCurriculum } from "@/contexts/CurriculumContext";
 
 type RecordingState = "idle" | "recording" | "preview" | "processing";
 
@@ -229,6 +230,7 @@ export default function ExamScreen() {
   const colors = Colors[isDark ? "dark" : "light"];
   const { selectedTheme } = useIBTheme();
   const { currentSession, addMessage, endSession } = useExam();
+  const { level, levelLabel } = useCurriculum();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -337,7 +339,7 @@ export default function ExamScreen() {
       const response = await expoFetch(`${getApiUrl()}api/exam/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip }),
+        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip, level }),
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -814,7 +816,7 @@ export default function ExamScreen() {
             <Ionicons name={themeData.iconName as any} size={16} color={themeColor} />
           </View>
           <View>
-            <Text style={[styles.headerTheme, { color: themeColor }]}>SPANISH B • TEMA ACTUAL</Text>
+            <Text style={[styles.headerTheme, { color: themeColor }]}>{levelLabel.toUpperCase()} • TEMA ACTUAL</Text>
             <Text style={[styles.headerThemeName, { color: colors.text }]}>{themeData.name}</Text>
           </View>
         </View>

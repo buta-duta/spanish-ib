@@ -80,7 +80,12 @@ function parseDialogue(text: string): DialogueSeg[] {
 
 // ── Generate passage (F35) ────────────────────────────────────────────────────
 router.post("/listening/passage", async (req, res) => {
-  const { theme, passageType, customFocus } = req.body;
+  const { theme, passageType, customFocus, level = "b" } = req.body as {
+    theme?: string;
+    passageType?: string;
+    customFocus?: string;
+    level?: "b" | "ab_initio";
+  };
   const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
   const themeName = THEME_NAMES[themeKey] || "Identidades";
   const type = passageType || "conversation";
@@ -100,11 +105,11 @@ router.post("/listening/passage", async (req, res) => {
 ${formatInstructions[type] || formatInstructions.conversation}
 
 Content guidelines:
-- Spanish level: B2-C1 (IB Spanish B Higher Level)
+- Spanish level: ${level === "ab_initio" ? "A1-A2 (ab initio survival level)" : "B2-C1 (IB Spanish B Higher Level)"}
 - Length: 220–350 words (spoken words only, excluding speaker labels)
 - Theme content: Explore a specific aspect of "${themeName}" with depth
 - Include cultural references relevant to Spanish-speaking countries
-- Use appropriate tenses: present, preterite, imperfect, conditional, subjunctive where natural
+- Use appropriate tenses: ${level === "ab_initio" ? "present + near future + simple past where natural" : "present, preterite, imperfect, conditional, subjunctive where natural"}
 - Make the content engaging and exam-realistic${focusLine}
 - STRICTLY adhere to the specified level constraints. Do not exceed the complexity of the target level.
 
@@ -183,7 +188,11 @@ router.post("/listening/tts", async (req, res) => {
 
 // ── Generate IB comprehension questions (F36) ─────────────────────────────────
 router.post("/listening/questions", async (req, res) => {
-  const { passage, count = 6 } = req.body;
+  const { passage, count = 6, level = "b" } = req.body as {
+    passage?: string;
+    count?: number;
+    level?: "b" | "ab_initio";
+  };
   if (!passage) { res.status(400).json({ error: "Missing passage" }); return; }
 
   const prompt = `Eres un examinador del IB Spanish B. Genera ${count} preguntas de comprensión auditiva basadas en este texto:
@@ -206,6 +215,7 @@ Directrices:
 - Para opción múltiple: los distractores deben ser plausibles
 - Para verdadero/falso: usa "Verdadero" y "Falso" como opciones
 - Use standard academic Spanish for questions.
+- Nivel de complejidad: ${level === "ab_initio" ? "ab initio (A1-A2) con lenguaje simple y claro." : "Spanish B (B1-B2) con redacción académica estándar."}
 
 Devuelve SOLO JSON válido:
 {
