@@ -16,6 +16,40 @@ const THEME_NAMES: Record<string, string> = {
 const VOICES = ["nova", "onyx", "shimmer", "alloy", "echo", "fable"] as const;
 type VoiceId = typeof VOICES[number];
 
+const AB_FORBIDDEN_PATTERNS = [
+  /\bsin embargo\b/i,
+  /\bno obstante\b/i,
+  /\bpor consiguiente\b/i,
+  /\bcabe destacar\b/i,
+  /\bsostenibilidad\b/i,
+];
+
+function isAbInitioCompliant(text: string): boolean {
+  if (!text) return true;
+  if (AB_FORBIDDEN_PATTERNS.some((p) => p.test(text))) return false;
+  const sentences = text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  if (!sentences.length) return true;
+  const avg = sentences.reduce((acc, s) => acc + s.split(/\s+/).filter(Boolean).length, 0) / sentences.length;
+  return avg <= 16;
+}
+
+async function simplifyToAbInitio(text: string): Promise<string> {
+  if (isAbInitioCompliant(text)) return text;
+  const repair = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 700,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Rewrite to strict IB Spanish ab initio A1-A2. Keep meaning but use everyday vocabulary and short clear sentences only. Return Spanish only.",
+      },
+      { role: "user", content: text },
+    ],
+  });
+  return repair.choices[0]?.message?.content?.trim() || text;
+}
+
 // ── Silent MP3 generator ─────────────────────────────────────────────────────
 // Creates valid MPEG1 Layer3 frames filled with zeros (silence).
 // Avoids sending punctuation-only text to TTS which causes the model to
@@ -132,7 +166,11 @@ Return ONLY valid JSON (no markdown):
 
     const content = response.choices[0]?.message?.content;
     if (!content) { res.status(500).json({ error: "Empty response" }); return; }
-    res.json(JSON.parse(content));
+    const parsed = JSON.parse(content);
+    if (level === "ab_initio" && parsed.passage) {
+      parsed.passage = await simplifyToAbInitio(String(parsed.passage));
+    }
+    res.json(parsed);
   } catch (error) {
     console.error("Passage generation error:", error);
     res.status(500).json({ error: "Passage generation failed" });
@@ -256,7 +294,13 @@ Devuelve SOLO JSON válido:
 
     const content = response.choices[0]?.message?.content;
     if (!content) { res.status(500).json({ error: "Empty response" }); return; }
-    res.json(JSON.parse(content));
+    const parsed = JSON.parse(content);
+    if (level === "ab_initio" && Array.isArray(parsed.questions)) {
+      for (const q of parsed.questions) {
+        if (q.question) q.question = await simplifyToAbInitio(String(q.question));
+      }
+    }
+    res.json(parsed);
   } catch (error) {
     console.error("Questions generation error:", error);
     res.status(500).json({ error: "Questions generation failed" });

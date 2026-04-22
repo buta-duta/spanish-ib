@@ -74,6 +74,49 @@ AB INITIO MODE (MANDATORY):
 - DO NOT suggest advanced B2/C1 upgrades in this mode.
 `;
 
+const AB_FORBIDDEN_PATTERNS = [
+  /\bsin embargo\b/i,
+  /\bno obstante\b/i,
+  /\bcabe destacar\b/i,
+  /\bpor consiguiente\b/i,
+  /\ben definitiva\b/i,
+  /\bsubjuntiv/i,
+  /\bhipot[ée]tic/i,
+  /\bmulticulturalismo\b/i,
+  /\bsostenibilidad\b/i,
+];
+
+function isAbInitioCompliant(text: string): boolean {
+  if (!text) return true;
+  const sentenceChunks = text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  const avgWords =
+    sentenceChunks.length === 0
+      ? 0
+      : sentenceChunks.reduce((acc, s) => acc + s.split(/\s+/).filter(Boolean).length, 0) / sentenceChunks.length;
+  if (avgWords > 16) return false;
+  for (const pattern of AB_FORBIDDEN_PATTERNS) {
+    if (pattern.test(text)) return false;
+  }
+  return true;
+}
+
+async function enforceAbInitioText(text: string): Promise<string> {
+  if (isAbInitioCompliant(text)) return text;
+  const repair = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 500,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Rewrite Spanish to strict IB Spanish ab initio A1-A2 survival level. Use short concrete sentences, very common vocabulary, and basic connectors only (y, pero, porque, también). Return only rewritten Spanish.",
+      },
+      { role: "user", content: text },
+    ],
+  });
+  return repair.choices[0]?.message?.content?.trim() || text;
+}
+
 router.post("/exam/chat", async (req, res) => {
   const { messages, theme, sessionTurn, regenerate, skip, level = "b" } = req.body;
 
@@ -114,6 +157,22 @@ router.post("/exam/chat", async (req, res) => {
       { role: "system", content: systemPrompt },
       ...messages.filter((m: { role: string }) => m.role !== "system"),
     ];
+
+    if (level === "ab_initio") {
+      const nonStream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_completion_tokens: 600,
+        messages: chatMessages,
+      });
+      const rawText = nonStream.choices[0]?.message?.content || "";
+      const lockedText = await enforceAbInitioText(rawText);
+      for (const token of lockedText.split(/(\s+)/)) {
+        if (token) res.write(`data: ${JSON.stringify({ content: token })}\n\n`);
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
 
     const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -200,7 +259,13 @@ ${level === "ab_initio" ? 'Prefer basic connectors like "y", "pero", "porque", "
     });
 
     const content = response.choices[0]?.message?.content || "{}";
-    res.json(JSON.parse(content));
+    const parsed = JSON.parse(content);
+    if (level === "ab_initio") {
+      parsed.corrección = await enforceAbInitioText(String(parsed.corrección || ""));
+      parsed.respuesta = await enforceAbInitioText(String(parsed.respuesta || ""));
+      parsed.pregunta_ib = await enforceAbInitioText(String(parsed.pregunta_ib || ""));
+    }
+    res.json(parsed);
   } catch (error) {
     console.error("Image chat error:", error);
     res.status(500).json({ error: "Error connecting to AI" });

@@ -21,6 +21,40 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
   speech: "discurso",
 };
 
+const AB_FORBIDDEN_PATTERNS = [
+  /\bsin embargo\b/i,
+  /\bno obstante\b/i,
+  /\bpor consiguiente\b/i,
+  /\bcabe destacar\b/i,
+  /\bsostenibilidad\b/i,
+];
+
+function isAbInitioCompliant(text: string): boolean {
+  if (!text) return true;
+  if (AB_FORBIDDEN_PATTERNS.some((p) => p.test(text))) return false;
+  const sentences = text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  if (!sentences.length) return true;
+  const avg = sentences.reduce((acc, s) => acc + s.split(/\s+/).filter(Boolean).length, 0) / sentences.length;
+  return avg <= 16;
+}
+
+async function simplifyToAbInitio(text: string): Promise<string> {
+  if (isAbInitioCompliant(text)) return text;
+  const repair = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 700,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Rewrite to strict IB Spanish ab initio A1-A2. Keep original meaning but use survival-level vocabulary and short direct sentences. Return Spanish only.",
+      },
+      { role: "user", content: text },
+    ],
+  });
+  return repair.choices[0]?.message?.content?.trim() || text;
+}
+
 // ── Generate writing prompt ───────────────────────────────────────────────────
 router.post("/writing/prompt", async (req, res) => {
   const { theme = "experiencias", textType = "article", previousPrompts = [], level = "b" } = req.body as {
@@ -66,7 +100,7 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
     });
 
     const prompt = completion.choices[0]?.message?.content?.trim() ?? "";
-    return res.json({ prompt });
+    return res.json({ prompt: level === "ab_initio" ? await simplifyToAbInitio(prompt) : prompt });
   } catch (err) {
     console.error("writing/prompt error:", err);
     return res.status(500).json({ error: "Error al generar la pregunta." });
@@ -166,7 +200,21 @@ Return a JSON object:
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    return res.json(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    if (level === "ab_initio") {
+      if (parsed.modelRewrites && Array.isArray(parsed.modelRewrites)) {
+        for (const item of parsed.modelRewrites) {
+          if (item.improved) item.improved = await simplifyToAbInitio(String(item.improved));
+        }
+      }
+      if (parsed.vocabularySuggestions && Array.isArray(parsed.vocabularySuggestions)) {
+        parsed.vocabularySuggestions = parsed.vocabularySuggestions.map((v: any) => ({
+          ...v,
+          advanced: String(v.advanced || "").split(/[,\s]+/).slice(0, 3).join(" "),
+        }));
+      }
+    }
+    return res.json(parsed);
   } catch (err) {
     console.error("writing/feedback error:", err);
     return res.status(500).json({ error: "Error al evaluar el texto." });
@@ -213,7 +261,7 @@ Requirements:
     });
 
     const rewritten = completion.choices[0]?.message?.content?.trim() ?? "";
-    return res.json({ rewritten });
+    return res.json({ rewritten: level === "ab_initio" ? await simplifyToAbInitio(rewritten) : rewritten });
   } catch (err) {
     console.error("writing/rewrite error:", err);
     return res.status(500).json({ error: "Error al reescribir el texto." });

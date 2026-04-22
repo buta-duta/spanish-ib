@@ -19,6 +19,41 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
   report: "informe",
 };
 
+const AB_FORBIDDEN_PATTERNS = [
+  /\bsin embargo\b/i,
+  /\bno obstante\b/i,
+  /\bpor consiguiente\b/i,
+  /\bcabe destacar\b/i,
+  /\bmulticulturalismo\b/i,
+  /\bsostenibilidad\b/i,
+];
+
+function isAbInitioCompliant(text: string): boolean {
+  if (!text) return true;
+  if (AB_FORBIDDEN_PATTERNS.some((p) => p.test(text))) return false;
+  const sentences = text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  if (!sentences.length) return true;
+  const avg = sentences.reduce((acc, s) => acc + s.split(/\s+/).filter(Boolean).length, 0) / sentences.length;
+  return avg <= 16;
+}
+
+async function simplifyToAbInitio(text: string): Promise<string> {
+  if (isAbInitioCompliant(text)) return text;
+  const repair = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 700,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Rewrite to strict IB Spanish ab initio A1-A2. Keep meaning, but use short clear sentences and common vocabulary only. Return Spanish only.",
+      },
+      { role: "user", content: text },
+    ],
+  });
+  return repair.choices[0]?.message?.content?.trim() || text;
+}
+
 // ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
   const { theme = "experiencias", textType = "article", customFocus, level = "b" } = req.body as {
@@ -79,9 +114,10 @@ Return a JSON object:
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
+    const finalText = level === "ab_initio" ? await simplifyToAbInitio(String(parsed.text ?? "")) : String(parsed.text ?? "");
     res.json({
       title: parsed.title ?? "Texto de lectura",
-      text: parsed.text ?? "",
+      text: finalText,
       theme,
       textType,
     });
@@ -176,6 +212,12 @@ Return ONLY valid JSON.`,
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
+    if (level === "ab_initio" && Array.isArray(parsed.questions)) {
+      for (const q of parsed.questions) {
+        if (q.question) q.question = await simplifyToAbInitio(String(q.question));
+        if (q.statement) q.statement = await simplifyToAbInitio(String(q.statement));
+      }
+    }
     return res.json({ questions: parsed.questions ?? [] });
   } catch (err) {
     console.error("reading/questions error:", err);
