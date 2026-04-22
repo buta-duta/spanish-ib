@@ -84,6 +84,7 @@ const AB_FORBIDDEN_PATTERNS = [
   /\bhipot[ée]tic/i,
   /\bmulticulturalismo\b/i,
   /\bsostenibilidad\b/i,
+  /\b[a-záéíóúñ]+(arlo|erlo|irlo|arla|erla|irla|arlos|erlos|irlos|arlas|erlas|irlas|ándolo|iéndolo|ándola|iéndola)\b/i,
 ];
 
 function isAbInitioCompliant(text: string): boolean {
@@ -94,6 +95,9 @@ function isAbInitioCompliant(text: string): boolean {
       ? 0
       : sentenceChunks.reduce((acc, s) => acc + s.split(/\s+/).filter(Boolean).length, 0) / sentenceChunks.length;
   if (avgWords > 16) return false;
+  const words = text.toLowerCase().match(/[a-záéíóúñ]+/gi) || [];
+  const longWords = words.filter((w) => w.length >= 10).length;
+  if (words.length > 0 && longWords / words.length > 0.08) return false;
   for (const pattern of AB_FORBIDDEN_PATTERNS) {
     if (pattern.test(text)) return false;
   }
@@ -101,20 +105,24 @@ function isAbInitioCompliant(text: string): boolean {
 }
 
 async function enforceAbInitioText(text: string): Promise<string> {
-  if (isAbInitioCompliant(text)) return text;
-  const repair = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    max_completion_tokens: 500,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Rewrite Spanish to strict IB Spanish ab initio A1-A2 survival level. Use short concrete sentences, very common vocabulary, and basic connectors only (y, pero, porque, también). Return only rewritten Spanish.",
-      },
-      { role: "user", content: text },
-    ],
-  });
-  return repair.choices[0]?.message?.content?.trim() || text;
+  let candidate = text;
+  for (let i = 0; i < 3; i++) {
+    if (isAbInitioCompliant(candidate)) return candidate;
+    const repair = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 500,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Rewrite Spanish to strict IB Spanish ab initio A1-A2 survival level. Use short concrete sentences, very common vocabulary, and basic connectors only (y, pero, porque, también). Avoid attached clitics like decirlo/comprarlo. Return only rewritten Spanish.",
+        },
+        { role: "user", content: candidate },
+      ],
+    });
+    candidate = repair.choices[0]?.message?.content?.trim() || candidate;
+  }
+  return candidate;
 }
 
 router.post("/exam/chat", async (req, res) => {

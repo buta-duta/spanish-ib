@@ -229,21 +229,48 @@ function TappableText({
   textStyle: object;
   onWordPress: (word: string, context: string) => void;
 }) {
-  const words = content.split(/(\s+)/);
+  const parseMarkdown = (text: string): { text: string; style: "normal" | "bold" | "italic" }[] => {
+    const parts: { text: string; style: "normal" | "bold" | "italic" }[] = [];
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ text: text.slice(lastIndex, match.index), style: "normal" });
+      }
+      const raw = match[0];
+      if (raw.startsWith("**")) parts.push({ text: raw.slice(2, -2), style: "bold" });
+      else parts.push({ text: raw.slice(1, -1), style: "italic" });
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) parts.push({ text: text.slice(lastIndex), style: "normal" });
+    return parts;
+  };
+  const parts = parseMarkdown(content);
   return (
     <Text style={textStyle}>
-      {words.map((chunk, i) => {
-        if (/^\s+$/.test(chunk)) return chunk;
-        const clean = chunk.replace(/[¿¡.,;:!?()"""«»]/g, "");
-        if (!clean) return chunk;
-        return (
-          <Text
-            key={i}
-            onPress={() => onWordPress(clean, content)}
-          >
-            {chunk}
-          </Text>
-        );
+      {parts.flatMap((part, pIdx) => {
+        const words = part.text.split(/(\s+)/);
+        const segmentStyle =
+          part.style === "bold"
+            ? { fontFamily: "Inter_700Bold" as const }
+            : part.style === "italic"
+            ? { fontStyle: "italic" as const }
+            : undefined;
+        return words.map((chunk, i) => {
+          if (/^\s+$/.test(chunk)) return chunk;
+          const clean = chunk.replace(/[¿¡.,;:!?()"""«»]/g, "");
+          if (!clean) return chunk;
+          return (
+            <Text
+              key={`${pIdx}-${i}`}
+              onPress={() => onWordPress(clean, content)}
+              style={segmentStyle}
+            >
+              {chunk}
+            </Text>
+          );
+        });
       })}
     </Text>
   );

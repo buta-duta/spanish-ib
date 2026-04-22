@@ -36,6 +36,31 @@ const audioCache = new Map<string, string>(); // msgId → base64 mp3
 
 const tokenizeMessage = tokenizeText;
 
+type MdSegment = { text: string; style: "normal" | "bold" | "italic" };
+
+function parseSimpleMarkdown(text: string): MdSegment[] {
+  const segments: MdSegment[] = [];
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, match.index), style: "normal" });
+    }
+    const raw = match[0];
+    if (raw.startsWith("**")) {
+      segments.push({ text: raw.slice(2, -2), style: "bold" });
+    } else {
+      segments.push({ text: raw.slice(1, -1), style: "italic" });
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex), style: "normal" });
+  }
+  return segments;
+}
+
 function getApiUrl() {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/`;
@@ -133,7 +158,7 @@ function MessageBubble({
 }) {
   const colors = Colors[isDark ? "dark" : "light"];
   const isUser = message.role === "user";
-  const tokens = React.useMemo(() => tokenizeMessage(message.content), [message.content]);
+  const mdSegments = React.useMemo(() => parseSimpleMarkdown(message.content), [message.content]);
 
   return (
     <View>
@@ -156,20 +181,31 @@ function MessageBubble({
             <Text style={[bubbleStyles.text, { color: "#fff" }]}>{message.content}</Text>
           ) : (
             <Text style={[bubbleStyles.text, { color: colors.text }]}>
-              {tokens.map((t) =>
-                t.clean.length >= 2 ? (
-                  <Text
-                    key={t.idx}
-                    suppressHighlighting={false}
-                    onPress={() => onWordPress(t.clean, message.content)}
-                    style={{ color: colors.text }}
-                  >
-                    {t.display}
-                  </Text>
-                ) : (
-                  <Text key={t.idx} style={{ color: colors.text }}>{t.display}</Text>
-                )
-              )}
+              {mdSegments.map((segment, sIdx) => {
+                const segmentTokens = tokenizeMessage(segment.text);
+                const segmentStyle =
+                  segment.style === "bold"
+                    ? bubbleStyles.textBold
+                    : segment.style === "italic"
+                    ? bubbleStyles.textItalic
+                    : undefined;
+                return segmentTokens.map((t, tIdx) =>
+                  t.clean.length >= 2 ? (
+                    <Text
+                      key={`${sIdx}-${t.idx}-${tIdx}`}
+                      suppressHighlighting={false}
+                      onPress={() => onWordPress(t.clean, message.content)}
+                      style={[{ color: colors.text }, segmentStyle]}
+                    >
+                      {t.display}
+                    </Text>
+                  ) : (
+                    <Text key={`${sIdx}-${t.idx}-${tIdx}`} style={[{ color: colors.text }, segmentStyle]}>
+                      {t.display}
+                    </Text>
+                  )
+                );
+              })}
             </Text>
           )}
         </View>
@@ -212,6 +248,8 @@ const bubbleStyles = StyleSheet.create({
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   text: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  textBold: { fontFamily: "Inter_700Bold" },
+  textItalic: { fontStyle: "italic" },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginLeft: 52, marginTop: 4, marginBottom: 4 },
   regenBtn: { flexDirection: "row", alignItems: "center", gap: 5 },
   regenText: { fontSize: 13, fontFamily: "Inter_500Medium" },
