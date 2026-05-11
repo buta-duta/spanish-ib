@@ -3,6 +3,8 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
 
+import { agentLog } from "../agentDebug";
+
 const router: IRouter = Router();
 
 const THEME_NAMES: Record<string, string> = {
@@ -81,6 +83,12 @@ function parseDialogue(text: string): DialogueSeg[] {
 // ── Generate passage (F35) ────────────────────────────────────────────────────
 router.post("/listening/passage", async (req, res) => {
   const { theme, passageType, customFocus } = req.body;
+  // #region agent log
+  agentLog("H5", "listening.ts:/listening/passage", "passage_hit", {
+    theme: typeof theme === "string" ? theme : String(theme),
+    passageType: typeof passageType === "string" ? passageType : String(passageType ?? ""),
+  });
+  // #endregion
   const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
   const themeName = THEME_NAMES[themeKey] || "Identidades";
   const type = passageType || "conversation";

@@ -337,7 +337,14 @@ export default function ExamScreen() {
       const response = await expoFetch(`${getApiUrl()}api/exam/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip }),
+        body: JSON.stringify({
+          messages: apiMessages,
+          theme: themeData.id,
+          sessionTurn,
+          regenerate,
+          skip,
+          level: currentSession?.level ?? "b",
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to get response");
