@@ -1,5 +1,5 @@
-import "./preamble.ts";
-const { default: app } = await import("./app");
+import "./preamble.js";
+const { default: app } = await import("./app.js");
 
 const rawPort = process.env["PORT"];
 const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL_URL;
