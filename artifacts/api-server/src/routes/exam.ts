@@ -7,8 +7,6 @@ import {
 } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
 
-import { agentLog } from "../agentDebug";
-
 const router: IRouter = Router();
 
 const THEME_DESCRIPTIONS: Record<string, string> = {
@@ -126,13 +124,6 @@ router.post("/exam/chat", async (req, res) => {
     skip?: boolean;
     level?: string;
   };
-  // #region agent log
-  agentLog("H1", "exam.ts:/exam/chat", "chat_request", {
-    bodyKeys: req.body && typeof req.body === "object" ? Object.keys(req.body) : [],
-    level: level ?? null,
-    theme: typeof theme === "string" ? theme : String(theme),
-  });
-  // #endregion
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -374,12 +365,6 @@ router.post("/exam/feedback", async (req, res) => {
     theme?: string;
     level?: string;
   };
-  // #region agent log
-  agentLog("H3", "exam.ts:/exam/feedback", "feedback_request", {
-    bodyKeys: req.body && typeof req.body === "object" ? Object.keys(req.body) : [],
-    level: level ?? null,
-  });
-  // #endregion
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: "Missing messages" });
