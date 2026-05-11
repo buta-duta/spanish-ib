@@ -1,4 +1,4 @@
-import OpenAI, { toFile } from "openai";
+import { toFile } from "openai";
 import { Buffer } from "node:buffer";
 import { spawn } from "child_process";
 import { writeFile, unlink, readFile } from "fs/promises";
@@ -6,15 +6,7 @@ import { randomUUID } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error(
-    "OPENAI_API_KEY must be set. Add it to your environment before starting the server.",
-  );
-}
-
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+import { openai } from "../client.js";
 
 export type AudioFormat = "wav" | "mp3" | "webm" | "mp4" | "ogg" | "unknown";
 

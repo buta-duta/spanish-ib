@@ -8,4 +8,12 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
+router.get("/healthz/ai", (_req, res) => {
+  res.json({
+    status: "ok",
+    openaiKeyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    vercel: Boolean(process.env.VERCEL),
+  });
+});
+
 export default router;
