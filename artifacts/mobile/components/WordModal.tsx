@@ -16,17 +16,12 @@ import {
 
 import Colors from "@/constants/colors";
 import { useFlashcards } from "@/contexts/FlashcardContext";
+import { getApiUrl } from "@/lib/getApiUrl";
 
 export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
 
 // Module-level caches — persist across screen renders
 export const wordExplainCache = new Map<string, WordInfo>();
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  return "http://localhost:80/";
-}
 
 // ── WordModal ─────────────────────────────────────────────────────────────────
 export function WordModal({

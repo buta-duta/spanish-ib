@@ -26,6 +26,7 @@ import { getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
 import { WordModal, tokenizeText } from "@/components/WordModal";
+import { getApiUrl } from "@/lib/getApiUrl";
 
 type RecordingState = "idle" | "recording" | "preview" | "processing";
 
@@ -34,13 +35,6 @@ const TOTAL_TURNS = 8;
 const audioCache = new Map<string, string>(); // msgId → base64 mp3
 
 const tokenizeMessage = tokenizeText;
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
 
 // ─── Web audio helpers ────────────────────────────────────────────────────────
 
@@ -541,12 +535,20 @@ export default function ExamScreen() {
     setRecordingState("processing");
 
     try {
-      // Wait for recording to stop and all chunks to be available
       await new Promise<void>((resolve, reject) => {
         recorder.onstop = () => resolve();
         recorder.onerror = (e) => reject(e);
-        recorder.stop();
-        recorder.stream.getTracks().forEach((t) => t.stop());
+        if (recorder.state === "recording") {
+          recorder.requestData();
+        }
+        setTimeout(() => {
+          try {
+            recorder.stop();
+            recorder.stream.getTracks().forEach((t) => t.stop());
+          } catch (e) {
+            reject(e);
+          }
+        }, 120);
       });
 
       webMediaRecorderRef.current = null;

@@ -4,6 +4,7 @@ import {
   textToSpeech,
   speechToText,
   ensureCompatibleFormat,
+  detectAudioFormat,
 } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
 
@@ -301,10 +302,33 @@ router.post("/exam/transcribe", async (req, res) => {
     return;
   }
 
+  const openaiDirectFormats = new Set([
+    "wav",
+    "mp3",
+    "webm",
+    "mp4",
+    "mpeg",
+    "mpga",
+    "m4a",
+    "ogg",
+    "flac",
+  ]);
+
   try {
     const rawBuffer = Buffer.from(audioBase64, "base64");
-    const { buffer, format } = await ensureCompatibleFormat(rawBuffer);
-    const text = await speechToText(buffer, format);
+    const detected = detectAudioFormat(rawBuffer);
+    let buffer = rawBuffer;
+    let formatExt: string;
+
+    if (detected !== "unknown" && openaiDirectFormats.has(detected)) {
+      formatExt = detected;
+    } else {
+      const converted = await ensureCompatibleFormat(rawBuffer);
+      buffer = converted.buffer;
+      formatExt = converted.format;
+    }
+
+    const text = await speechToText(buffer, formatExt);
     res.json({ text });
   } catch (error) {
     console.error("Transcription error:", error);

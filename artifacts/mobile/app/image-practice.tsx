@@ -27,13 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { PRACTICE_IMAGES, type PracticeImage } from "@/constants/practiceImages";
 import { THEMES } from "@/constants/themes";
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
+import { getApiUrl } from "@/lib/getApiUrl";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "select" | "prep" | "exam" | "feedback";
@@ -563,7 +557,7 @@ export default function ImagePracticeScreen() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getBestMimeType();
       webMimeTypeRef.current = mimeType;
-      const mr = new MediaRecorder(stream, { mimeType });
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       webAudioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) webAudioChunksRef.current.push(e.data); };
       mr.start(250);
@@ -576,10 +570,20 @@ export default function ImagePracticeScreen() {
     const mr = webMediaRecorderRef.current;
     if (!mr || mr.state === "inactive") return;
     setRecordingState("processing");
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       mr.onstop = () => resolve();
-      mr.stop();
-      mr.stream.getTracks().forEach((t) => t.stop());
+      mr.onerror = () => reject(new Error("MediaRecorder error"));
+      if (mr.state === "recording") {
+        mr.requestData();
+      }
+      setTimeout(() => {
+        try {
+          mr.stop();
+          mr.stream.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+          reject(e);
+        }
+      }, 120);
     });
     const blob = new Blob(webAudioChunksRef.current, { type: webMimeTypeRef.current });
     const buf = await blob.arrayBuffer();

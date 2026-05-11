@@ -209,12 +209,10 @@ export async function textToSpeechStream(
   })();
 }
 
-/** Speech-to-Text using gpt-4o-mini-transcribe. */
-export async function speechToText(
-  audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
-): Promise<string> {
-  const file = await toFile(audioBuffer, `audio.${format}`);
+/** Speech-to-Text using gpt-4o-mini-transcribe. `formatExt` is the filename suffix (wav, webm, mp4, …). */
+export async function speechToText(audioBuffer: Buffer, formatExt: string = "wav"): Promise<string> {
+  const ext = formatExt.replace(/^\./, "").replace(/[^a-z0-9]/gi, "") || "wav";
+  const file = await toFile(audioBuffer, `audio.${ext}`);
   const response = await openai.audio.transcriptions.create({
     file,
     model: "gpt-4o-mini-transcribe",
@@ -225,9 +223,10 @@ export async function speechToText(
 /** Streaming Speech-to-Text. */
 export async function speechToTextStream(
   audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
+  formatExt: string = "wav"
 ): Promise<AsyncIterable<string>> {
-  const file = await toFile(audioBuffer, `audio.${format}`);
+  const ext = formatExt.replace(/^\./, "").replace(/[^a-z0-9]/gi, "") || "wav";
+  const file = await toFile(audioBuffer, `audio.${ext}`);
   const stream = await openai.audio.transcriptions.create({
     file,
     model: "gpt-4o-mini-transcribe",
