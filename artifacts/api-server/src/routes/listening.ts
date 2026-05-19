@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
-import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
+import { completeChat } from "@workspace/integrations-gemini-ai-server";
+import { textToSpeech } from "@workspace/integrations-gemini-ai-server/audio";
 import { Buffer } from "node:buffer";
 
 const router: IRouter = Router();
@@ -118,14 +118,10 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 1200,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const content = await completeChat(
+      [{ role: "user", content: prompt }],
+      { model: "pro", maxOutputTokens: 1200, json: true },
+    );
     if (!content) { res.status(500).json({ error: "Empty response" }); return; }
     res.json(JSON.parse(content));
   } catch (error) {
@@ -166,7 +162,7 @@ router.post("/listening/tts", async (req, res) => {
 
     const segmentBuffers = await Promise.all(segmentPromises);
 
-    // Concatenate segments directly — OpenAI TTS already has natural trailing
+    // Concatenate segments directly — Gemini TTS already has natural trailing
     // silence in each clip so no explicit gap audio is needed.
     // (Injecting hand-crafted MP3 frames caused decoders to terminate early.)
     const combined = Buffer.concat(segmentBuffers);
@@ -237,14 +233,10 @@ Devuelve SOLO JSON válido:
 }`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 1500,
-      messages: [{ role: "system", content: prompt }],
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const content = await completeChat(
+      [{ role: "system", content: prompt }],
+      { model: "pro", maxOutputTokens: 1500, json: true },
+    );
     if (!content) { res.status(500).json({ error: "Empty response" }); return; }
     res.json(JSON.parse(content));
   } catch (error) {
@@ -275,14 +267,10 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 200,
-      messages: [{ role: "system", content: prompt }],
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const content = await completeChat(
+      [{ role: "system", content: prompt }],
+      { model: "pro", maxOutputTokens: 200, json: true },
+    );
     if (!content) { res.status(500).json({ error: "Empty response" }); return; }
     res.json(JSON.parse(content));
   } catch (error) {

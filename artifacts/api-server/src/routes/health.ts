@@ -11,7 +11,7 @@ router.get("/healthz", (_req, res) => {
 router.get("/healthz/ai", (_req, res) => {
   res.json({
     status: "ok",
-    openaiKeyPresent: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    geminiKeyPresent: Boolean(process.env.GEMINI_API_KEY?.trim()),
     vercel: Boolean(process.env.VERCEL),
   });
 });

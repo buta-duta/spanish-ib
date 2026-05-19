@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { completeChat, type ChatMessage } from "@workspace/integrations-gemini-ai-server";
 
 const router: IRouter = Router();
 
@@ -19,7 +19,6 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
   report: "informe",
 };
 
-// ── Generate reading passage ──────────────────────────────────────────────────
 router.post("/reading/generate", async (req, res) => {
   const { theme = "experiencias", textType = "article", customFocus } = req.body as {
     theme?: string;
@@ -34,9 +33,8 @@ router.post("/reading/generate", async (req, res) => {
     : "";
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
+    const raw = await completeChat(
+      [
         {
           role: "system",
           content: `You are an expert IB Spanish B curriculum writer.
@@ -63,13 +61,10 @@ Return a JSON object:
 }`,
         },
       ],
-      temperature: 0.7,
-      max_completion_tokens: 1500,
-      response_format: { type: "json_object" },
-    });
+      { model: "pro", temperature: 0.7, maxOutputTokens: 1500, json: true },
+    );
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw || "{}");
     res.json({
       title: parsed.title ?? "Texto de lectura",
       text: parsed.text ?? "",
@@ -82,7 +77,6 @@ Return a JSON object:
   }
 });
 
-// ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
   const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
   if (!text || text.length < 50) {
@@ -90,13 +84,12 @@ router.post("/reading/questions", async (req, res) => {
   }
 
   const mcqCount = Math.max(1, Math.round(count * 0.4));
-  const tfCount  = Math.max(1, Math.round(count * 0.35));
+  const tfCount = Math.max(1, Math.round(count * 0.35));
   const synCount = Math.max(1, count - mcqCount - tfCount);
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
+    const raw = await completeChat(
+      [
         {
           role: "system",
           content: `You are an IB Spanish B examiner creating reading comprehension questions.
@@ -152,13 +145,10 @@ Return ONLY valid JSON.`,
           content: `Text title: ${title}\n\nText:\n${text}`,
         },
       ],
-      temperature: 0.3,
-      max_completion_tokens: 2000,
-      response_format: { type: "json_object" },
-    });
+      { model: "pro", temperature: 0.3, maxOutputTokens: 2000, json: true },
+    );
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw || "{}");
     return res.json({ questions: parsed.questions ?? [] });
   } catch (err) {
     console.error("reading/questions error:", err);

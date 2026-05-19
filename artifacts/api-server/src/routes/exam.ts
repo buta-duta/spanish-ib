@@ -1,11 +1,16 @@
 import { Router, type IRouter } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import {
+  completeChat,
+  streamChat,
+  type ChatMessage,
+} from "@workspace/integrations-gemini-ai-server";
 import {
   textToSpeech,
+  textToSpeechExaminer,
   speechToText,
   ensureCompatibleFormat,
   detectAudioFormat,
-} from "@workspace/integrations-openai-ai-server/audio";
+} from "@workspace/integrations-gemini-ai-server/audio";
 import { Buffer } from "node:buffer";
 
 const router: IRouter = Router();
@@ -162,26 +167,21 @@ router.post("/exam/chat", async (req, res) => {
   res.flushHeaders();
 
   try {
-    type ChatRole = "system" | "user" | "assistant";
-    const chatMessages: Array<{ role: ChatRole; content: string }> = [
+    const chatMessages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...messages
         .filter((m) => m.role !== "system")
-        .map((m) => ({ role: m.role as ChatRole, content: m.content ?? "" })),
+        .map((m) => ({
+          role: m.role as ChatMessage["role"],
+          content: m.content ?? "",
+        })),
     ];
 
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 1500,
-      messages: chatMessages,
-      stream: true,
-    });
-
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) {
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      }
+    for await (const content of streamChat(chatMessages, {
+      model: "flash",
+      maxOutputTokens: 1500,
+    })) {
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
     }
 
     res.write("data: [DONE]\n\n");
@@ -271,22 +271,21 @@ Elicit: Point, Answer/Evidence, Link, Meaning, Structure.
 Use "sin embargo", "además", "por lo tanto"${rephraseInstruction}${skipInstruction}`;
 
   try {
-    type ChatRole = "system" | "user" | "assistant";
-    const chatMessages: Array<{ role: ChatRole; content: string }> = [
+    const chatMessages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...messages
         .filter((m) => m.role !== "system")
-        .map((m) => ({ role: m.role as ChatRole, content: m.content ?? "" })),
+        .map((m) => ({
+          role: m.role as ChatMessage["role"],
+          content: m.content ?? "",
+        })),
     ];
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 1000,
-      messages: chatMessages,
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content || "{}";
+    const content = await completeChat(chatMessages, {
+      model: "pro",
+      maxOutputTokens: 1000,
+      json: true,
+    }) || "{}";
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Image chat error:", error);
@@ -302,7 +301,7 @@ router.post("/exam/transcribe", async (req, res) => {
     return;
   }
 
-  const openaiDirectFormats = new Set([
+  const supportedFormats = new Set([
     "wav",
     "mp3",
     "webm",
@@ -320,11 +319,11 @@ router.post("/exam/transcribe", async (req, res) => {
     let buffer = rawBuffer;
     let formatExt: string;
 
-    if (detected !== "unknown" && openaiDirectFormats.has(detected)) {
+    if (detected !== "unknown" && supportedFormats.has(detected)) {
       formatExt = detected;
     } else {
       const converted = await ensureCompatibleFormat(rawBuffer);
-      buffer = converted.buffer;
+      buffer = Buffer.from(converted.buffer);
       formatExt = converted.format;
     }
 
@@ -335,29 +334,6 @@ router.post("/exam/transcribe", async (req, res) => {
     res.status(500).json({ error: "Transcription failed" });
   }
 });
-
-// Natural Spanish examiner TTS — uses gpt-audio with a Spanish-specific system prompt
-// for authentic intonation, pacing, and rhythm (F22)
-async function textToSpeechExaminer(text: string): Promise<Buffer> {
-  const response = await (openai as any).chat.completions.create({
-    model: "gpt-audio",
-    modalities: ["text", "audio"],
-    audio: { voice: "shimmer", format: "mp3" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "Eres una examinadora del IB de habla hispana. Habla con entonación natural, cálida y profesional en español. Usa un ritmo conversacional auténtico con variación de tono. Evita sonar monótona o robótica.",
-      },
-      {
-        role: "user",
-        content: `Di exactamente esto en voz alta, sin añadir nada extra: ${text}`,
-      },
-    ],
-  });
-  const audioData = (response.choices[0]?.message as any)?.audio?.data ?? "";
-  return Buffer.from(audioData, "base64");
-}
 
 router.post("/exam/tts", async (req, res) => {
   const { text } = req.body;
@@ -481,14 +457,10 @@ Analyse this oral exam conversation and provide structured feedback in ENGLISH. 
 Use the student's ACTUAL words from the transcript in grammarMistakes and improvedExamples. IB bands use the official max marks. Be specific and constructive.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 2048,
-      messages: [{ role: "user", content: feedbackPrompt }],
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const content = await completeChat(
+      [{ role: "user", content: feedbackPrompt }],
+      { model: "pro", maxOutputTokens: 2048, json: true },
+    );
     if (!content) {
       res.status(500).json({ error: "Empty feedback response" });
       return;
@@ -595,14 +567,10 @@ Grade the student using the official IB Spanish B Individual Oral criteria (Stan
 Be fair, constructive, and specific. Grade ONLY what was actually said. Bands range from 1–10 per criterion.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 1500,
-      messages: [{ role: "user", content: feedbackPrompt }],
-      response_format: { type: "json_object" },
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const content = await completeChat(
+      [{ role: "user", content: feedbackPrompt }],
+      { model: "pro", maxOutputTokens: 1500, json: true },
+    );
     if (!content) { res.status(500).json({ error: "Empty feedback" }); return; }
     res.json(JSON.parse(content));
   } catch (error) {
@@ -617,19 +585,21 @@ router.post("/exam/word", async (req, res) => {
   if (!word) { res.status(400).json({ error: "Missing word" }); return; }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 200,
-      messages: [
-        { role: "system", content: "You are a Spanish language dictionary. Return only valid JSON with no markdown code blocks." },
+    const content = await completeChat(
+      [
+        {
+          role: "system",
+          content:
+            "You are a Spanish language dictionary. Return only valid JSON with no markdown code blocks.",
+        },
         {
           role: "user",
           content: `Spanish word: "${word}"\nContext sentence: "${(context || word).slice(0, 300)}"\n\nReturn JSON only:\n{ "phonetic": "readable syllable pronunciation like deh-sah-rroh-yoh", "meaning": "concise English meaning based on context (max 15 words)", "partOfSpeech": "noun / verb / adjective / adverb / etc" }`,
         },
       ],
-      response_format: { type: "json_object" },
-    });
-    const data = JSON.parse(response.choices[0]?.message?.content || "{}");
+      { model: "flash", maxOutputTokens: 200, json: true },
+    );
+    const data = JSON.parse(content || "{}");
     res.json(data);
   } catch {
     res.status(500).json({ error: "Word explanation failed" });

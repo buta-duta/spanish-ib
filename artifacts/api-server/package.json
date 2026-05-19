@@ -11,7 +11,7 @@
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
-    "@workspace/integrations-openai-ai-server": "workspace:*",
+    "@workspace/integrations-gemini-ai-server": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "dotenv": "^17.3.1",
