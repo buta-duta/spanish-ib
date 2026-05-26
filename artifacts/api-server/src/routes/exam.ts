@@ -6,6 +6,7 @@ import {
   ensureCompatibleFormat,
 } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
+import { getOpenAIErrorPayload, sendOpenAIError } from "./openaiError";
 
 const router: IRouter = Router();
 
@@ -122,7 +123,9 @@ router.post("/exam/chat", async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Exam chat error:", error);
-    res.write(`data: ${JSON.stringify({ error: "Error connecting to AI" })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ error: "Error connecting to AI", openai: getOpenAIErrorPayload(error) })}\n\n`,
+    );
     res.write("data: [DONE]\n\n");
     res.end();
   }
@@ -192,7 +195,7 @@ Use "sin embargo", "además", "por lo tanto"${rephraseInstruction}${skipInstruct
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Image chat error:", error);
-    res.status(500).json({ error: "Error connecting to AI" });
+    return sendOpenAIError(res, error, "Error connecting to AI");
   }
 });
 
@@ -211,7 +214,7 @@ router.post("/exam/transcribe", async (req, res) => {
     res.json({ text });
   } catch (error) {
     console.error("Transcription error:", error);
-    res.status(500).json({ error: "Transcription failed" });
+    return sendOpenAIError(res, error, "Transcription failed");
   }
 });
 
@@ -257,7 +260,7 @@ router.post("/exam/tts", async (req, res) => {
       const fallback = await textToSpeech(text, "shimmer", "mp3");
       res.json({ audioBase64: fallback.toString("base64") });
     } catch {
-      res.status(500).json({ error: "TTS failed" });
+      return sendOpenAIError(res, error, "TTS failed");
     }
   }
 });
@@ -336,7 +339,7 @@ Use the student's ACTUAL words from the transcript in grammarMistakes and improv
     res.json({ feedback });
   } catch (error) {
     console.error("Feedback error:", error);
-    res.status(500).json({ error: "Feedback generation failed" });
+    return sendOpenAIError(res, error, "Feedback generation failed");
   }
 });
 
@@ -404,7 +407,7 @@ Be fair, constructive, and specific. Grade ONLY what was actually said. Bands ra
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Image feedback error:", error);
-    res.status(500).json({ error: "Feedback generation failed" });
+    return sendOpenAIError(res, error, "Feedback generation failed");
   }
 });
 
@@ -428,8 +431,8 @@ router.post("/exam/word", async (req, res) => {
     });
     const data = JSON.parse(response.choices[0]?.message?.content || "{}");
     res.json(data);
-  } catch {
-    res.status(500).json({ error: "Word explanation failed" });
+  } catch (error) {
+    return sendOpenAIError(res, error, "Word explanation failed");
   }
 });
 

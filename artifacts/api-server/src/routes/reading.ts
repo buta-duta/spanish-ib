@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { sendOpenAIError } from "./openaiError";
 
 const router: IRouter = Router();
 
@@ -78,7 +79,7 @@ Return a JSON object:
     });
   } catch (err) {
     console.error("reading/generate error:", err);
-    res.status(500).json({ error: "Error al generar el texto." });
+    return sendOpenAIError(res, err, "Error al generar el texto.");
   }
 });
 
@@ -162,7 +163,7 @@ Return ONLY valid JSON.`,
     return res.json({ questions: parsed.questions ?? [] });
   } catch (err) {
     console.error("reading/questions error:", err);
-    return res.status(500).json({ error: "Error al generar preguntas." });
+    return sendOpenAIError(res, err, "Error al generar preguntas.");
   }
 });
 

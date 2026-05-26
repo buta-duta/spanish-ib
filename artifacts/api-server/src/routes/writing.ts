@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { sendOpenAIError } from "./openaiError";
 
 const router: IRouter = Router();
 
@@ -68,7 +69,7 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
     return res.json({ prompt });
   } catch (err) {
     console.error("writing/prompt error:", err);
-    return res.status(500).json({ error: "Error al generar la pregunta." });
+    return sendOpenAIError(res, err, "Error al generar la pregunta.");
   }
 });
 
@@ -166,7 +167,7 @@ Return a JSON object:
     return res.json(JSON.parse(raw));
   } catch (err) {
     console.error("writing/feedback error:", err);
-    return res.status(500).json({ error: "Error al evaluar el texto." });
+    return sendOpenAIError(res, err, "Error al evaluar el texto.");
   }
 });
 
@@ -211,7 +212,7 @@ Requirements:
     return res.json({ rewritten });
   } catch (err) {
     console.error("writing/rewrite error:", err);
-    return res.status(500).json({ error: "Error al reescribir el texto." });
+    return sendOpenAIError(res, err, "Error al reescribir el texto.");
   }
 });
 

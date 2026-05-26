@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
+import { sendOpenAIError } from "./openaiError";
 
 const router: IRouter = Router();
 
@@ -130,7 +131,7 @@ Return ONLY valid JSON (no markdown):
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Passage generation error:", error);
-    res.status(500).json({ error: "Passage generation failed" });
+    return sendOpenAIError(res, error, "Passage generation failed");
   }
 });
 
@@ -177,7 +178,7 @@ router.post("/listening/tts", async (req, res) => {
     });
   } catch (error) {
     console.error("Listening TTS error:", error);
-    res.status(500).json({ error: "TTS generation failed" });
+    return sendOpenAIError(res, error, "TTS generation failed");
   }
 });
 
@@ -249,7 +250,7 @@ Devuelve SOLO JSON válido:
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Questions generation error:", error);
-    res.status(500).json({ error: "Questions generation failed" });
+    return sendOpenAIError(res, error, "Questions generation failed");
   }
 });
 
@@ -287,7 +288,7 @@ Return ONLY valid JSON:
     res.json(JSON.parse(content));
   } catch (error) {
     console.error("Answer check error:", error);
-    res.status(500).json({ error: "Answer check failed" });
+    return sendOpenAIError(res, error, "Answer check failed");
   }
 });
 
