@@ -257,7 +257,7 @@ export default function ThemeSelectScreen() {
 
   const [guideThemeId, setGuideThemeId] = useState<string | null>(null);
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
-  const [level, setLevel] = useState<"b" | "ab_initio">("b");
+  const [level, setLevel] = useState<"b">("b");
 
   const handleSelectTheme = async (themeId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -310,33 +310,6 @@ export default function ThemeSelectScreen() {
             <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
           </LinearGradient>
         </Pressable>
-
-        <View style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: colors.card, marginBottom: 20 }]}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLevel("b"); }}
-            style={({ pressed }) => [
-              styles.modeBtn,
-              {
-                backgroundColor: level === "b" ? colors.tint + "22" : "transparent",
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.modeBtnText, { color: level === "b" ? colors.tint : colors.textSecondary }]}>Spanish B</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLevel("ab_initio"); }}
-            style={({ pressed }) => [
-              styles.modeBtn,
-              {
-                backgroundColor: level === "ab_initio" ? colors.tint + "22" : "transparent",
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.modeBtnText, { color: level === "ab_initio" ? colors.tint : colors.textSecondary }]}>Ab Initio</Text>
-          </Pressable>
-        </View>
 
         {/* Divider */}
         <View style={styles.dividerRow}>

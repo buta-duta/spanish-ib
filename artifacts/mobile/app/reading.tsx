@@ -22,11 +22,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { WordModal } from "@/components/WordModal";
-import { getApiUrl } from "@/lib/getApiUrl";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
 const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
+
+function getApiUrl() {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/`;
+  if (Platform.OS === "web") return "/";
+  return "http://localhost:5000/";
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "reading" | "questions" | "review";

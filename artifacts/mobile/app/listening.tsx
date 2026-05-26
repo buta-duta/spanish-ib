@@ -22,7 +22,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { WordModal, TappableText } from "@/components/WordModal";
-import { getApiUrl } from "@/lib/getApiUrl";
+
+function getApiUrl() {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/`;
+  if (Platform.OS === "web") return "/";
+  return "http://localhost:5000/";
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "listening" | "questions" | "review";

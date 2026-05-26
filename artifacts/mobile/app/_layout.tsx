@@ -45,10 +45,6 @@ function RootLayoutNav() {
       <Stack.Screen name="summary" />
       <Stack.Screen name="history" />
       <Stack.Screen name="flashcards" />
-      <Stack.Screen name="listening" />
-      <Stack.Screen name="reading" />
-      <Stack.Screen name="writing" />
-      <Stack.Screen name="image-practice" />
     </Stack>
   );
 }

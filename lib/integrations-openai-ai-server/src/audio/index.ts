@@ -1,4 +1,5 @@
 export {
+  openai,
   detectAudioFormat,
   convertToWav,
   ensureCompatibleFormat,
@@ -6,8 +7,7 @@ export {
   voiceChat,
   voiceChatStream,
   textToSpeech,
-  textToSpeechExaminer,
   textToSpeechStream,
   speechToText,
   speechToTextStream,
-} from "./client.js";
+} from "./client";

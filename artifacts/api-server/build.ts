@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 // which helps cold start times without risking some
 // packages that are not bundle compatible
 const allowlist = [
-  "@google/genai",
+  "@google/generative-ai",
   "axios",
   "connect-pg-simple",
   "cors",
@@ -25,6 +25,7 @@ const allowlist = [
   "multer",
   "nanoid",
   "nodemailer",
+  "openai",
   "passport",
   "passport-local",
   "pg",
@@ -53,10 +54,6 @@ async function buildAll() {
       !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
   );
 
-  const esmBanner = {
-    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
-  };
-
   await esbuild({
     entryPoints: [path.resolve(__dirname, "src/index.ts")],
     platform: "node",
@@ -69,23 +66,9 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
-    banner: esmBanner,
-  });
-
-  console.log("building vercel-app bundle...");
-  await esbuild({
-    entryPoints: [path.resolve(__dirname, "src/vercel-app.ts")],
-    platform: "node",
-    bundle: true,
-    format: "esm",
-    outfile: path.resolve(distDir, "vercel-app.js"),
-    define: {
-      "process.env.NODE_ENV": '"production"',
+    banner: {
+      js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
     },
-    minify: true,
-    external: externals,
-    logLevel: "info",
-    banner: esmBanner,
   });
 
   // Create a CJS shim for Render which still expects index.cjs

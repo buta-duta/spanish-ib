@@ -1,5 +1,5 @@
 import pLimit from "p-limit";
-import pRetry, { AbortError } from "p-retry";
+import pRetry from "p-retry";
 
 /**
  * Batch Processing Utilities
@@ -9,17 +9,18 @@ import pRetry, { AbortError } from "p-retry";
  *
  * USAGE:
  * ```typescript
- * import { batchProcess } from "@workspace/integrations-gemini-ai-server/batch";
- * import { completeChat } from "@workspace/integrations-gemini-ai-server";
+ * import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
+ * import { openai } from "@workspace/integrations-openai-ai-server";
  *
  * const results = await batchProcess(
  *   artworks,
  *   async (artwork) => {
- *     const content = await completeChat(
- *       [{ role: "user", content: `Categorize: ${artwork.name}` }],
- *       { model: "pro", json: true },
- *     );
- *     return JSON.parse(content || "{}");
+ *     const response = await openai.chat.completions.create({
+ *       model: "gpt-5.2",
+ *       messages: [{ role: "user", content: `Categorize: ${artwork.name}` }],
+ *       response_format: { type: "json_object" },
+ *     });
+ *     return JSON.parse(response.choices[0]?.message?.content || "{}");
  *   },
  *   { concurrency: 2, retries: 5 }
  * );
@@ -73,7 +74,7 @@ export async function batchProcess<T, R>(
             if (isRateLimitError(error)) {
               throw error;
             }
-            throw new AbortError(
+            throw new pRetry.AbortError(
               error instanceof Error ? error : new Error(String(error))
             );
           }
@@ -113,7 +114,7 @@ export async function batchProcessWithSSE<T, R>(
           factor: 2,
           onFailedAttempt: (error) => {
             if (!isRateLimitError(error)) {
-              throw new AbortError(
+              throw new pRetry.AbortError(
                 error instanceof Error ? error : new Error(String(error))
               );
             }

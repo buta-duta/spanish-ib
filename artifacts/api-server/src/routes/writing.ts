@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { completeChat, type ChatMessage } from "@workspace/integrations-gemini-ai-server";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
@@ -21,6 +21,7 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
   speech: "discurso",
 };
 
+// ── Generate writing prompt ───────────────────────────────────────────────────
 router.post("/writing/prompt", async (req, res) => {
   const { theme = "experiencias", textType = "article", previousPrompts = [] } = req.body as {
     theme?: string;
@@ -36,10 +37,12 @@ router.post("/writing/prompt", async (req, res) => {
       : "";
 
   try {
-    const messages: ChatMessage[] = [
-      {
-        role: "system",
-        content: `Eres un examinador experto del IB Spanish B.
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `Eres un examinador experto del IB Spanish B.
 
 OBJETIVO:
 Generar una tarea de escritura realista al estilo IB.
@@ -55,14 +58,13 @@ REQUISITOS:
 - Situación: Realista, con propósito y audiencia clara.${avoidSection}
 
 Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
-      },
-    ];
-
-    const prompt = (await completeChat(messages, {
-      model: "pro",
+        },
+      ],
       temperature: 0.8,
-      maxOutputTokens: 500,
-    })).trim();
+      max_completion_tokens: 500,
+    });
+
+    const prompt = completion.choices[0]?.message?.content?.trim() ?? "";
     return res.json({ prompt });
   } catch (err) {
     console.error("writing/prompt error:", err);
@@ -70,6 +72,7 @@ Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
   }
 });
 
+// ── Evaluate writing + IB markscheme feedback ─────────────────────────────────
 router.post("/writing/feedback", async (req, res) => {
   const { prompt, essay, theme, textType } = req.body as {
     prompt: string;
@@ -103,8 +106,9 @@ IB Band descriptors:
 Convert total mark to IB grade:
 0–5: Band 1 | 6–8: Band 2 | 9–11: Band 3 | 12–14: Band 4 | 15–16: Band 5 | 17: Band 6 | 18: Band 7`;
 
-    const raw = await completeChat(
-      [
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
         {
           role: "system",
           content: `You are an experienced IB Spanish B examiner. Evaluate a student's written response using the official IB Spanish B markscheme.
@@ -153,16 +157,20 @@ Return a JSON object:
           content: `Task prompt:\n${prompt}\n\nStudent's essay:\n${essay}`,
         },
       ],
-      { model: "pro", temperature: 0.2, maxOutputTokens: 2048, json: true },
-    );
+      temperature: 0.2,
+      max_completion_tokens: 2048,
+      response_format: { type: "json_object" },
+    });
 
-    return res.json(JSON.parse(raw || "{}"));
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    return res.json(JSON.parse(raw));
   } catch (err) {
     console.error("writing/feedback error:", err);
     return res.status(500).json({ error: "Error al evaluar el texto." });
   }
 });
 
+// ── Rewrite essay at Band 7 ──────────────────────────────────────────────────
 router.post("/writing/rewrite", async (req, res) => {
   const { prompt, essay, textType } = req.body as {
     prompt: string;
@@ -173,12 +181,12 @@ router.post("/writing/rewrite", async (req, res) => {
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? "text";
 
   try {
-    const rewritten = (
-      await completeChat(
-        [
-          {
-            role: "system",
-            content: `You are an expert Spanish B writer. Rewrite the student's essay at a high IB Band 7 level for this course.
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert Spanish B writer. Rewrite the student's essay at a high IB Band 7 level for this course.
 
 Requirements:
 - Keep the SAME structure and main ideas as the original
@@ -189,15 +197,17 @@ Requirements:
 - Maintain cultural authenticity
 - Match the word count of the original (±10%)
 - Write ONLY the rewritten essay in Spanish. No preamble, no explanation.`,
-          },
-          {
-            role: "user",
-            content: `Task:\n${prompt}\n\nOriginal essay:\n${essay}`,
-          },
-        ],
-        { model: "pro", temperature: 0.5, maxOutputTokens: 1500 },
-      )
-    ).trim();
+        },
+        {
+          role: "user",
+          content: `Task:\n${prompt}\n\nOriginal essay:\n${essay}`,
+        },
+      ],
+      temperature: 0.5,
+      max_completion_tokens: 1500,
+    });
+
+    const rewritten = completion.choices[0]?.message?.content?.trim() ?? "";
     return res.json({ rewritten });
   } catch (err) {
     console.error("writing/rewrite error:", err);
