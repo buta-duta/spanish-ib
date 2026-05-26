@@ -54,21 +54,29 @@ async function buildAll() {
       !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
   );
 
-  await esbuild({
-    entryPoints: [path.resolve(__dirname, "src/index.ts")],
-    platform: "node",
+  const esbuildOpts = {
+    platform: "node" as const,
     bundle: true,
-    format: "esm",
-    outfile: path.resolve(distDir, "index.js"),
-    define: {
-      "process.env.NODE_ENV": '"production"',
-    },
+    format: "esm" as const,
+    define: { "process.env.NODE_ENV": '"production"' },
     minify: true,
     external: externals,
-    logLevel: "info",
+    logLevel: "info" as const,
     banner: {
       js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
     },
+  };
+
+  await esbuild({
+    ...esbuildOpts,
+    entryPoints: [path.resolve(__dirname, "src/index.ts")],
+    outfile: path.resolve(distDir, "index.js"),
+  });
+
+  await esbuild({
+    ...esbuildOpts,
+    entryPoints: [path.resolve(__dirname, "src/vercel.ts")],
+    outfile: path.resolve(distDir, "vercel.js"),
   });
 
   // Create a CJS shim for Render which still expects index.cjs

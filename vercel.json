@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "pnpm run build:vercel",
   "installCommand": "pnpm install",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "artifacts/api-server/dist/**"
+    }
+  },
   "rewrites": [
     { "source": "/", "destination": "/landing.html" },
     { "source": "/api/(.*)", "destination": "/api" },
