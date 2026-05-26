@@ -16,6 +16,10 @@ function normalizeHost(domain: string): string {
 }
 
 export function getApiUrl(): string {
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/`;
+  }
+
   const fromEnv = process.env.EXPO_PUBLIC_DOMAIN;
   if (fromEnv) {
     return `https://${normalizeHost(fromEnv)}/`;
@@ -24,10 +28,6 @@ export function getApiUrl(): string {
   const fromExtra = Constants.expoConfig?.extra?.apiDomain as string | undefined;
   if (fromExtra) {
     return `https://${normalizeHost(fromExtra)}/`;
-  }
-
-  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}/`;
   }
 
   if (Platform.OS === "web") {
