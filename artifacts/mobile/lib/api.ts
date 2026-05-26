@@ -114,7 +114,14 @@ export async function expoApiFetch(input: string, init?: RequestInit): Promise<R
   const token = await readToken();
   const headers = new Headers(init?.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await expoFetch(input, { ...init, headers });
+  const fetchInit: Record<string, unknown> = { headers };
+  if (init) {
+    for (const [key, value] of Object.entries(init)) {
+      if (key === "headers" || value == null) continue;
+      fetchInit[key] = value;
+    }
+  }
+  const res = await expoFetch(input, fetchInit as Parameters<typeof expoFetch>[1]);
   if (res.status === 401) {
     await clearStoredAuthToken();
     unauthorizedHandler?.();

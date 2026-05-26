@@ -55,10 +55,6 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const completedThemes = usedThemes.length;
-  const totalThemes = THEMES.length;
-  const progress = completedThemes / totalThemes;
-
   const handleStartExam = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push("/theme-select");

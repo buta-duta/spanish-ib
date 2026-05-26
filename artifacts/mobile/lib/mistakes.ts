@@ -47,16 +47,18 @@ export function mistakesFromListeningAnswers(
 
 export function mistakesFromWritingFeedback(feedback: {
   areasToImprove?: string[];
-  vocabularySuggestions?: Array<{ word?: string; suggestion?: string }>;
-  criterionA?: { corrections?: Array<{ error?: string; correction?: string }> };
+  vocabularySuggestions?: Array<{ original?: string; advanced?: string; word?: string; suggestion?: string }>;
+  criterionA?: {
+    corrections?: Array<{ error?: string; correction?: string; original?: string; corrected?: string }>;
+  };
 }): MistakeItem[] {
   const out: MistakeItem[] = [];
   for (const area of feedback.areasToImprove ?? []) {
     out.push({ id: mid(), category: "writing", description: area });
   }
   for (const v of feedback.vocabularySuggestions ?? []) {
-    const orig = (v as { original?: string; word?: string }).original ?? (v as { word?: string }).word;
-    const adv = (v as { advanced?: string; suggestion?: string }).advanced ?? (v as { suggestion?: string }).suggestion;
+    const orig = v.original ?? v.word;
+    const adv = v.advanced ?? v.suggestion;
     if (orig && adv) {
       out.push({
         id: mid(),
@@ -68,12 +70,14 @@ export function mistakesFromWritingFeedback(feedback: {
     }
   }
   for (const c of feedback.criterionA?.corrections ?? []) {
-    if (c.error) {
+    const err = c.error ?? c.original;
+    const fix = c.correction ?? c.corrected;
+    if (err) {
       out.push({
         id: mid(),
         category: "grammar",
-        description: c.error,
-        correction: c.correction,
+        description: err,
+        correction: fix,
       });
     }
   }
