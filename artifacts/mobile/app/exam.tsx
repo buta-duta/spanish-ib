@@ -286,7 +286,7 @@ export default function ExamScreen() {
       sessionTurn,
       messageCount: currentSession.messages.length,
     });
-  }, [currentSession, sessionTurn, progress.loaded, progress]);
+  }, [currentSession, sessionTurn, progress.loaded, progress.saveModuleSnapshot]);
 
   const themeData = selectedTheme || getThemeById("identidades")!;
   const themeColor = themeData.color;

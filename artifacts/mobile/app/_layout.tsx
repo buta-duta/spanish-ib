@@ -17,6 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PasswordGate } from "@/components/PasswordGate";
+import { ProgressGate } from "@/components/ProgressGate";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ExamProvider } from "@/contexts/ExamContext";
@@ -25,10 +26,6 @@ import { ProgressProvider } from "@/contexts/ProgressContext";
 
 SplashScreen.preventAutoHideAsync();
 
-// Configure the global audio session once at startup.
-// staysActiveInBackground keeps audio alive when the screen locks or user
-// switches apps. Must be set before any Sound is loaded — iOS locks the
-// session category on first use.
 if (Platform.OS !== "web") {
   Audio.setAudioModeAsync({
     staysActiveInBackground: true,
@@ -43,7 +40,17 @@ function AppShell() {
   const { ready, isUnlocked } = useAuth();
   if (!ready) return null;
   if (!isUnlocked) return <PasswordGate />;
-  return <RootLayoutNav />;
+  return (
+    <ProgressProvider>
+      <ExamProvider>
+        <FlashcardProvider>
+          <ProgressGate>
+            <RootLayoutNav />
+          </ProgressGate>
+        </FlashcardProvider>
+      </ExamProvider>
+    </ProgressProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -55,6 +62,10 @@ function RootLayoutNav() {
       <Stack.Screen name="summary" />
       <Stack.Screen name="history" />
       <Stack.Screen name="flashcards" />
+      <Stack.Screen name="listening" />
+      <Stack.Screen name="reading" />
+      <Stack.Screen name="writing" />
+      <Stack.Screen name="image-practice" />
     </Stack>
   );
 }

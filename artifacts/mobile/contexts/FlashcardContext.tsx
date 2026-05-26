@@ -1,15 +1,9 @@
 import React, { createContext, useContext } from "react";
 
 import { useProgress } from "@/contexts/ProgressContext";
+import type { Flashcard } from "@/types/userData";
 
-export type Flashcard = {
-  id: string;
-  word: string;
-  meaning: string;
-  phonetic: string;
-  partOfSpeech: string;
-  addedAt: number;
-};
+export type { Flashcard };
 
 type FlashcardContextType = {
   cards: Flashcard[];

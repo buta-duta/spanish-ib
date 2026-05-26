@@ -8,8 +8,7 @@ import React, {
   useState,
 } from "react";
 
-import type { ExamSession } from "@/contexts/ExamContext";
-import type { Flashcard } from "@/contexts/FlashcardContext";
+import type { ExamSession, Flashcard } from "@/types/userData";
 import { useAuth } from "@/contexts/AuthContext";
 import { localSessionSummary } from "@/lib/mistakes";
 import { apiFetch, getApiUrl } from "@/lib/api";

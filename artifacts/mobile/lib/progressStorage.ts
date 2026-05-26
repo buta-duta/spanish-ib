@@ -7,12 +7,22 @@ import { EMPTY_PROGRESS } from "@/types/progress";
 export const PROGRESS_STORAGE_KEY = "@ib_user_progress_v2";
 const LEGACY_FLASHCARDS_KEY = "@ib_spanish_flashcards_v1";
 
+function normalizeStore(parsed: Partial<UserProgressStore>): UserProgressStore {
+  return {
+    version: 2,
+    flashcards: Array.isArray(parsed.flashcards) ? parsed.flashcards : [],
+    examSessions: Array.isArray(parsed.examSessions) ? parsed.examSessions : [],
+    modules: parsed.modules && typeof parsed.modules === "object" ? parsed.modules : {},
+    sessionSummaries: Array.isArray(parsed.sessionSummaries) ? parsed.sessionSummaries : [],
+    weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas : [],
+  };
+}
+
 export async function loadProgressStore(): Promise<UserProgressStore> {
   try {
     const raw = await AsyncStorage.getItem(PROGRESS_STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as UserProgressStore;
-      return { ...EMPTY_PROGRESS, ...parsed, version: 2 };
+      return normalizeStore(JSON.parse(raw) as Partial<UserProgressStore>);
     }
   } catch (e) {
     console.error("loadProgressStore failed:", e);

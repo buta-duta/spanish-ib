@@ -18,17 +18,18 @@ export function useModulePersistence(
   const progress = useProgress();
   const weakPractice = useWeakPracticeMode();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshotKey = JSON.stringify(snapshotData);
 
   useEffect(() => {
     if (!progress.loaded || !enabled || phase === "setup") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void progress.saveModuleSnapshot(moduleId, phase, snapshotData);
+      void progress.saveModuleSnapshot(moduleId, phase, JSON.parse(snapshotKey) as Record<string, unknown>);
     }, 400);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [progress.loaded, enabled, moduleId, phase, snapshotData, progress]);
+  }, [progress.loaded, enabled, moduleId, phase, snapshotKey, progress.saveModuleSnapshot]);
 
   return {
     weakPractice,

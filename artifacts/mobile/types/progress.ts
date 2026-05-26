@@ -1,5 +1,4 @@
-import type { ExamSession } from "@/contexts/ExamContext";
-import type { Flashcard } from "@/contexts/FlashcardContext";
+import type { ExamSession, Flashcard } from "@/types/userData";
 
 export type ModuleId = "exam" | "listening" | "reading" | "writing" | "image";
 

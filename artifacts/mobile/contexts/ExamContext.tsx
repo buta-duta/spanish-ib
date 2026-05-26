@@ -7,24 +7,10 @@ import React, {
 } from "react";
 
 import { useProgress } from "@/contexts/ProgressContext";
+import type { ExamMessage, ExamSession } from "@/types/userData";
 
-export type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-};
-
-export type ExamSession = {
-  id: string;
-  themeId: string;
-  themeName: string;
-  level: "b" | "ab_initio";
-  messages: Message[];
-  startedAt: number;
-  completedAt?: number;
-  wasRepeated: boolean;
-};
+export type Message = ExamMessage;
+export type { ExamSession };
 
 let messageCounter = 0;
 export function generateMsgId(): string {
