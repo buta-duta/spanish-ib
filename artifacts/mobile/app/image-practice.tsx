@@ -26,7 +26,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { PRACTICE_IMAGES, type PracticeImage } from "@/constants/practiceImages";
 import { THEMES } from "@/constants/themes";
+import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { WeakAreaBanner } from "@/components/WeakAreaBanner";
+import { useProgress } from "@/contexts/ProgressContext";
+import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { mistakesFromImageFeedback } from "@/lib/mistakes";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "select" | "prep" | "exam" | "feedback";
@@ -328,6 +333,13 @@ export default function ImagePracticeScreen() {
   // ── Feedback (F32) ───────────────────────────────────────────────────────────
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const progress = useProgress();
+  const persistence = useModulePersistence(
+    "image",
+    phase,
+    { selectedThemeId, imageId: selectedImage?.id, messageCount: messages.length },
+    phase !== "select",
+  );
 
   // ── Image full-screen modal (F31) ────────────────────────────────────────────
   const [imgModalVisible, setImgModalVisible] = useState(false);
@@ -688,13 +700,19 @@ export default function ImagePracticeScreen() {
         }),
       });
       if (!res.ok) throw new Error("feedback failed");
-      setFeedback(await res.json());
+      const fb = (await res.json()) as FeedbackData;
+      setFeedback(fb);
+      void progress.completeSession({
+        module: "image",
+        mistakes: mistakesFromImageFeedback(fb),
+        clearSnapshot: true,
+      });
     } catch {
       setFeedback(null);
     } finally {
       setFeedbackLoading(false);
     }
-  }, [selectedImage, messages, feedbackLoading, level]);
+  }, [selectedImage, messages, feedbackLoading, level, progress]);
 
   // ── Exit with confirmation (F34) ──────────────────────────────────────────────
   const cleanupAudio = () => {
@@ -752,6 +770,17 @@ export default function ImagePracticeScreen() {
             <Text style={[sc.headerSub, { color: colors.textSecondary }]}>Elige un tema y luego una imagen</Text>
           </View>
           <View style={{ width: 44 }} />
+        </View>
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
+          <WeakAreaBanner
+            module="image"
+            weakAreas={persistence.weakAreas}
+            weakPractice={persistence.weakPractice}
+            colors={colors}
+            onPracticeWeak={() => router.push({ pathname: "/image-practice", params: { practiceWeak: "1" } })}
+          />
+          <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.themeTabs} style={sc.themeTabsScroll}>

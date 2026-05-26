@@ -6,6 +6,7 @@ import examRouter from "./exam";
 import listeningRouter from "./listening";
 import readingRouter from "./reading";
 import writingRouter from "./writing";
+import progressRouter from "./progress";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(examRouter);
 router.use(listeningRouter);
 router.use(readingRouter);
 router.use(writingRouter);
+router.use(progressRouter);
 
 export default router;

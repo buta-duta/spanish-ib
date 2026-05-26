@@ -25,6 +25,7 @@ import { apiFetch, expoApiFetch, getApiUrl } from "@/lib/api";
 import { getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
+import { useProgress } from "@/contexts/ProgressContext";
 import { WordModal, tokenizeText } from "@/components/WordModal";
 
 type RecordingState = "idle" | "recording" | "preview" | "processing";
@@ -247,6 +248,7 @@ export default function ExamScreen() {
   const colors = Colors[isDark ? "dark" : "light"];
   const { selectedTheme } = useIBTheme();
   const { currentSession, addMessage, endSession } = useExam();
+  const progress = useProgress();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -275,6 +277,16 @@ export default function ExamScreen() {
   const ringOpacity = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (!currentSession || !progress.loaded) return;
+    void progress.saveModuleSnapshot("exam", "exam", {
+      sessionId: currentSession.id,
+      themeId: currentSession.themeId,
+      sessionTurn,
+      messageCount: currentSession.messages.length,
+    });
+  }, [currentSession, sessionTurn, progress.loaded, progress]);
 
   const themeData = selectedTheme || getThemeById("identidades")!;
   const themeColor = themeData.color;

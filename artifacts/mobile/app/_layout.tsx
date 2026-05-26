@@ -21,6 +21,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ExamProvider } from "@/contexts/ExamContext";
 import { FlashcardProvider } from "@/contexts/FlashcardContext";
+import { ProgressProvider } from "@/contexts/ProgressContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -82,11 +83,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <ThemeProvider>
                 <AuthProvider>
-                  <ExamProvider>
-                    <FlashcardProvider>
-                      <AppShell />
-                    </FlashcardProvider>
-                  </ExamProvider>
+                  <AppShell />
                 </AuthProvider>
               </ThemeProvider>
             </KeyboardProvider>

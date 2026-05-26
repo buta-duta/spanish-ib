@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -18,7 +18,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
+import { ProgressManager } from "@/components/ProgressManager";
 import { useExam } from "@/contexts/ExamContext";
+import { useProgress } from "@/contexts/ProgressContext";
+import { MODULE_IDS, MODULE_LABELS, type ModuleId } from "@/types/progress";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -27,6 +30,8 @@ export default function HomeScreen() {
   const theme = Colors[isDark ? "dark" : "light"];
   const { usedThemes, selectedTheme } = useIBTheme();
   const { loadSessions, sessions } = useExam();
+  const progress = useProgress();
+  const [progressOpen, setProgressOpen] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -89,6 +94,25 @@ export default function HomeScreen() {
     router.push("/flashcards");
   };
 
+  const handleProgress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setProgressOpen(true);
+  };
+
+  const practiceWeak = (module: ModuleId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const paths: Record<ModuleId, string> = {
+      exam: "/theme-select",
+      listening: "/listening",
+      reading: "/reading",
+      writing: "/writing",
+      image: "/image-practice",
+    };
+    router.push({ pathname: paths[module] as any, params: { practiceWeak: "1" } });
+  };
+
+  const generalWeak = progress.getWeakAreas("general").slice(0, 4);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <LinearGradient
@@ -120,6 +144,19 @@ export default function HomeScreen() {
               </View>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
+                  onPress={handleProgress}
+                  style={({ pressed }) => [
+                    styles.headerBtn,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="stats-chart-outline" size={22} color={theme.tint} />
+                </Pressable>
+                <Pressable
                   onPress={handleFlashcards}
                   style={({ pressed }) => [
                     styles.headerBtn,
@@ -148,9 +185,30 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Section divider */}
+            {generalWeak.length > 0 ? (
+              <View style={[styles.weakCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.weakTitle, { color: theme.text }]}>Practice your weak areas</Text>
+                <Text style={[styles.weakSub, { color: theme.textSecondary }]}>
+                  Optional general review from all modules
+                </Text>
+                <View style={styles.weakRow}>
+                  {MODULE_IDS.map((id) => {
+                    const hasWeak = progress.getWeakAreas(id).length > 0;
+                    if (!hasWeak) return null;
+                    return (
+                      <Pressable
+                        key={id}
+                        onPress={() => practiceWeak(id)}
+                        style={[styles.weakChip, { borderColor: theme.tint, backgroundColor: theme.tint + "15" }]}
+                      >
+                        <Text style={[styles.weakChipText, { color: theme.tint }]}>{MODULE_LABELS[id]}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
 
-            {/* Section divider */}
             <View style={styles.sectionDivider}>
               <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
               <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
@@ -246,6 +304,19 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </Animated.View>
+
+      <ProgressManager
+        visible={progressOpen}
+        onClose={() => setProgressOpen(false)}
+        colors={{
+          background: theme.background,
+          card: theme.card,
+          text: theme.text,
+          textSecondary: theme.textSecondary,
+          border: theme.border,
+          tint: theme.tint,
+        }}
+      />
     </View>
   );
 }
@@ -377,6 +448,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 20,
   },
+  weakCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  weakTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  weakSub: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  weakRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  weakChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  weakChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   sectionDivider: {
     flexDirection: "row",
     alignItems: "center",

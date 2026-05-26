@@ -1,11 +1,12 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
 } from "react";
-import { SESSION_STORAGE_KEY } from "@/constants/themes";
+
+import { useProgress } from "@/contexts/ProgressContext";
 
 export type Message = {
   id: string;
@@ -45,19 +46,21 @@ type ExamContextType = {
 const ExamContext = createContext<ExamContextType | null>(null);
 
 export function ExamProvider({ children }: { children: React.ReactNode }) {
+  const progress = useProgress();
   const [currentSession, setCurrentSession] = useState<ExamSession | null>(null);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
 
-  const loadSessions = useCallback(async () => {
-    try {
-      const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-      if (stored) {
-        setSessions(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load sessions:", e);
+  useEffect(() => {
+    if (progress.loaded) {
+      setSessions(progress.examSessions);
     }
-  }, []);
+  }, [progress.loaded, progress.examSessions]);
+
+  const loadSessions = useCallback(async () => {
+    if (progress.loaded) {
+      setSessions(progress.examSessions);
+    }
+  }, [progress.loaded, progress.examSessions]);
 
   const startSession = useCallback(
     (themeId: string, themeName: string, wasRepeated: boolean, level: "b" | "ab_initio"): ExamSession => {
@@ -73,24 +76,21 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
       setCurrentSession(session);
       return session;
     },
-    []
+    [],
   );
 
-  const addMessage = useCallback(
-    (msg: Omit<Message, "id" | "timestamp">): Message => {
-      const message: Message = {
-        ...msg,
-        id: generateMsgId(),
-        timestamp: Date.now(),
-      };
-      setCurrentSession((prev) => {
-        if (!prev) return prev;
-        return { ...prev, messages: [...prev.messages, message] };
-      });
-      return message;
-    },
-    []
-  );
+  const addMessage = useCallback((msg: Omit<Message, "id" | "timestamp">): Message => {
+    const message: Message = {
+      ...msg,
+      id: generateMsgId(),
+      timestamp: Date.now(),
+    };
+    setCurrentSession((prev) => {
+      if (!prev) return prev;
+      return { ...prev, messages: [...prev.messages, message] };
+    });
+    return message;
+  }, []);
 
   const endSession = useCallback(async (): Promise<ExamSession | null> => {
     if (!currentSession) return null;
@@ -101,10 +101,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-      const existing: ExamSession[] = stored ? JSON.parse(stored) : [];
-      const updated = [completed, ...existing].slice(0, 50);
-      await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+      const updated = await progress.saveExamSession(completed);
       setSessions(updated);
     } catch (e) {
       console.error("Failed to save session:", e);
@@ -112,19 +109,19 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
     setCurrentSession(null);
     return completed;
-  }, [currentSession]);
+  }, [currentSession, progress]);
 
-  const deleteSession = useCallback(async (id: string) => {
-    try {
-      const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-      const existing: ExamSession[] = stored ? JSON.parse(stored) : [];
-      const updated = existing.filter((s) => s.id !== id);
-      await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
-      setSessions(updated);
-    } catch (e) {
-      console.error("Failed to delete session:", e);
-    }
-  }, []);
+  const deleteSession = useCallback(
+    async (id: string) => {
+      try {
+        await progress.deleteExamSession(id);
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+      } catch (e) {
+        console.error("Failed to delete session:", e);
+      }
+    },
+    [progress],
+  );
 
   const clearCurrentSession = useCallback(() => {
     setCurrentSession(null);

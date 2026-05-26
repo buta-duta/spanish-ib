@@ -21,8 +21,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WordModal } from "@/components/WordModal";
+import { useModulePersistence } from "@/hooks/useModulePersistence";
+import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { mistakesFromReadingAnswers } from "@/lib/mistakes";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
@@ -184,6 +189,21 @@ export default function ReadingScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
 
+  const persistence = useModulePersistence(
+    "reading",
+    phase,
+    {
+      inputMode,
+      selectedTheme,
+      selectedType,
+      readingTitle,
+      readingText,
+      numQuestions,
+      questionCount: questions.length,
+    },
+    phase !== "setup",
+  );
+
   // ── Handlers ────────────────────────────────────────────────────────────────
   const generateText = async () => {
     setGeneratingText(true);
@@ -191,7 +211,13 @@ export default function ReadingScreen() {
       const res = await apiFetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({
+          theme: selectedTheme,
+          textType: selectedType,
+          customFocus: persistence.weakPractice
+            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
+            : customFocus.trim() || undefined,
+        }),
       });
       const data = await res.json();
       setReadingTitle(data.title ?? "Texto de lectura");
@@ -366,6 +392,19 @@ export default function ReadingScreen() {
     return userAns === correctAns;
   }).length;
 
+  useSessionComplete(
+    "reading",
+    "review",
+    phase,
+    () =>
+      mistakesFromReadingAnswers(
+        questions.map((q) => ({ id: String(q.id), question: q.question, answer: q.answer })),
+        Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v])),
+      ),
+    () => ({ correct: correctCount, total: questions.length }),
+    [questions, answers, correctCount],
+  );
+
   // ── Render: Setup ──────────────────────────────────────────────────────────
   if (phase === "setup") {
     return (
@@ -391,6 +430,15 @@ export default function ReadingScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 20, gap: 16 }}
           showsVerticalScrollIndicator={false}
         >
+          <WeakAreaBanner
+            module="reading"
+            weakAreas={persistence.weakAreas}
+            weakPractice={persistence.weakPractice}
+            colors={colors}
+            onPracticeWeak={() => router.push({ pathname: "/reading", params: { practiceWeak: "1" } })}
+          />
+          <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
           {/* Mode toggle */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
             <Pressable

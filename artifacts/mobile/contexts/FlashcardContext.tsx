@@ -1,7 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext } from "react";
 
-const STORAGE_KEY = "@ib_spanish_flashcards_v1";
+import { useProgress } from "@/contexts/ProgressContext";
 
 export type Flashcard = {
   id: string;
@@ -23,52 +22,17 @@ type FlashcardContextType = {
 const FlashcardContext = createContext<FlashcardContextType | null>(null);
 
 export function FlashcardProvider({ children }: { children: React.ReactNode }) {
-  const [cards, setCards] = useState<Flashcard[]>([]);
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => { if (raw) setCards(JSON.parse(raw)); })
-      .catch(() => {});
-  }, []);
-
-  const persist = useCallback(async (next: Flashcard[]) => {
-    setCards(next);
-    try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-  }, []);
-
-  const addCard = useCallback(async (
-    word: string,
-    data: { meaning: string; phonetic: string; partOfSpeech: string }
-  ): Promise<"added" | "duplicate"> => {
-    const key = word.toLowerCase().trim();
-    const exists = cards.some((c) => c.word.toLowerCase() === key);
-    if (exists) return "duplicate";
-    const card: Flashcard = {
-      id: `fc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      word: word.trim(),
-      meaning: data.meaning,
-      phonetic: data.phonetic,
-      partOfSpeech: data.partOfSpeech,
-      addedAt: Date.now(),
-    };
-    await persist([card, ...cards]);
-    return "added";
-  }, [cards, persist]);
-
-  const removeCard = useCallback(async (id: string) => {
-    await persist(cards.filter((c) => c.id !== id));
-  }, [cards, persist]);
-
-  const clearAll = useCallback(async () => {
-    await persist([]);
-  }, [persist]);
-
-  const hasWord = useCallback((word: string) => {
-    return cards.some((c) => c.word.toLowerCase() === word.toLowerCase().trim());
-  }, [cards]);
-
+  const progress = useProgress();
   return (
-    <FlashcardContext.Provider value={{ cards, addCard, removeCard, clearAll, hasWord }}>
+    <FlashcardContext.Provider
+      value={{
+        cards: progress.flashcards,
+        addCard: progress.addFlashcard,
+        removeCard: progress.removeFlashcard,
+        clearAll: progress.clearFlashcards,
+        hasWord: progress.hasFlashcardWord,
+      }}
+    >
       {children}
     </FlashcardContext.Provider>
   );

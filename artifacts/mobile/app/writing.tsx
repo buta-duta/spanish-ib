@@ -18,8 +18,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WordModal, TappableText } from "@/components/WordModal";
+import { useModulePersistence } from "@/hooks/useModulePersistence";
+import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { mistakesFromWritingFeedback } from "@/lib/mistakes";
 
 const ACCENT = "#E67E22";
 const ACCENT_DARK = "#CA6F1E";
@@ -198,6 +203,23 @@ export default function WritingScreen() {
   const activePrompt = promptMode === "generate" ? generatedPrompt : customPrompt;
   const wc = wordCount(essay);
 
+  const persistence = useModulePersistence(
+    "writing",
+    phase,
+    { selectedTheme, selectedType, promptMode, essayLength: wc, hasFeedback: !!feedback },
+    phase !== "setup",
+  );
+
+  useSessionComplete(
+    "writing",
+    "feedback",
+    phase,
+    () => mistakesFromWritingFeedback(feedback!),
+    undefined,
+    [feedback],
+    !!feedback,
+  );
+
   // ── Handlers ────────────────────────────────────────────────────────────────
   const generatePrompt = async () => {
     setGeneratingPrompt(true);
@@ -209,6 +231,9 @@ export default function WritingScreen() {
           theme: selectedTheme,
           textType: selectedType,
           previousPrompts,
+          customFocus: persistence.weakPractice
+            ? persistence.weakAreas.map((w) => w.label).join(". ") || undefined
+            : undefined,
         }),
       });
       const data = await res.json();
@@ -339,6 +364,15 @@ export default function WritingScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 24, gap: 16 }}
           showsVerticalScrollIndicator={false}
         >
+          <WeakAreaBanner
+            module="writing"
+            weakAreas={persistence.weakAreas}
+            weakPractice={persistence.weakPractice}
+            colors={colors}
+            onPracticeWeak={() => router.push({ pathname: "/writing", params: { practiceWeak: "1" } })}
+          />
+          <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
           {/* Theme */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Tema IB</Text>

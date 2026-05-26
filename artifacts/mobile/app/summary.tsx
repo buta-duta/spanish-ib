@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -19,7 +19,9 @@ import Colors from "@/constants/colors";
 import { THEMES, getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type ExamSession } from "@/contexts/ExamContext";
+import { useProgress } from "@/contexts/ProgressContext";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { mistakesFromExamFeedback } from "@/lib/mistakes";
 
 type GrammarMistake = { error: string; correction: string; explanation: string };
 type CriterionScore = { band: number; label: string; comments: string };
@@ -90,6 +92,8 @@ export default function SummaryScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const { sessions, loadSessions } = useExam();
   const { usedThemes, getNextSuggestedTheme } = useIBTheme();
+  const progress = useProgress();
+  const examSummaryDone = useRef(false);
 
   const [session, setSession] = useState<ExamSession | null>(null);
   const [feedback, setFeedback] = useState<SessionFeedback | null>(null);
@@ -139,6 +143,14 @@ export default function SummaryScreen() {
       if (!response.ok) throw new Error("Feedback request failed");
       const { feedback: fb } = await response.json();
       setFeedback(fb);
+      if (!examSummaryDone.current) {
+        examSummaryDone.current = true;
+        void progress.completeSession({
+          module: "exam",
+          mistakes: mistakesFromExamFeedback(fb),
+          clearSnapshot: true,
+        });
+      }
     } catch {
       setFeedbackError(true);
     } finally {

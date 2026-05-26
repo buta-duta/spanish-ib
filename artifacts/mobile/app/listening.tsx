@@ -21,8 +21,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
+import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WordModal, TappableText } from "@/components/WordModal";
+import { useModulePersistence } from "@/hooks/useModulePersistence";
+import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { mistakesFromListeningAnswers } from "@/lib/mistakes";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "listening" | "questions" | "review";
@@ -119,6 +124,20 @@ export default function ListeningScreen() {
   const themeColor = selectedTheme.color;
   const typeColor = TYPE_COLORS[selectedType];
 
+  const persistence = useModulePersistence(
+    "listening",
+    phase,
+    {
+      selectedThemeId,
+      selectedType,
+      passageTitle,
+      passage,
+      numQuestions,
+      questionCount: questions.length,
+    },
+    phase !== "setup",
+  );
+
   // ── Generate passage ──────────────────────────────────────────────────────────
   const generatePassage = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -127,7 +146,13 @@ export default function ListeningScreen() {
       const res = await apiFetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
+        body: JSON.stringify({
+          theme: selectedThemeId,
+          passageType: selectedType,
+          customFocus: persistence.weakPractice
+            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
+            : customFocus.trim() || undefined,
+        }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
@@ -369,6 +394,15 @@ export default function ListeningScreen() {
   const correctCount = Object.values(answers).filter((a) => a.correct).length;
   const totalAnswered = Object.keys(answers).length;
 
+  useSessionComplete(
+    "listening",
+    "review",
+    phase,
+    () => mistakesFromListeningAnswers(questions, answers),
+    () => ({ correct: correctCount, total: questions.length }),
+    [questions, answers, correctCount],
+  );
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // SETUP PHASE
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -390,6 +424,15 @@ export default function ListeningScreen() {
         </View>
 
         <ScrollView contentContainerStyle={[s.setupContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false}>
+          <WeakAreaBanner
+            module="listening"
+            weakAreas={persistence.weakAreas}
+            weakPractice={persistence.weakPractice}
+            colors={colors}
+            onPracticeWeak={() => router.push({ pathname: "/listening", params: { practiceWeak: "1" } })}
+          />
+          <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
           {/* Theme selector */}
           <Text style={[s.sectionTitle, { color: colors.text }]}>Tema IB</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.themeRow}>
