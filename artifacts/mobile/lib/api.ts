@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { fetch as expoFetch } from "expo/fetch";
 import { Platform } from "react-native";
 
@@ -10,13 +11,29 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
 
-export function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) {
-    const host = domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-    return `https://${host}/`;
+function normalizeHost(domain: string): string {
+  return domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+}
+
+export function getApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_DOMAIN;
+  if (fromEnv) {
+    return `https://${normalizeHost(fromEnv)}/`;
   }
-  if (Platform.OS === "web") return "/";
+
+  const fromExtra = Constants.expoConfig?.extra?.apiDomain as string | undefined;
+  if (fromExtra) {
+    return `https://${normalizeHost(fromExtra)}/`;
+  }
+
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/`;
+  }
+
+  if (Platform.OS === "web") {
+    return "/";
+  }
+
   return "http://localhost:5000/";
 }
 
@@ -40,23 +57,40 @@ export async function clearStoredAuthToken() {
   await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+function connectionErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("Failed to fetch") || msg.includes("Network request failed")) {
+    return "Sin conexión al servidor. Comprueba tu internet o prueba otra red.";
+  }
+  if (msg.includes("AbortError") || msg.includes("aborted")) {
+    return "La conexión tardó demasiado. Inténtalo de nuevo.";
+  }
+  return "No se pudo conectar al servidor.";
+}
+
 export async function unlockSite(password: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const url = `${getApiUrl()}api/auth/unlock`;
   try {
-    const res = await globalThis.fetch(`${getApiUrl()}api/auth/unlock`, {
+    const res = await globalThis.fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      return { ok: false, error: body?.error || "Contraseña incorrecta." };
+      const serverMsg = body?.error as string | undefined;
+      if (res.status === 500 && serverMsg?.includes("not configured")) {
+        return { ok: false, error: "El servidor no tiene SITE_PASSWORD configurado." };
+      }
+      return { ok: false, error: serverMsg || "Contraseña incorrecta." };
     }
     const { token } = (await res.json()) as { token?: string };
     if (!token) return { ok: false, error: "Respuesta inválida del servidor." };
     await setStoredAuthToken(token);
     return { ok: true };
-  } catch {
-    return { ok: false, error: "No se pudo conectar al servidor." };
+  } catch (err) {
+    console.error("unlockSite failed:", url, err);
+    return { ok: false, error: connectionErrorMessage(err) };
   }
 }
 

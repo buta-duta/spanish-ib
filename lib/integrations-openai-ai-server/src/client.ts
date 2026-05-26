@@ -1,11 +1,24 @@
 import OpenAI from "openai";
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error(
-    "OPENAI_API_KEY must be set. Add it to your environment before starting the server.",
-  );
+let client: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!client) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "OPENAI_API_KEY must be set. Add it to your environment before starting the server.",
+      );
+    }
+    client = new OpenAI({ apiKey });
+  }
+  return client;
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+/** Lazy proxy so auth routes can load without OPENAI_API_KEY at cold start. */
+export const openai: OpenAI = new Proxy({} as OpenAI, {
+  get(_target, prop, receiver) {
+    const value = Reflect.get(getOpenAI(), prop, receiver);
+    return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(getOpenAI()) : value;
+  },
 });
