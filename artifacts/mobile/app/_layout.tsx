@@ -16,6 +16,8 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PasswordGate } from "@/components/PasswordGate";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ExamProvider } from "@/contexts/ExamContext";
 import { FlashcardProvider } from "@/contexts/FlashcardContext";
@@ -35,6 +37,13 @@ if (Platform.OS !== "web") {
 }
 
 const queryClient = new QueryClient();
+
+function AppShell() {
+  const { ready, isUnlocked } = useAuth();
+  if (!ready) return null;
+  if (!isUnlocked) return <PasswordGate />;
+  return <RootLayoutNav />;
+}
 
 function RootLayoutNav() {
   return (
@@ -72,11 +81,13 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <ThemeProvider>
-                <ExamProvider>
-                  <FlashcardProvider>
-                    <RootLayoutNav />
-                  </FlashcardProvider>
-                </ExamProvider>
+                <AuthProvider>
+                  <ExamProvider>
+                    <FlashcardProvider>
+                      <AppShell />
+                    </FlashcardProvider>
+                  </ExamProvider>
+                </AuthProvider>
               </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

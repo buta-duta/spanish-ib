@@ -22,17 +22,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { WordModal } from "@/components/WordModal";
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
 const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "reading" | "questions" | "review";
@@ -194,7 +188,7 @@ export default function ReadingScreen() {
   const generateText = async () => {
     setGeneratingText(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/reading/generate`, {
+      const res = await apiFetch(`${getApiUrl()}api/reading/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme: selectedTheme, textType: selectedType, customFocus: customFocus.trim() || undefined }),
@@ -227,7 +221,7 @@ export default function ReadingScreen() {
   const generateQuestions = async () => {
     setGeneratingQs(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/reading/questions`, {
+      const res = await apiFetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
@@ -312,7 +306,7 @@ export default function ReadingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTtsLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/exam/tts`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: readingText }),

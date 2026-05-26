@@ -18,6 +18,52 @@ export const openai = new OpenAI({
 
 export type AudioFormat = "wav" | "mp3" | "webm" | "mp4" | "ogg" | "unknown";
 
+/** Extensions accepted by OpenAI transcriptions API. */
+export type TranscribeFormat =
+  | "flac"
+  | "mp3"
+  | "mp4"
+  | "mpeg"
+  | "mpga"
+  | "m4a"
+  | "ogg"
+  | "wav"
+  | "webm";
+
+const TRANSCRIBE_FORMATS = new Set<TranscribeFormat>([
+  "flac",
+  "mp3",
+  "mp4",
+  "mpeg",
+  "mpga",
+  "m4a",
+  "ogg",
+  "wav",
+  "webm",
+]);
+
+function extensionFromFilename(filename?: string): TranscribeFormat | null {
+  if (!filename) return null;
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (!ext) return null;
+  if (ext === "caf") return "m4a";
+  if (TRANSCRIBE_FORMATS.has(ext as TranscribeFormat)) return ext as TranscribeFormat;
+  return null;
+}
+
+function formatFromDetection(detected: AudioFormat): TranscribeFormat | null {
+  if (detected === "wav") return "wav";
+  if (detected === "mp3") return "mp3";
+  if (detected === "mp4") return "m4a";
+  if (detected === "webm") return "webm";
+  if (detected === "ogg") return "ogg";
+  return null;
+}
+
+function canUseFfmpeg(): boolean {
+  return process.env.VERCEL !== "1" && !process.env.VERCEL_URL;
+}
+
 /**
  * Detect audio format from buffer magic bytes.
  * Supports: WAV, MP3, WebM (Chrome/Firefox), MP4/M4A/MOV (Safari/iOS), OGG
@@ -92,13 +138,27 @@ export async function convertToWav(audioBuffer: Buffer): Promise<Buffer> {
  * Auto-detect and convert audio to OpenAI-compatible format.
  */
 export async function ensureCompatibleFormat(
-  audioBuffer: Buffer
-): Promise<{ buffer: Buffer; format: "wav" | "mp3" }> {
+  audioBuffer: Buffer,
+  filenameHint?: string,
+): Promise<{ buffer: Buffer; format: TranscribeFormat }> {
   const detected = detectAudioFormat(audioBuffer);
-  if (detected === "wav") return { buffer: audioBuffer, format: "wav" };
-  if (detected === "mp3") return { buffer: audioBuffer, format: "mp3" };
-  const wavBuffer = await convertToWav(audioBuffer);
-  return { buffer: wavBuffer, format: "wav" };
+  const fromDetection = formatFromDetection(detected);
+  if (fromDetection) return { buffer: audioBuffer, format: fromDetection };
+
+  const fromName = extensionFromFilename(filenameHint);
+  if (fromName) return { buffer: audioBuffer, format: fromName };
+
+  // Vercel/serverless has no ffmpeg — pass iOS/Android recordings as m4a.
+  if (!canUseFfmpeg()) {
+    return { buffer: audioBuffer, format: "m4a" };
+  }
+
+  try {
+    const wavBuffer = await convertToWav(audioBuffer);
+    return { buffer: wavBuffer, format: "wav" };
+  } catch {
+    return { buffer: audioBuffer, format: "m4a" };
+  }
 }
 
 /** Voice Chat: audio-in, audio-out using gpt-audio. */
@@ -212,7 +272,7 @@ export async function textToSpeechStream(
 /** Speech-to-Text using gpt-4o-mini-transcribe. */
 export async function speechToText(
   audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
+  format: TranscribeFormat = "wav",
 ): Promise<string> {
   const file = await toFile(audioBuffer, `audio.${format}`);
   const response = await openai.audio.transcriptions.create({
@@ -225,7 +285,7 @@ export async function speechToText(
 /** Streaming Speech-to-Text. */
 export async function speechToTextStream(
   audioBuffer: Buffer,
-  format: "wav" | "mp3" | "webm" = "wav"
+  format: TranscribeFormat = "wav",
 ): Promise<AsyncIterable<string>> {
   const file = await toFile(audioBuffer, `audio.${format}`);
   const stream = await openai.audio.transcriptions.create({

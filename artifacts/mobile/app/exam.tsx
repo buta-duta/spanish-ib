@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { fetch as expoFetch } from "expo/fetch";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { apiFetch, expoApiFetch, getApiUrl } from "@/lib/api";
 import { getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
@@ -35,12 +35,30 @@ const audioCache = new Map<string, string>(); // msgId → base64 mp3
 
 const tokenizeMessage = tokenizeText;
 
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
+/** Speech-optimized preset — smaller uploads, works on Vercel body limits. */
+const SPEECH_RECORDING_OPTIONS = {
+  isMeteringEnabled: false,
+  android: {
+    extension: ".m4a",
+    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+    audioEncoder: Audio.AndroidAudioEncoder.AAC,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 96000,
+  },
+  ios: {
+    extension: ".m4a",
+    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+    audioQuality: Audio.IOSAudioQuality.MEDIUM,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 96000,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: Audio.RecordingOptionsPresets.LOW_QUALITY.web,
+} as const;
 
 // ─── Web audio helpers ────────────────────────────────────────────────────────
 
@@ -334,7 +352,7 @@ export default function ExamScreen() {
     try {
       const apiMessages = chatMessages.map((m) => ({ role: m.role, content: m.content }));
 
-      const response = await expoFetch(`${getApiUrl()}api/exam/chat`, {
+      const response = await expoApiFetch(`${getApiUrl()}api/exam/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip }),
@@ -460,7 +478,7 @@ export default function ExamScreen() {
 
       setIsTTSPlaying(true);
 
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/tts`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -561,7 +579,8 @@ export default function ExamScreen() {
       }
 
       const audioBase64 = await blobToBase64(blob);
-      await transcribeAndPreview(audioBase64);
+      const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      await transcribeAndPreview(audioBase64, `audio.${ext}`);
     } catch (err) {
       console.error("Web stop recording error:", err);
       setRecordingState("idle");
@@ -583,7 +602,7 @@ export default function ExamScreen() {
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, staysActiveInBackground: true });
 
       const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.prepareToRecordAsync(SPEECH_RECORDING_OPTIONS);
       await recording.startAsync();
       nativeRecordingRef.current = recording;
 
@@ -617,8 +636,9 @@ export default function ExamScreen() {
       const audioBase64 = await FileSystem.readAsStringAsync(uri, {
         encoding: "base64" as any,
       });
+      const ext = uri.split(".").pop() || "m4a";
 
-      await transcribeAndPreview(audioBase64);
+      await transcribeAndPreview(audioBase64, `audio.${ext}`);
     } catch (err: any) {
       console.error("Native stop recording error:", err);
       setRecordingState("idle");
@@ -628,17 +648,31 @@ export default function ExamScreen() {
 
   // ── Shared transcription step ─────────────────────────────────────────────────
 
-  const transcribeAndPreview = async (audioBase64: string) => {
+  const transcribeAndPreview = async (audioBase64: string, filename = "audio.m4a") => {
     try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/transcribe`, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
+
+      const res = await apiFetch(`${getApiUrl()}api/exam/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64 }),
+        body: JSON.stringify({ audioBase64, filename }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`Transcription failed: ${res.status} ${body}`);
+        let detail = "";
+        try {
+          const errJson = await res.json();
+          detail = errJson?.openai?.message || errJson?.error || "";
+        } catch {
+          detail = await res.text();
+        }
+        if (res.status === 413) {
+          throw new Error("La grabación es demasiado larga. Intenta una respuesta más corta.");
+        }
+        throw new Error(detail || `Error del servidor (${res.status})`);
       }
 
       const { text } = await res.json();
@@ -656,7 +690,14 @@ export default function ExamScreen() {
     } catch (err: any) {
       console.error("Transcription error:", err);
       setRecordingState("idle");
-      Alert.alert("Error de transcripción", "No se pudo convertir el audio a texto. Intenta de nuevo.");
+      const msg =
+        err?.name === "AbortError"
+          ? "La conexión tardó demasiado. Comprueba el WiFi o prueba datos móviles."
+          : err?.message?.includes("Network request failed") ||
+              err?.message?.includes("Failed to fetch")
+            ? "Sin conexión al servidor. En WiFi, asegúrate de tener internet y que la app esté actualizada."
+            : err?.message || "No se pudo convertir el audio a texto.";
+      Alert.alert("Error de transcripción", msg);
     }
   };
 

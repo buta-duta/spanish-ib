@@ -4,7 +4,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { fetch as expoFetch } from "expo/fetch";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -27,13 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { PRACTICE_IMAGES, type PracticeImage } from "@/constants/practiceImages";
 import { THEMES } from "@/constants/themes";
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "select" | "prep" | "exam" | "feedback";
@@ -440,7 +433,7 @@ export default function ImagePracticeScreen() {
       try {
         if (msgId && imgAudioCache.has(msgId)) { await playAudioBase64(imgAudioCache.get(msgId)!); return; }
         setIsTTSPlaying(true);
-        const res = await globalThis.fetch(`${getApiUrl()}api/exam/tts`, {
+        const res = await apiFetch(`${getApiUrl()}api/exam/tts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text }),
@@ -465,7 +458,7 @@ export default function ImagePracticeScreen() {
     setWordData(null);
     setWordLoading(true);
     try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/word`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/word`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ word, context: ctx }),
@@ -488,7 +481,7 @@ export default function ImagePracticeScreen() {
 
       try {
         const apiMessages = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-        const response = await fetch(`${getApiUrl()}api/exam/image-chat`, {
+        const response = await apiFetch(`${getApiUrl()}api/exam/image-chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -599,7 +592,9 @@ export default function ImagePracticeScreen() {
       setMicError(null);
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, staysActiveInBackground: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.LOW_QUALITY,
+      );
       nativeRecordingRef.current = recording;
       setRecordingState("recording");
     } catch { setMicError("No se pudo acceder al micrófono."); }
@@ -622,16 +617,32 @@ export default function ImagePracticeScreen() {
 
   const transcribeAndPreview = async (audioBase64: string, filename: string) => {
     try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/transcribe`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audioBase64, filename }),
       });
-      if (!res.ok) throw new Error("Transcription failed");
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const errJson = await res.json();
+          detail = errJson?.openai?.message || errJson?.error || "";
+        } catch {
+          detail = await res.text();
+        }
+        throw new Error(detail || `Error del servidor (${res.status})`);
+      }
       const { text } = await res.json();
       if (text?.trim()) { setTranscript(text.trim()); setRecordingState("preview"); }
       else setRecordingState("idle");
-    } catch { setRecordingState("idle"); }
+    } catch (err: any) {
+      setRecordingState("idle");
+      const msg =
+        err?.message?.includes("Network request failed") || err?.message?.includes("Failed to fetch")
+          ? "Sin conexión al servidor. Comprueba el WiFi o prueba datos móviles."
+          : err?.message || "No se pudo transcribir el audio.";
+      setMicError(msg);
+    }
   };
 
   const handleMicPress = () => {
@@ -666,7 +677,7 @@ export default function ImagePracticeScreen() {
     setFeedbackLoading(true);
     setPhase("feedback");
     try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/image-feedback`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/image-feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -16,17 +16,12 @@ import {
 
 import Colors from "@/constants/colors";
 import { useFlashcards } from "@/contexts/FlashcardContext";
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
 
 // Module-level caches — persist across screen renders
 export const wordExplainCache = new Map<string, WordInfo>();
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  return "http://localhost:80/";
-}
 
 // ── WordModal ─────────────────────────────────────────────────────────────────
 export function WordModal({
@@ -54,7 +49,7 @@ export function WordModal({
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }).start();
     const cached = wordExplainCache.get(word.toLowerCase());
     if (cached) { setData(cached); setLoading(false); return; }
-    globalThis.fetch(`${getApiUrl()}api/exam/word`, {
+    apiFetch(`${getApiUrl()}api/exam/word`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ word, context: context.slice(0, 300) }),
@@ -69,7 +64,7 @@ export function WordModal({
     if (ttsLoading) return;
     setTtsLoading(true);
     try {
-      const res = await globalThis.fetch(`${getApiUrl()}api/exam/tts`, {
+      const res = await apiFetch(`${getApiUrl()}api/exam/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: word }),

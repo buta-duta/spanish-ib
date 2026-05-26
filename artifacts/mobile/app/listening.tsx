@@ -22,13 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { WordModal, TappableText } from "@/components/WordModal";
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "listening" | "questions" | "review";
@@ -130,7 +124,7 @@ export default function ListeningScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setGeneratingPassage(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/listening/passage`, {
+      const res = await apiFetch(`${getApiUrl()}api/listening/passage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme: selectedThemeId, passageType: selectedType, customFocus: customFocus.trim() || undefined }),
@@ -158,7 +152,7 @@ export default function ListeningScreen() {
     if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current = null; }
     if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
     try {
-      const res = await fetch(`${getApiUrl()}api/listening/tts`, {
+      const res = await apiFetch(`${getApiUrl()}api/listening/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ passage: text }),
@@ -288,7 +282,7 @@ export default function ListeningScreen() {
     setCurrentQIndex(0);
     setCurrentAnswer("");
     try {
-      const res = await fetch(`${getApiUrl()}api/listening/questions`, {
+      const res = await apiFetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ passage, count: numQuestions }),
@@ -315,7 +309,7 @@ export default function ListeningScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCheckingAnswer(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/listening/check`, {
+      const res = await apiFetch(`${getApiUrl()}api/listening/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

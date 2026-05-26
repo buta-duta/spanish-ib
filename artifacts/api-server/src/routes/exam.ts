@@ -200,7 +200,7 @@ Use "sin embargo", "además", "por lo tanto"${rephraseInstruction}${skipInstruct
 });
 
 router.post("/exam/transcribe", async (req, res) => {
-  const { audioBase64 } = req.body;
+  const { audioBase64, filename } = req.body as { audioBase64?: string; filename?: string };
 
   if (!audioBase64) {
     res.status(400).json({ error: "Missing audioBase64" });
@@ -209,7 +209,12 @@ router.post("/exam/transcribe", async (req, res) => {
 
   try {
     const rawBuffer = Buffer.from(audioBase64, "base64");
-    const { buffer, format } = await ensureCompatibleFormat(rawBuffer);
+    if (rawBuffer.length > 24 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "Audio too large. Record a shorter answer (under ~2 minutes).",
+      });
+    }
+    const { buffer, format } = await ensureCompatibleFormat(rawBuffer, filename);
     const text = await speechToText(buffer, format);
     res.json({ text });
   } catch (error) {

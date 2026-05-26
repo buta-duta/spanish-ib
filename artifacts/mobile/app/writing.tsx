@@ -19,16 +19,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { WordModal, TappableText } from "@/components/WordModal";
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 const ACCENT = "#E67E22";
 const ACCENT_DARK = "#CA6F1E";
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "writing" | "feedback" | "rewrite";
@@ -208,7 +202,7 @@ export default function WritingScreen() {
   const generatePrompt = async () => {
     setGeneratingPrompt(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/writing/prompt`, {
+      const res = await apiFetch(`${getApiUrl()}api/writing/prompt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -242,7 +236,7 @@ export default function WritingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setGeneratingFeedback(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/writing/feedback`, {
+      const res = await apiFetch(`${getApiUrl()}api/writing/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -268,7 +262,7 @@ export default function WritingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setGeneratingRewrite(true);
     try {
-      const res = await fetch(`${getApiUrl()}api/writing/rewrite`, {
+      const res = await apiFetch(`${getApiUrl()}api/writing/rewrite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

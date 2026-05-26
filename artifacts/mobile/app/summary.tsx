@@ -19,6 +19,7 @@ import Colors from "@/constants/colors";
 import { THEMES, getThemeById } from "@/constants/themes";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type ExamSession } from "@/contexts/ExamContext";
+import { apiFetch, getApiUrl } from "@/lib/api";
 
 type GrammarMistake = { error: string; correction: string; explanation: string };
 type CriterionScore = { band: number; label: string; comments: string };
@@ -44,13 +45,6 @@ type SessionFeedback = {
   };
   improvedExamples: ImprovedExample[];
 };
-
-function getApiUrl() {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/`;
-  if (Platform.OS === "web") return "/";
-  return "http://localhost:5000/";
-}
 
 function BandBadge({ band }: { band: number }) {
   const color = band >= 6 ? "#52C97A" : band >= 4 ? "#C9A84C" : "#FF6B6B";
@@ -132,7 +126,7 @@ export default function SummaryScreen() {
     setFeedbackError(false);
 
     try {
-      const response = await globalThis.fetch(`${getApiUrl()}api/exam/feedback`, {
+      const response = await apiFetch(`${getApiUrl()}api/exam/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
+        "NSMicrophoneUsageDescription": "Necesitamos el micrófono para practicar el examen oral y transcribir tus respuestas.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -33,6 +34,12 @@
         "expo-router",
         {
           "origin": "https://replit.com/"
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Necesitamos el micrófono para practicar el examen oral y transcribir tus respuestas."
         }
       ],
       "expo-font",
