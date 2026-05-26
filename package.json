@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-
+    "dev:api": "pnpm --filter @workspace/api-server dev",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:vercel": "pnpm -r --filter !@workspace/mockup-sandbox --if-present run build",
     "typecheck:libs": "tsc --build",

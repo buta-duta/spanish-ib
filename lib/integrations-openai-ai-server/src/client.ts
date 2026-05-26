@@ -4,11 +4,9 @@ let client: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
   if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      throw new Error(
-        "OPENAI_API_KEY must be set. Add it to your environment before starting the server.",
-      );
+      throw new Error("OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.");
     }
     client = new OpenAI({ apiKey });
   }

@@ -16,7 +16,9 @@ router.post("/auth/unlock", (req, res) => {
     return res.json({ token: createSiteSessionToken() });
   } catch (err) {
     console.error("auth/unlock error:", err);
-    return res.status(500).json({ error: "SITE_PASSWORD no está configurado en el servidor." });
+    return res.status(500).json({
+      error: "SITE_PASSWORD no está configurado. Añádelo en .env (local) o en Vercel → Environment Variables.",
+    });
   }
 });
 

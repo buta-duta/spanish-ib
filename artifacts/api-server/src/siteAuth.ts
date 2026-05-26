@@ -1,13 +1,10 @@
 import crypto from "node:crypto";
+import { requireEnv } from "./env";
 
 const TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 function sitePassword(): string {
-  const value = process.env.SITE_PASSWORD;
-  if (!value) {
-    throw new Error("SITE_PASSWORD must be set in the environment.");
-  }
-  return value;
+  return requireEnv("SITE_PASSWORD");
 }
 
 export function verifySitePassword(password: string): boolean {
