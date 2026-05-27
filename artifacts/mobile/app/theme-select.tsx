@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useColorScheme,
 } from "react-native";
@@ -21,6 +22,8 @@ import { THEMES } from "@/constants/themes";
 import { EXAMINER_GUIDES } from "@/constants/examinerGuide";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam } from "@/contexts/ExamContext";
+import { useProgress } from "@/contexts/ProgressContext";
+import { draftToSession, isExamDraft, type ExamDraftSnapshot } from "@/lib/examDraft";
 
 // ── Examiner Guide Modal ──────────────────────────────────────────────────────
 
@@ -252,19 +255,25 @@ export default function ThemeSelectScreen() {
   const isDark = colorScheme === "dark";
   const colors = Colors[isDark ? "dark" : "light"];
   const { usedThemes, selectTheme, selectRandomTheme } = useIBTheme();
-  const { startSession } = useExam();
+  const { startSession, restoreSession } = useExam();
+  const progress = useProgress();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [guideThemeId, setGuideThemeId] = useState<string | null>(null);
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
   const [level, setLevel] = useState<"b">("b");
+  const [practiceFocus, setPracticeFocus] = useState("");
+
+  const examSnapData = progress.getModuleSnapshot("exam")?.data;
+  const examDraft: ExamDraftSnapshot | null =
+    progress.loaded && isExamDraft(examSnapData) ? examSnapData : null;
 
   const handleSelectTheme = async (themeId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const wasRepeated = usedThemes.includes(themeId);
     await selectTheme(themeId);
     const theme = THEMES.find((t) => t.id === themeId)!;
-    startSession(themeId, theme.name, wasRepeated, level);
+    startSession(themeId, theme.name, wasRepeated, level, practiceFocus);
     router.push("/exam");
   };
 
@@ -272,8 +281,20 @@ export default function ThemeSelectScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const theme = await selectRandomTheme();
     const wasRepeated = usedThemes.includes(theme.id);
-    startSession(theme.id, theme.name, wasRepeated, level);
+    startSession(theme.id, theme.name, wasRepeated, level, practiceFocus);
     router.push("/exam");
+  };
+
+  const handleContinueSession = async () => {
+    if (!examDraft) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await selectTheme(examDraft.themeId);
+    restoreSession(draftToSession(examDraft));
+    router.push({ pathname: "/exam", params: { resume: "1" } });
+  };
+
+  const handleDiscardDraft = () => {
+    void progress.clearModuleSnapshot("exam");
   };
 
   const remainingCount = THEMES.length - usedThemes.filter(t => t).length;
@@ -295,6 +316,52 @@ export default function ThemeSelectScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {examDraft && (
+          <View style={[styles.continueCard, { backgroundColor: colors.card, borderColor: colors.tint + "55" }]}>
+            <View style={styles.continueHeader}>
+              <Ionicons name="play-circle-outline" size={22} color={colors.tint} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.continueTitle, { color: colors.text }]}>Continuar sesión</Text>
+                <Text style={[styles.continueSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {examDraft.themeName} · {examDraft.messages.length} mensajes
+                </Text>
+              </View>
+            </View>
+            <View style={styles.continueActions}>
+              <Pressable
+                onPress={handleDiscardDraft}
+                style={({ pressed }) => [styles.continueDiscard, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Text style={[styles.continueDiscardText, { color: colors.textSecondary }]}>Descartar</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleContinueSession}
+                style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.9 : 1 }]}
+              >
+                <LinearGradient colors={[colors.tint, colors.tintDark]} style={styles.continueBtn}>
+                  <Text style={styles.continueBtnText}>Continuar</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        <View style={[styles.focusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.focusLabel, { color: colors.text }]}>Enfoque de práctica (opcional)</Text>
+          <Text style={[styles.focusHint, { color: colors.textSecondary }]}>
+            Ej.: subjuntivo, vocabulario, conectores…
+          </Text>
+          <TextInput
+            style={[styles.focusInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+            placeholder="¿Qué quieres practicar hoy?"
+            placeholderTextColor={colors.textSecondary}
+            value={practiceFocus}
+            onChangeText={setPracticeFocus}
+            multiline
+            maxLength={200}
+          />
+        </View>
+
         {/* Random button */}
         <Pressable onPress={handleRandom} style={({ pressed }) => [styles.randomBtn, { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
           <LinearGradient colors={[colors.tint, colors.tintDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.randomBtnGradient}>
@@ -355,6 +422,19 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40 },
+  continueCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16, gap: 12 },
+  continueHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  continueTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  continueSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  continueActions: { flexDirection: "row", gap: 10, alignItems: "center" },
+  continueDiscard: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  continueDiscardText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  continueBtn: { paddingVertical: 10, borderRadius: 10, alignItems: "center" },
+  continueBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  focusCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 20, gap: 6 },
+  focusLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  focusHint: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  focusInput: { marginTop: 6, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", minHeight: 44, maxHeight: 88 },
   randomBtn: { borderRadius: 16, overflow: "hidden", marginBottom: 24 },
   randomBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 18, paddingHorizontal: 20 },
   randomLeft: { flexDirection: "row", alignItems: "center", gap: 14 },

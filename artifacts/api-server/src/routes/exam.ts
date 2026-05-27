@@ -61,12 +61,62 @@ IMPORTANT INSTRUCTIONS:
 7. Use informal "tú" consistently for student interactions.
 8. Show authentic examiner personality: be professional but encouraging.
 9. Reference the theme in your questions naturally.
+10. ENGLISH WORDS: If the student uses an English word instead of Spanish, do NOT explain it in your main response — a separate feedback message handles that. Continue with your normal examiner reply in Spanish only.
 
 Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
 `;
 
+const PRACTICE_FOCUS_INSTRUCTION = (focus: string) => `
+STUDENT PRACTICE REQUEST (honour for the whole session):
+The student asked to focus on: "${focus}"
+- Acknowledge their request warmly in Spanish on your first reply if you have not yet done so.
+- Shape your questions and follow-ups to target this area while staying within the IB theme.
+- Keep questions natural for an oral exam; do not drill like a grammar worksheet unless they asked for explicit drills.
+`;
+
+router.post("/exam/english-feedback", async (req, res) => {
+  const { text, englishWords } = req.body as { text?: string; englishWords?: string[] };
+
+  if (!text?.trim() || !englishWords?.length) {
+    res.status(400).json({ error: "Missing text or englishWords" });
+    return;
+  }
+
+  const wordList = englishWords.slice(0, 5).join(", ");
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 200,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You help IB Spanish B students replace English words with natural Spanish. Reply in Spanish only. Be brief (2-3 sentences max). Start with 💡",
+        },
+        {
+          role: "user",
+          content: `The student said: "${text.slice(0, 500)}"
+English word(s) used: ${wordList}
+Explain how to say ${englishWords.length === 1 ? "that word" : "those words"} appropriately in Spanish in this context. Give the Spanish phrase(s) they should use.`,
+        },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (!content) {
+      res.status(500).json({ error: "Empty feedback" });
+      return;
+    }
+    res.json({ content: content.startsWith("💡") ? content : `💡 ${content}` });
+  } catch (error) {
+    console.error("English feedback error:", error);
+    return sendOpenAIError(res, error, "English feedback failed");
+  }
+});
+
 router.post("/exam/chat", async (req, res) => {
-  const { messages, theme, sessionTurn, regenerate, skip } = req.body;
+  const { messages, theme, sessionTurn, regenerate, skip, practiceFocus } = req.body;
 
   if (!theme || !messages) {
     res.status(400).json({ error: "Missing required fields" });
@@ -75,6 +125,11 @@ router.post("/exam/chat", async (req, res) => {
 
   const themeKey = theme.toLowerCase().replace(/\s+/g, "-");
   const themePrompt = THEME_DESCRIPTIONS[themeKey] || THEME_DESCRIPTIONS["identidades"];
+
+  const focusInstruction =
+    typeof practiceFocus === "string" && practiceFocus.trim()
+      ? PRACTICE_FOCUS_INSTRUCTION(practiceFocus.trim())
+      : "";
 
   const regenerateInstruction = regenerate
     ? `\n\nSPECIAL INSTRUCTION — REGENERATE QUESTION: The student has requested a different question.
@@ -92,7 +147,8 @@ router.post("/exam/chat", async (req, res) => {
 - Do not dwell on the skipped question.`
     : "";
 
-  const systemPrompt = themePrompt + BASE_INSTRUCTIONS + regenerateInstruction + skipInstruction;
+  const systemPrompt =
+    themePrompt + BASE_INSTRUCTIONS + focusInstruction + regenerateInstruction + skipInstruction;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");

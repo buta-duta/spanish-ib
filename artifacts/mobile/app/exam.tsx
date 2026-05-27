@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +27,8 @@ import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam, type Message, generateMsgId } from "@/contexts/ExamContext";
 import { useProgress } from "@/contexts/ProgressContext";
 import { WordModal, tokenizeText } from "@/components/WordModal";
+import { detectEnglishWords } from "@/lib/detectEnglish";
+import { draftToSession, isExamDraft, sessionToDraft } from "@/lib/examDraft";
 
 type RecordingState = "idle" | "recording" | "preview" | "processing";
 
@@ -151,14 +153,27 @@ function MessageBubble({
 }) {
   const colors = Colors[isDark ? "dark" : "light"];
   const isUser = message.role === "user";
+  const isEnglishTip = message.kind === "english-tip";
   const tokens = React.useMemo(() => tokenizeMessage(message.content), [message.content]);
 
   return (
     <View>
       <View style={[bubbleStyles.container, isUser ? bubbleStyles.userContainer : bubbleStyles.assistantContainer]}>
         {!isUser && (
-          <View style={[bubbleStyles.avatar, { backgroundColor: themeColor + "22", borderColor: themeColor + "44" }]}>
-            <Ionicons name="school-outline" size={14} color={themeColor} />
+          <View
+            style={[
+              bubbleStyles.avatar,
+              {
+                backgroundColor: isEnglishTip ? "#C9A84C22" : themeColor + "22",
+                borderColor: isEnglishTip ? "#C9A84C44" : themeColor + "44",
+              },
+            ]}
+          >
+            <Ionicons
+              name={isEnglishTip ? "bulb-outline" : "school-outline"}
+              size={14}
+              color={isEnglishTip ? "#C9A84C" : themeColor}
+            />
           </View>
         )}
         <View
@@ -166,6 +181,8 @@ function MessageBubble({
             bubbleStyles.bubble,
             isUser
               ? { backgroundColor: themeColor, borderBottomRightRadius: 4 }
+              : isEnglishTip
+              ? { backgroundColor: "#C9A84C18", borderColor: "#C9A84C50", borderWidth: 1, borderBottomLeftRadius: 4 }
               : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
             { maxWidth: "82%" },
           ]}
@@ -192,8 +209,8 @@ function MessageBubble({
           )}
         </View>
       </View>
-      {/* Replay button — shown on every AI message */}
-      {!isUser && (
+      {/* Replay button — examiner messages only (not English tips) */}
+      {!isUser && !isEnglishTip && (
         <Pressable
           onPress={onReplay}
           style={({ pressed }) => [bubbleStyles.replayRow, { opacity: pressed ? 0.5 : 1 }]}
@@ -202,7 +219,7 @@ function MessageBubble({
           <Text style={[bubbleStyles.replayText, { color: themeColor }]}>Reproducir otra vez</Text>
         </Pressable>
       )}
-      {!isUser && isLast && canRegenerate && (
+      {!isUser && !isEnglishTip && isLast && canRegenerate && (
         <View style={bubbleStyles.actionRow}>
           <Pressable
             onPress={onRegenerate}
@@ -246,8 +263,17 @@ export default function ExamScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const colors = Colors[isDark ? "dark" : "light"];
+  const { resume: resumeParam } = useLocalSearchParams<{ resume?: string }>();
+  const isResume = resumeParam === "1";
   const { selectedTheme } = useIBTheme();
-  const { currentSession, addMessage, endSession } = useExam();
+  const {
+    currentSession,
+    addMessage,
+    endSession,
+    restoreSession,
+    replaceMessages,
+    updateLastAssistantContent,
+  } = useExam();
   const progress = useProgress();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -277,16 +303,31 @@ export default function ExamScreen() {
   const ringOpacity = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const initializedRef = useRef(false);
+  const messagesRef = useRef<Message[]>([]);
+  const sessionTurnRef = useRef(0);
+  const sendLockRef = useRef(false);
+
+  const persistDraft = useCallback(() => {
+    if (!currentSession || !progress.loaded) return;
+    const draft = sessionToDraft(
+      { ...currentSession, messages: messagesRef.current },
+      sessionTurnRef.current,
+    );
+    void progress.saveModuleSnapshot("exam", "in-progress", draft as unknown as Record<string, unknown>);
+  }, [currentSession, progress.loaded, progress.saveModuleSnapshot]);
 
   useEffect(() => {
-    if (!currentSession || !progress.loaded) return;
-    void progress.saveModuleSnapshot("exam", "exam", {
-      sessionId: currentSession.id,
-      themeId: currentSession.themeId,
-      sessionTurn,
-      messageCount: currentSession.messages.length,
-    });
-  }, [currentSession, sessionTurn, progress.loaded, progress.saveModuleSnapshot]);
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    sessionTurnRef.current = sessionTurn;
+  }, [sessionTurn]);
+
+  useEffect(() => {
+    if (!currentSession || !progress.loaded || !initializedRef.current) return;
+    persistDraft();
+  }, [messages, sessionTurn, currentSession, progress.loaded, persistDraft]);
 
   const themeData = selectedTheme || getThemeById("identidades")!;
   const themeColor = themeData.color;
@@ -299,20 +340,6 @@ export default function ExamScreen() {
   const timeEstimate = Math.round(remaining * 1.5);
 
   useEffect(() => {
-    if (currentSession?.messages && !initializedRef.current) {
-      setMessages(currentSession.messages);
-      initializedRef.current = true;
-    }
-  }, [currentSession?.messages]);
-
-  useEffect(() => {
-    if (messages.length === 0 && !initializedRef.current) {
-      initializedRef.current = true;
-      sendToAI([]);
-    }
-  }, []);
-
-  useEffect(() => {
     return () => {
       if (silentHintTimerRef.current) clearTimeout(silentHintTimerRef.current);
       nativeSoundRef.current?.unloadAsync().catch(() => {});
@@ -322,8 +349,11 @@ export default function ExamScreen() {
         webAudioRef.current.pause();
         webAudioRef.current.src = "";
       }
+      if (messagesRef.current.length > 0) {
+        persistDraft();
+      }
     };
-  }, []);
+  }, [persistDraft]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -358,16 +388,27 @@ export default function ExamScreen() {
   // ── AI chat ──────────────────────────────────────────────────────────────────
 
   const sendToAI = async (chatMessages: Message[], regenerate = false, skip = false) => {
+    if (sendLockRef.current) return;
+    sendLockRef.current = true;
     setIsStreaming(true);
     setShowTyping(true);
 
     try {
-      const apiMessages = chatMessages.map((m) => ({ role: m.role, content: m.content }));
+      const apiMessages = chatMessages
+        .filter((m) => m.kind !== "english-tip")
+        .map((m) => ({ role: m.role, content: m.content }));
 
       const response = await expoApiFetch(`${getApiUrl()}api/exam/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ messages: apiMessages, theme: themeData.id, sessionTurn, regenerate, skip }),
+        body: JSON.stringify({
+          messages: apiMessages,
+          theme: themeData.id,
+          sessionTurn: sessionTurnRef.current,
+          regenerate,
+          skip,
+          practiceFocus: currentSession?.practiceFocus,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -398,14 +439,25 @@ export default function ExamScreen() {
               if (!assistantAdded) {
                 assistantMsgId = generateMsgId();
                 setShowTyping(false);
-                const newMsg: Message = { id: assistantMsgId, role: "assistant", content: fullContent, timestamp: Date.now() };
-                setMessages((prev) => [...prev, newMsg]);
-                addMessage({ role: "assistant", content: fullContent });
+                const newMsg: Message = {
+                  id: assistantMsgId,
+                  role: "assistant",
+                  content: fullContent,
+                  timestamp: Date.now(),
+                };
+                setMessages((prev) => {
+                  const next = [...prev, newMsg];
+                  messagesRef.current = next;
+                  return next;
+                });
+                addMessage({ id: assistantMsgId, role: "assistant", content: fullContent });
                 assistantAdded = true;
               } else {
                 setMessages((prev) => {
                   const updated = [...prev];
-                  updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullContent };
+                  const idx = updated.length - 1;
+                  updated[idx] = { ...updated[idx], content: fullContent };
+                  messagesRef.current = updated;
                   return updated;
                 });
               }
@@ -414,22 +466,75 @@ export default function ExamScreen() {
         }
       }
 
-      if (fullContent) playTTS(fullContent, assistantMsgId);
+      if (fullContent) {
+        updateLastAssistantContent(fullContent);
+        playTTS(fullContent, assistantMsgId);
+      }
     } catch {
       setShowTyping(false);
-      const errMsg: Message = { id: generateMsgId(), role: "assistant", content: "Lo siento, hubo un error. Por favor intenta de nuevo.", timestamp: Date.now() };
-      setMessages((prev) => [...prev, errMsg]);
+      const errMsg: Message = {
+        id: generateMsgId(),
+        role: "assistant",
+        content: "Lo siento, hubo un error. Por favor intenta de nuevo.",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => {
+        const next = [...prev, errMsg];
+        messagesRef.current = next;
+        return next;
+      });
+      addMessage({ id: errMsg.id, role: "assistant", content: errMsg.content });
     } finally {
+      sendLockRef.current = false;
       setIsStreaming(false);
       setShowTyping(false);
-      // Only count a turn when the student actually answered (has user messages),
-      // not on the initial AI greeting, not on regeneration, and not on skip (skip pre-increments manually)
       const hasUserMessage = chatMessages.some((m) => m.role === "user");
       if (hasUserMessage && !regenerate && !skip) {
-        setSessionTurn((prev) => prev + 1);
+        setSessionTurn((prev) => {
+          const next = prev + 1;
+          sessionTurnRef.current = next;
+          return next;
+        });
       }
+      persistDraft();
     }
   };
+
+  useEffect(() => {
+    if (!progress.loaded || initializedRef.current) return;
+
+    const snap = progress.getModuleSnapshot("exam");
+    if (isResume && isExamDraft(snap?.data)) {
+      const draft = snap.data;
+      const session = draftToSession(draft);
+      restoreSession(session);
+      setMessages(draft.messages);
+      messagesRef.current = draft.messages;
+      setSessionTurn(draft.sessionTurn);
+      sessionTurnRef.current = draft.sessionTurn;
+      initializedRef.current = true;
+      const last = draft.messages[draft.messages.length - 1];
+      if (last?.role === "user") {
+        void sendToAI(draft.messages);
+      }
+      return;
+    }
+
+    if (currentSession && currentSession.messages.length > 0) {
+      const turn =
+        currentSession.sessionTurn ??
+        currentSession.messages.filter((m) => m.role === "user" && m.kind !== "english-tip").length;
+      setMessages(currentSession.messages);
+      messagesRef.current = currentSession.messages;
+      setSessionTurn(turn);
+      sessionTurnRef.current = turn;
+      initializedRef.current = true;
+      return;
+    }
+
+    initializedRef.current = true;
+    void sendToAI([]);
+  }, [progress.loaded, isResume]);
 
   // ── TTS ───────────────────────────────────────────────────────────────────────
 
@@ -754,52 +859,89 @@ export default function ExamScreen() {
 
   const handleSendTranscript = async () => {
     const text = transcript.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || sendLockRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTranscript("");
     setRecordingState("idle");
 
-    const currentMessages = [...messages];
-    const userMsg: Message = { id: generateMsgId(), role: "user", content: text, timestamp: Date.now() };
-    setMessages((prev) => [...prev, userMsg]);
-    addMessage({ role: "user", content: text });
-    await sendToAI([...currentMessages, userMsg]);
+    const userMsg = addMessage({ role: "user", content: text });
+    const withUser = [...messagesRef.current, userMsg];
+    messagesRef.current = withUser;
+    setMessages(withUser);
+    persistDraft();
+
+    const englishWords = detectEnglishWords(text);
+    if (englishWords.length > 0) {
+      try {
+        const res = await apiFetch(`${getApiUrl()}api/exam/english-feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, englishWords }),
+        });
+        if (res.ok) {
+          const { content } = (await res.json()) as { content: string };
+          const tipMsg = addMessage({ role: "assistant", content, kind: "english-tip" });
+          const withTip = [...messagesRef.current, tipMsg];
+          messagesRef.current = withTip;
+          setMessages(withTip);
+          persistDraft();
+        }
+      } catch {
+        // Non-blocking — examiner reply still proceeds
+      }
+    }
+
+    await sendToAI(messagesRef.current);
   };
 
   const handleRegenerateQuestion = useCallback(async () => {
-    if (isStreaming) return;
+    if (isStreaming || sendLockRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const withoutLastAI = [...messages];
-    while (withoutLastAI.length > 0 && withoutLastAI[withoutLastAI.length - 1].role === "assistant") {
+    const withoutLastAI = [...messagesRef.current];
+    while (
+      withoutLastAI.length > 0 &&
+      withoutLastAI[withoutLastAI.length - 1].role === "assistant"
+    ) {
       withoutLastAI.pop();
     }
+    messagesRef.current = withoutLastAI;
     setMessages(withoutLastAI);
+    replaceMessages(withoutLastAI);
+    persistDraft();
     await sendToAI(withoutLastAI, true);
-  }, [messages, isStreaming]);
+  }, [isStreaming, persistDraft, replaceMessages]);
 
   const handleSkipQuestion = useCallback(async () => {
-    if (isStreaming) return;
+    if (isStreaming || sendLockRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Count this as a used turn then ask a fresh unrelated question
-    setSessionTurn((prev) => Math.min(prev + 1, TOTAL_TURNS));
-    // Send the skip signal only to the API — don't show it as a visible bubble
+    setSessionTurn((prev) => {
+      const next = Math.min(prev + 1, TOTAL_TURNS);
+      sessionTurnRef.current = next;
+      return next;
+    });
     const skipMsg: Message = {
       id: generateMsgId(),
       role: "user",
       content: "[El estudiante quiere saltar esta pregunta y continuar con otra diferente.]",
       timestamp: Date.now(),
     };
-    await sendToAI([...messages, skipMsg], false, true);
-  }, [messages, isStreaming]);
+    await sendToAI([...messagesRef.current, skipMsg], false, true);
+  }, [isStreaming]);
 
   const doNewSession = () => {
+    void progress.clearModuleSnapshot("exam");
+    messagesRef.current = [];
+    sessionTurnRef.current = 0;
     setMessages([]);
     setSessionTurn(0);
     setTranscript("");
     setRecordingState("idle");
     setMicError(null);
     initializedRef.current = false;
-    setTimeout(() => { initializedRef.current = true; sendToAI([]); }, 100);
+    setTimeout(() => {
+      initializedRef.current = true;
+      void sendToAI([]);
+    }, 100);
   };
 
   const doExit = async () => {
@@ -807,6 +949,7 @@ export default function ExamScreen() {
     nativeSoundRef.current?.unloadAsync().catch(() => {});
     webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
     if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
+    persistDraft();
     router.replace("/");
   };
 
@@ -833,6 +976,7 @@ export default function ExamScreen() {
     nativeRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
     webMediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
     if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current.src = ""; }
+    await progress.clearModuleSnapshot("exam");
     const session = await endSession();
     router.replace({ pathname: "/summary", params: { sessionId: session?.id } });
   };
@@ -846,7 +990,9 @@ export default function ExamScreen() {
     ]);
   };
 
-  const lastMsgIsAssistant = messages.length > 0 && messages[messages.length - 1].role === "assistant";
+  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+  const lastMsgIsAssistant =
+    lastMsg?.role === "assistant" && lastMsg.kind !== "english-tip";
   const canRegenerate = lastMsgIsAssistant && !isStreaming && recordingState === "idle";
 
   const handleReplayMessage = async (msgId: string, content: string) => {

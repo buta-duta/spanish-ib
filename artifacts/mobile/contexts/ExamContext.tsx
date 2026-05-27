@@ -21,8 +21,17 @@ export function generateMsgId(): string {
 type ExamContextType = {
   currentSession: ExamSession | null;
   sessions: ExamSession[];
-  startSession: (themeId: string, themeName: string, wasRepeated: boolean, level: "b" | "ab_initio") => ExamSession;
-  addMessage: (message: Omit<Message, "id" | "timestamp">) => Message;
+  startSession: (
+    themeId: string,
+    themeName: string,
+    wasRepeated: boolean,
+    level: "b" | "ab_initio",
+    practiceFocus?: string,
+  ) => ExamSession;
+  restoreSession: (session: ExamSession) => void;
+  addMessage: (message: Omit<Message, "id" | "timestamp"> & { id?: string }) => Message;
+  updateLastAssistantContent: (content: string) => void;
+  replaceMessages: (messages: Message[]) => void;
   endSession: () => Promise<ExamSession | null>;
   loadSessions: () => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
@@ -49,7 +58,14 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
   }, [progress.loaded, progress.examSessions]);
 
   const startSession = useCallback(
-    (themeId: string, themeName: string, wasRepeated: boolean, level: "b" | "ab_initio"): ExamSession => {
+    (
+      themeId: string,
+      themeName: string,
+      wasRepeated: boolean,
+      level: "b" | "ab_initio",
+      practiceFocus?: string,
+    ): ExamSession => {
+      const trimmed = practiceFocus?.trim();
       const session: ExamSession = {
         id: `session-${Date.now()}`,
         themeId,
@@ -58,6 +74,8 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         messages: [],
         startedAt: Date.now(),
         wasRepeated,
+        ...(trimmed ? { practiceFocus: trimmed } : {}),
+        sessionTurn: 0,
       };
       setCurrentSession(session);
       return session;
@@ -65,10 +83,14 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const addMessage = useCallback((msg: Omit<Message, "id" | "timestamp">): Message => {
+  const restoreSession = useCallback((session: ExamSession) => {
+    setCurrentSession(session);
+  }, []);
+
+  const addMessage = useCallback((msg: Omit<Message, "id" | "timestamp"> & { id?: string }): Message => {
     const message: Message = {
       ...msg,
-      id: generateMsgId(),
+      id: msg.id ?? generateMsgId(),
       timestamp: Date.now(),
     };
     setCurrentSession((prev) => {
@@ -76,6 +98,24 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
       return { ...prev, messages: [...prev.messages, message] };
     });
     return message;
+  }, []);
+
+  const updateLastAssistantContent = useCallback((content: string) => {
+    setCurrentSession((prev) => {
+      if (!prev || prev.messages.length === 0) return prev;
+      const msgs = [...prev.messages];
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === "assistant" && msgs[i].kind !== "english-tip") {
+          msgs[i] = { ...msgs[i], content };
+          break;
+        }
+      }
+      return { ...prev, messages: msgs };
+    });
+  }, []);
+
+  const replaceMessages = useCallback((messages: Message[]) => {
+    setCurrentSession((prev) => (prev ? { ...prev, messages } : prev));
   }, []);
 
   const endSession = useCallback(async (): Promise<ExamSession | null> => {
@@ -119,7 +159,10 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         currentSession,
         sessions,
         startSession,
+        restoreSession,
         addMessage,
+        updateLastAssistantContent,
+        replaceMessages,
         endSession,
         loadSessions,
         deleteSession,
