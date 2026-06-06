@@ -14,12 +14,12 @@ export function mistakesFromReadingAnswers(
   for (const q of questions) {
     const given = (answers[q.id] ?? "").trim().toLowerCase();
     const expected = q.answer.trim().toLowerCase();
-    if (!given || given === expected) continue;
+    if (given && given === expected) continue;
     out.push({
       id: mid(),
       category: "comprehension",
-      description: `Incorrect answer on: ${q.question.slice(0, 80)}`,
-      example: answers[q.id],
+      description: `${given ? "Misread" : "Sin responder"} (lectura): ${q.question.slice(0, 80)}`,
+      example: answers[q.id] || "(vacío)",
       correction: q.answer,
     });
   }
@@ -37,8 +37,8 @@ export function mistakesFromListeningAnswers(
     out.push({
       id: mid(),
       category: "listening",
-      description: a.feedback || `Wrong on: ${q.question.slice(0, 80)}`,
-      example: a.given,
+      description: `${a.given ? "Misheard" : "Sin responder"} (audio): ${(a.feedback || q.question).slice(0, 80)}`,
+      example: a.given || "(vacío)",
       correction: q.correctAnswer,
     });
   }

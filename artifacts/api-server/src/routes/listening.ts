@@ -3,6 +3,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
 import { sendOpenAIError } from "./openaiError";
+import { paperSchemaInstructions, gradePromptFor, type AiGradeItem } from "../lib/paper";
 
 const router: IRouter = Router();
 
@@ -289,6 +290,77 @@ Return ONLY valid JSON:
   } catch (error) {
     console.error("Answer check error:", error);
     return sendOpenAIError(res, error, "Answer check failed");
+  }
+});
+
+// ── Full IB listening exam paper: 3 audio texts (Texto A/B/C) ─────────────────
+router.post("/listening/paper", async (req, res) => {
+  const { theme, customFocus } = req.body;
+  const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
+  const themeName = THEME_NAMES[themeKey] || "Identidades";
+  const focusLine = customFocus?.trim()
+    ? `\n- Enfoque: incorpora de forma natural "${customFocus.trim()}"`
+    : "";
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_completion_tokens: 4000,
+      messages: [
+        {
+          role: "system",
+          content: `Eres un examinador del IB Spanish B (Prueba 1, Comprensión auditiva). Crea un examen completo de audio con TRES textos distintos (Texto A, B, C), cada uno con su transcripción para leer en voz alta y sus propios bloques de preguntas, imitando un examen real.
+
+Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}
+- Texto A: una conversación entre dos personas (usa "Nombre: texto" por turno).
+- Texto B: un programa de radio / entrevista (incluye un bloque cloze-max3 con el texto de un anuncio).
+- Texto C: un monólogo o testimonio personal.
+- Cada texto: 180-280 palabras habladas y 2-4 bloques de tipos DISTINTOS.
+- Usa SOBRE TODO opción múltiple (A/B/C), short-answer, cloze-max3 y choose-5-true (como el examen real de audio). NO uses heading-match ni referent.
+
+${paperSchemaInstructions("listening")}`,
+        },
+        { role: "user", content: `Genera el examen de audio sobre "${themeName}".` },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) { res.status(500).json({ error: "Empty response" }); return; }
+    const parsed = JSON.parse(content);
+    res.json({ texts: parsed.texts ?? [] });
+  } catch (error) {
+    console.error("Listening paper error:", error);
+    return sendOpenAIError(res, error, "Error al generar el examen de audio.");
+  }
+});
+
+// ── Batch grade free-text listening answers ───────────────────────────────────
+router.post("/listening/grade", async (req, res) => {
+  const { items } = req.body as { items: AiGradeItem[] };
+  if (!Array.isArray(items) || items.length === 0) {
+    res.json({ results: [] });
+    return;
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 1500,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: gradePromptFor("listening") },
+        { role: "user", content: JSON.stringify({ items }) },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content);
+    res.json({ results: parsed.results ?? [] });
+  } catch (error) {
+    console.error("Listening grade error:", error);
+    return sendOpenAIError(res, error, "Error al corregir las respuestas.");
   }
 });
 

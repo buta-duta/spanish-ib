@@ -36,9 +36,13 @@ type PromptMode = "generate" | "custom";
 type Correction = { original: string; corrected: string; explanation: string };
 type VocabSuggestion = { original: string; advanced: string; reason: string };
 type ModelRewrite = { original: string; improved: string; explanation: string };
+type AugmentedSegment = { text: string; kind: "original" | "added" };
+type CriteriaTableRow = { criterion: string; max: number; mark: number; band: string; descriptor: string };
+type TenseOpportunity = { excerpt: string; tense: string; suggestion: string };
 
 type CriterionResult = {
   mark: number;
+  band?: string;
   feedback: string;
   corrections?: Correction[];
 };
@@ -49,6 +53,9 @@ type FeedbackData = {
   criterionC: CriterionResult;
   totalMark: number;
   ibBand: number;
+  criteriaTable?: CriteriaTableRow[];
+  augmentedResponse?: AugmentedSegment[];
+  tenseOpportunities?: TenseOpportunity[];
   strengths: string[];
   areasToImprove: string[];
   vocabularySuggestions: VocabSuggestion[];
@@ -707,7 +714,7 @@ export default function WritingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.scoreLabel, { color: colors.textSecondary }]}>Puntuación total</Text>
                 <Text style={[s.scoreBig, { color: bc }]}>
-                  {feedback.totalMark}<Text style={s.scoreMax}>/18</Text>
+                  {feedback.totalMark}<Text style={s.scoreMax}>/30</Text>
                 </Text>
               </View>
               <View style={[s.bandBox, { backgroundColor: bc + "20", borderColor: bc + "50" }]}>
@@ -719,12 +726,11 @@ export default function WritingScreen() {
             {/* Mini criterion summary */}
             <View style={s.criteriaRow}>
               {[
-                { letter: "A", mark: feedback.criterionA.mark },
-                { letter: "B", mark: feedback.criterionB.mark },
-                { letter: "C", mark: feedback.criterionC.mark },
-              ].map(({ letter, mark }) => {
-                const max = 6;
-                const p = mark / max;
+                { letter: "A", mark: feedback.criterionA.mark, max: 12 },
+                { letter: "B", mark: feedback.criterionB.mark, max: 12 },
+                { letter: "C", mark: feedback.criterionC.mark, max: 6 },
+              ].map(({ letter, mark, max }) => {
+                const p = max > 0 ? mark / max : 0;
                 const c = p >= 0.75 ? "#27AE60" : p >= 0.5 ? ACCENT : "#E74C3C";
                 return (
                   <View key={letter} style={[s.miniCriterion, { backgroundColor: c + "15" }]}>
@@ -736,12 +742,69 @@ export default function WritingScreen() {
             </View>
           </View>
 
+          {/* Markscheme table */}
+          {feedback.criteriaTable && feedback.criteriaTable.length > 0 && (
+            <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={s.sectionHeaderRow}>
+                <Ionicons name="grid-outline" size={16} color={ACCENT} />
+                <Text style={[s.sectionTitle, { color: colors.text }]}>Markscheme (/30)</Text>
+              </View>
+              <View style={[s.tableHeadRow, { borderBottomColor: colors.border }]}>
+                <Text style={[s.tableHeadCell, { color: colors.textSecondary, flex: 2.4 }]}>Criterio</Text>
+                <Text style={[s.tableHeadCell, { color: colors.textSecondary, flex: 1, textAlign: "center" }]}>Banda</Text>
+                <Text style={[s.tableHeadCell, { color: colors.textSecondary, flex: 1, textAlign: "right" }]}>Nota</Text>
+              </View>
+              {feedback.criteriaTable.map((row, i) => {
+                const p = row.max > 0 ? row.mark / row.max : 0;
+                const c = p >= 0.75 ? "#27AE60" : p >= 0.5 ? ACCENT : "#E74C3C";
+                return (
+                  <View key={i} style={[s.tableRow, { borderBottomColor: colors.border }]}>
+                    <View style={{ flex: 2.4 }}>
+                      <Text style={[s.tableCellStrong, { color: colors.text }]}>{row.criterion}</Text>
+                      <Text style={[s.tableDescriptor, { color: colors.textSecondary }]}>{row.descriptor}</Text>
+                    </View>
+                    <Text style={[s.tableCell, { color: colors.text, flex: 1, textAlign: "center" }]}>{row.band}</Text>
+                    <Text style={[s.tableCellStrong, { color: c, flex: 1, textAlign: "right" }]}>{row.mark}/{row.max}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Augmented response with missing parts highlighted */}
+          {feedback.augmentedResponse && feedback.augmentedResponse.length > 0 && (
+            <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={s.sectionHeaderRow}>
+                <Ionicons name="color-wand-outline" size={16} color={ACCENT} />
+                <Text style={[s.sectionTitle, { color: colors.text }]}>Tu texto + lo que faltaba</Text>
+              </View>
+              <Text style={[s.augLegend, { color: colors.textSecondary }]}>
+                Texto plano = tu respuesta · <Text style={{ color: ACCENT, fontFamily: "Inter_700Bold" }}>texto dorado</Text> = añadido para alcanzar la nota máxima
+              </Text>
+              <Text style={[s.augBody, { color: colors.text }]}>
+                {feedback.augmentedResponse.map((seg, i) => (
+                  <Text
+                    key={i}
+                    style={
+                      seg.kind === "added"
+                        ? { color: ACCENT, fontFamily: "Inter_600SemiBold" }
+                        : { color: colors.text }
+                    }
+                  >
+                    {seg.text}
+                    {" "}
+                  </Text>
+                ))}
+              </Text>
+            </View>
+          )}
+
           {/* Criterion A */}
           <CriterionCard
-            label="Criterion A: Language"
+            label="Criterio A: Lengua"
             letter="A"
             mark={feedback.criterionA.mark}
-            maxMark={6}
+            maxMark={12}
             feedback={feedback.criterionA.feedback}
             corrections={feedback.criterionA.corrections}
             colors={colors}
@@ -749,23 +812,42 @@ export default function WritingScreen() {
 
           {/* Criterion B */}
           <CriterionCard
-            label="Criterion B: Message"
+            label="Criterio B: Mensaje"
             letter="B"
             mark={feedback.criterionB.mark}
-            maxMark={6}
+            maxMark={12}
             feedback={feedback.criterionB.feedback}
             colors={colors}
           />
 
           {/* Criterion C */}
           <CriterionCard
-            label="Criterion C: Conceptual Understanding"
+            label="Criterio C: Comprensión conceptual"
             letter="C"
             mark={feedback.criterionC.mark}
             maxMark={6}
             feedback={feedback.criterionC.feedback}
             colors={colors}
           />
+
+          {/* Tense opportunities */}
+          {feedback.tenseOpportunities && feedback.tenseOpportunities.length > 0 && (
+            <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={s.sectionHeaderRow}>
+                <Ionicons name="time-outline" size={16} color={ACCENT} />
+                <Text style={[s.sectionTitle, { color: colors.text }]}>Tiempos verbales que pudiste usar</Text>
+              </View>
+              {feedback.tenseOpportunities.map((t, i) => (
+                <View key={i} style={[s.tenseRow, { borderColor: colors.border, backgroundColor: colors.cardAlt }]}>
+                  <View style={[s.tenseChip, { backgroundColor: ACCENT + "22" }]}>
+                    <Text style={[s.tenseChipText, { color: ACCENT }]}>{t.tense}</Text>
+                  </View>
+                  {!!t.excerpt && <Text style={[s.tenseExcerpt, { color: colors.textSecondary }]}>“{t.excerpt}”</Text>}
+                  <Text style={[s.tenseSuggestion, { color: colors.text }]}>{t.suggestion}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Strengths */}
           {feedback.strengths?.length > 0 && (
@@ -1034,5 +1116,18 @@ const s = StyleSheet.create({
   glossaryHintText: { flex: 1, fontSize: 11, fontFamily: "Inter_500Medium" },
   rewriteFullCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
   rewriteFullText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 28 },
+  tableHeadRow: { flexDirection: "row", paddingBottom: 6, borderBottomWidth: 1, marginTop: 4 },
+  tableHeadCell: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.5 },
+  tableRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 10, borderBottomWidth: 1 },
+  tableCell: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  tableCellStrong: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  tableDescriptor: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16, marginTop: 2 },
+  augLegend: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 4 },
+  augBody: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 26 },
+  tenseRow: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 6 },
+  tenseChip: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  tenseChipText: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  tenseExcerpt: { fontSize: 13, fontFamily: "Inter_400Regular", fontStyle: "italic", lineHeight: 19 },
+  tenseSuggestion: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
   wcInfo: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "right", marginTop: 6 },
 });

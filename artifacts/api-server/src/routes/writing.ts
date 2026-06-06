@@ -34,7 +34,7 @@ router.post("/writing/prompt", async (req, res) => {
   const typeName = TEXT_TYPE_NAMES[textType] ?? textType;
   const avoidSection =
     previousPrompts.length > 0
-      ? `\n\nDo NOT use these previous prompts:\n${previousPrompts.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
+      ? `\n\nNO repitas estas preguntas anteriores:\n${previousPrompts.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
       : "";
 
   try {
@@ -43,22 +43,24 @@ router.post("/writing/prompt", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Eres un examinador experto del IB Spanish B.
+          content: `Eres un examinador experto del IB Spanish B (Prueba 1, Expresión escrita, Nivel Medio).
 
 OBJETIVO:
-Generar una tarea de escritura realista al estilo IB.
+Generar UNA tarea de escritura realista al estilo del examen oficial.
 
-!!! IB CRITERION A - SPANISH B (TOPIC VOCABULARY) !!!
-- NIVEL: B1-B2.
-- VOCABULARIO TEMÁTICO: Use vocabulario específico y avanzado relacionado con ${themeName}.
-- RIQUEZA: Use expresiones idiomáticas y estructuras complejas.
+FORMATO EXACTO (como en las tareas oficiales):
+1) Un breve párrafo introductorio que contextualice la situación (1-2 frases), igual que en los ejemplos del examen (p. ej. "Miles de turistas visitan los monumentos históricos de tu ciudad cada año, y como consecuencia...").
+2) La instrucción de la tarea con DOS aspectos claros que el alumno debe abordar (p. ej. "describe..." y "explica...").
+3) Indica el destinatario y el propósito.
+4) Ofrece TRES opciones de tipo de texto entre las que elegir, presentadas en líneas separadas.
 
 REQUISITOS:
-- Tarea: Escribir un/a ${typeName}
-- Tema: ${themeName}
-- Situación: Realista, con propósito y audiencia clara.${avoidSection}
+- Nivel: B1-B2.
+- Tema: ${themeName}.
+- Tipo de texto sugerido como una de las opciones: ${typeName}.
+- Vocabulario temático específico relacionado con ${themeName}.${avoidSection}
 
-Devuelve ÚNICAMENTE el texto de la pregunta en español.`,
+Devuelve ÚNICAMENTE el texto de la pregunta en español (párrafo introductorio + instrucción + destinatario + las tres opciones de tipo de texto).`,
         },
       ],
       temperature: 0.8,
@@ -90,53 +92,64 @@ router.post("/writing/feedback", async (req, res) => {
   const typeName = TEXT_TYPE_NAMES[textType ?? ""] ?? textType ?? "text";
 
   try {
-    const criteriaText = `IB Markscheme criteria (each scored /6):
-- Criterion A: Language — grammar accuracy, tense usage, vocabulary range, syntax variety
-- Criterion B: Message — clarity, organization, development of ideas, coherence
-- Criterion C: Conceptual understanding — relevance to theme, appropriateness to text type, cultural awareness
+    const criteriaText = `OFFICIAL IB Spanish B SL Paper 1 markscheme (total 30):
+- Criterio A: Lengua — /12 (vocabulario adecuado y variado; estructuras gramaticales básicas y complejas; corrección lingüística que contribuye a la comunicación).
+  Bandas: 0 (nada) | 1-3 limitado | 4-6 parcialmente eficaz | 7-9 eficaz y mayormente correcto | 10-12 muy eficaz, vocabulario variado con expresiones idiomáticas.
+- Criterio B: Mensaje — /12 (pertinencia, desarrollo y organización de las ideas).
+  Bandas: 0 | 1-3 cumplida parcialmente | 4-6 cumplida en general | 7-9 cumplida | 10-12 cumplida de forma eficaz.
+  REGLA: si NO se aborda alguno de los aspectos requeridos en la tarea, el máximo en B es 6.
+- Criterio C: Comprensión conceptual — /6 (tipo de texto, registro/tono y convenciones del tipo de texto).
+  Bandas: 0 | 1-2 limitada | 3-4 mayormente demostrada | 5-6 plenamente demostrada.
+  REGLA: si el tipo de texto no corresponde a la tarea, el máximo en C es 2.
 
-IB Band descriptors:
-- 1–2: Very limited, many errors, little coherence
-- 3–4: Basic, some errors, limited development
-- 5–6: Adequate, mostly accurate, adequate ideas
-- 7–9: Good, accurate, well-organized, some sophistication
-- 10–12: Very good, accurate, well-developed, varied vocabulary
-- 13–15: Excellent, sophisticated, precise, rich vocabulary
-- 16–18: Outstanding, near-native, highly sophisticated
-
-Convert total mark to IB grade:
-0–5: Band 1 | 6–8: Band 2 | 9–11: Band 3 | 12–14: Band 4 | 15–16: Band 5 | 17: Band 6 | 18: Band 7`;
+Total = A + B + C (sobre 30). Recuerda: es nivel intermedio, no exijas perfección.
+Conversión orientativa a banda IB (1-7) según el total /30: 0-6 → 1 | 7-11 → 2 | 12-16 → 3 | 17-20 → 4 | 21-24 → 5 | 25-27 → 6 | 28-30 → 7.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are an experienced IB Spanish B examiner. Evaluate a student's written response using the official IB Spanish B markscheme.
+          content: `You are an experienced IB Spanish B examiner (SL Paper 1). Evaluate the student's written response using the official markscheme below.
 
 The task required a ${typeName} related to the theme "${themeName}".
 
 ${criteriaText}
 
-Return a JSON object:
+Return ONLY a valid JSON object:
 {
   "criterionA": {
-    "mark": <0-6>,
-    "feedback": "Detailed feedback in English on grammar, tense, vocabulary.",
+    "mark": <0-12>,
+    "band": "1-3" | "4-6" | "7-9" | "10-12" | "0",
+    "feedback": "Detailed feedback in English on vocabulary range, grammatical structures and accuracy.",
     "corrections": [
       {"original": "exact phrase from student's text", "corrected": "corrected version", "explanation": "Brief explanation in English"}
     ]
   },
   "criterionB": {
-    "mark": <0-6>,
-    "feedback": "Detailed feedback in English on message clarity and organization."
+    "mark": <0-12>,
+    "band": "1-3" | "4-6" | "7-9" | "10-12" | "0",
+    "feedback": "Detailed feedback in English on relevance, development and organization of ideas."
   },
   "criterionC": {
     "mark": <0-6>,
-    "feedback": "Detailed feedback in English on theme relevance and text type appropriateness."
+    "band": "1-2" | "3-4" | "5-6" | "0",
+    "feedback": "Detailed feedback in English on text type choice, register/tone and conventions."
   },
-  "totalMark": <sum of A+B+C>,
+  "totalMark": <sum A+B+C, 0-30>,
   "ibBand": <1-7>,
+  "criteriaTable": [
+    {"criterion": "A: Lengua", "max": 12, "mark": <0-12>, "band": "<range>", "descriptor": "Spanish descriptor of the achieved band"},
+    {"criterion": "B: Mensaje", "max": 12, "mark": <0-12>, "band": "<range>", "descriptor": "Spanish descriptor of the achieved band"},
+    {"criterion": "C: Comprensión conceptual", "max": 6, "mark": <0-6>, "band": "<range>", "descriptor": "Spanish descriptor of the achieved band"}
+  ],
+  "augmentedResponse": [
+    {"text": "fragment exactly as the student wrote it", "kind": "original"},
+    {"text": "text the student is MISSING to reach full marks (additions/expansions, in Spanish, inserted at the right place)", "kind": "added"}
+  ],
+  "tenseOpportunities": [
+    {"excerpt": "short quote from the student's text", "tense": "e.g. subjuntivo / condicional / pretérito imperfecto / futuro", "suggestion": "In Spanish: where and how they could have used this tense for a higher Criterion A mark"}
+  ],
   "strengths": ["Specific strength 1", "Specific strength 2"],
   "areasToImprove": ["Specific improvement area 1", "Specific improvement area 2"],
   "vocabularySuggestions": [
@@ -144,14 +157,17 @@ Return a JSON object:
   ],
   "connectorSuggestions": ["connector1", "connector2", "connector3"],
   "modelRewrites": [
-    {"original": "Exact sentence from the student's essay", "improved": "Rewritten at Band 6-7 level in Spanish", "explanation": "What was improved"}
+    {"original": "Exact sentence from the student's essay", "improved": "Rewritten at top-band level in Spanish", "explanation": "What was improved"}
   ]
 }
 
-- corrections: provide 3-5 major primary grammar corrections
-- vocabularySuggestions: provide 3-5 sophisticated B2 synonyms for basic words they used
-- modelRewrites: rewrite 2 sentences using advanced B2-C1 structures and topic vocabulary
-- Return ONLY valid JSON`,
+REQUIREMENTS:
+- augmentedResponse: reconstruct the student's ENTIRE text in order as a sequence of segments. Keep the student's own words verbatim as "original" segments, and insert the content they are MISSING to reach full marks as "added" segments in the correct positions (these are the parts that, if added, would raise the mark). The concatenation of all "text" fields must read as an improved version of the essay.
+- tenseOpportunities: 2-4 concrete moments where the student could have used a richer verb tense expected of a Spanish B student.
+- corrections: 3-5 major grammar corrections.
+- vocabularySuggestions: 3-5 sophisticated B2 synonyms.
+- modelRewrites: rewrite 2 sentences at the top band.
+- Return ONLY valid JSON.`,
         },
         {
           role: "user",
@@ -159,7 +175,7 @@ Return a JSON object:
         },
       ],
       temperature: 0.2,
-      max_completion_tokens: 2048,
+      max_completion_tokens: 3000,
       response_format: { type: "json_object" },
     });
 

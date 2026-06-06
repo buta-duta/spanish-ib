@@ -28,14 +28,24 @@ import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
 import { mistakesFromReadingAnswers } from "@/lib/mistakes";
+import { PaperView } from "@/components/PaperView";
+import {
+  collectAiGradeItems,
+  gradePaper,
+  mistakesFromPaper,
+  type FieldResult,
+  type GradeMap,
+  type Paper,
+} from "@/lib/paper";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
 const QUESTION_COUNT_OPTIONS = [3, 5, 6, 8, 10, 12];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Phase = "setup" | "reading" | "questions" | "review";
+type Phase = "setup" | "reading" | "questions" | "review" | "paper";
 type InputMode = "generate" | "paste";
+type ExamMode = "quick" | "full";
 
 type MCQQuestion = {
   type: "mcq";
@@ -150,6 +160,15 @@ export default function ReadingScreen() {
   // Phase
   const [phase, setPhase] = useState<Phase>("setup");
   const [inputMode, setInputMode] = useState<InputMode>("generate");
+  const [examMode, setExamMode] = useState<ExamMode>("quick");
+
+  // Full-paper mode state
+  const [paper, setPaper] = useState<Paper | null>(null);
+  const [paperAnswers, setPaperAnswers] = useState<Record<string, string>>({});
+  const [paperGrades, setPaperGrades] = useState<GradeMap>({});
+  const [paperResult, setPaperResult] = useState<{ correct: number; total: number } | null>(null);
+  const [generatingPaper, setGeneratingPaper] = useState(false);
+  const [gradingPaper, setGradingPaper] = useState(false);
 
   // Generate mode state
   const [selectedTheme, setSelectedTheme] = useState("experiencias");
@@ -280,6 +299,76 @@ export default function ReadingScreen() {
     setSubmitted(false);
     setPastedText("");
     setPastedTitle("");
+    setPaper(null);
+    setPaperAnswers({});
+    setPaperGrades({});
+    setPaperResult(null);
+  };
+
+  // ── Full-paper handlers ──────────────────────────────────────────────────────
+  const generatePaper = async () => {
+    setGeneratingPaper(true);
+    try {
+      const res = await apiFetch(`${getApiUrl()}api/reading/paper`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          theme: selectedTheme,
+          customFocus: persistence.weakPractice
+            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
+            : customFocus.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      setPaper({ texts: data.texts ?? [] });
+      setPaperAnswers({});
+      setPaperGrades({});
+      setPaperResult(null);
+      setSubmitted(false);
+      setPhase("paper");
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
+    } catch {
+      // silent
+    } finally {
+      setGeneratingPaper(false);
+    }
+  };
+
+  const setPaperField = (fieldId: string, value: string) => {
+    setPaperAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  const submitPaper = async () => {
+    if (!paper || gradingPaper) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setGradingPaper(true);
+    try {
+      const aiItems = collectAiGradeItems(paper, paperAnswers);
+      const aiResults: Record<string, FieldResult> = {};
+      if (aiItems.length > 0) {
+        try {
+          const res = await apiFetch(`${getApiUrl()}api/reading/grade`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: aiItems }),
+          });
+          const data = await res.json();
+          for (const r of data.results ?? []) {
+            aiResults[r.id] = { correct: !!r.correct, feedback: r.feedback };
+          }
+        } catch {
+          // fall back to exact match inside gradePaper
+        }
+      }
+      const { grades, correct, total } = gradePaper(paper, paperAnswers, aiResults);
+      setPaperGrades(grades);
+      setPaperResult({ correct, total });
+      setSubmitted(true);
+      setPhase("review");
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 100);
+    } finally {
+      setGradingPaper(false);
+    }
   };
 
   const stopTts = async () => {
@@ -384,7 +473,6 @@ export default function ReadingScreen() {
   };
 
   const answeredCount = questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== "").length;
-  const allAnswered = questions.length > 0 && answeredCount === questions.length;
 
   const correctCount = questions.filter((q) => {
     const userAns = (answers[q.id] ?? "").trim().toLowerCase();
@@ -397,12 +485,14 @@ export default function ReadingScreen() {
     "review",
     phase,
     () =>
-      mistakesFromReadingAnswers(
-        questions.map((q) => ({ id: String(q.id), question: q.question, answer: q.answer })),
-        Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v])),
-      ),
-    () => ({ correct: correctCount, total: questions.length }),
-    [questions, answers, correctCount],
+      paper
+        ? mistakesFromPaper(paper, paperAnswers, paperGrades, "reading")
+        : mistakesFromReadingAnswers(
+            questions.map((q) => ({ id: String(q.id), question: q.question, answer: q.answer })),
+            Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v])),
+          ),
+    () => (paper && paperResult ? paperResult : { correct: correctCount, total: questions.length }),
+    [questions, answers, correctCount, paper, paperGrades, paperResult],
   );
 
   // ── Render: Setup ──────────────────────────────────────────────────────────
@@ -439,6 +529,97 @@ export default function ReadingScreen() {
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
 
+          {/* Exam mode toggle (quick vs full IB paper) */}
+          <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+            <Pressable
+              onPress={() => setExamMode("quick")}
+              style={[s.modeBtn, examMode === "quick" && { backgroundColor: ACCENT }]}
+            >
+              <Ionicons name="flash-outline" size={16} color={examMode === "quick" ? "#fff" : colors.textSecondary} />
+              <Text style={[s.modeBtnText, { color: examMode === "quick" ? "#fff" : colors.textSecondary }]}>
+                Práctica rápida
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setExamMode("full")}
+              style={[s.modeBtn, examMode === "full" && { backgroundColor: ACCENT }]}
+            >
+              <Ionicons name="documents-outline" size={16} color={examMode === "full" ? "#fff" : colors.textSecondary} />
+              <Text style={[s.modeBtnText, { color: examMode === "full" ? "#fff" : colors.textSecondary }]}>
+                Examen completo
+              </Text>
+            </Pressable>
+          </View>
+
+          {examMode === "full" ? (
+            <>
+              {/* Theme selector */}
+              <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Tema IB</Text>
+                <View style={{ gap: 8, marginTop: 10 }}>
+                  {THEMES.map((t) => {
+                    const active = selectedTheme === t.id;
+                    return (
+                      <Pressable
+                        key={t.id}
+                        onPress={() => setSelectedTheme(t.id)}
+                        style={[s.optionRow, { backgroundColor: active ? t.color + "18" : colors.cardAlt, borderColor: active ? t.color : colors.border }]}
+                      >
+                        <View style={[s.optionDot, { backgroundColor: active ? t.color : colors.border }]} />
+                        <Text style={[s.optionText, { color: active ? t.color : colors.text }]}>{t.name}</Text>
+                        {active && <Ionicons name="checkmark-circle" size={18} color={t.color} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Custom focus */}
+              <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={s.customFocusHeader}>
+                  <Ionicons name="options-outline" size={15} color={colors.textSecondary} />
+                  <Text style={[s.customFocusLabel, { color: colors.textSecondary }]}>Enfoque personalizado <Text style={{ fontFamily: "Inter_400Regular" }}>(opcional)</Text></Text>
+                </View>
+                <TextInput
+                  style={[s.customFocusInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.cardAlt }]}
+                  placeholder="p.ej. medio ambiente, salud, tecnología…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={customFocus}
+                  onChangeText={setCustomFocus}
+                  multiline={false}
+                  returnKeyType="done"
+                />
+              </View>
+
+              <View style={[s.hintRow, { backgroundColor: ACCENT + "12", borderColor: ACCENT + "30" }]}>
+                <Ionicons name="information-circle-outline" size={14} color={ACCENT} />
+                <Text style={[s.hintText, { color: ACCENT }]}>
+                  Genera 3 textos (A/B/C) con bloques de preguntas al estilo del examen IB. Verás todas las preguntas a la vez.
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={generatePaper}
+                disabled={generatingPaper}
+                style={({ pressed }) => [s.primaryBtn, { opacity: pressed || generatingPaper ? 0.8 : 1 }]}
+              >
+                <LinearGradient colors={[ACCENT, ACCENT_DARK]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primaryBtnGrad}>
+                  {generatingPaper ? (
+                    <>
+                      <ActivityIndicator color="#fff" size="small" />
+                      <Text style={s.primaryBtnText}>Generando examen…</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="documents-outline" size={20} color="#fff" />
+                      <Text style={s.primaryBtnText}>Generar examen completo</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            </>
+          ) : (
+          <>
           {/* Mode toggle */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
             <Pressable
@@ -615,7 +796,133 @@ export default function ReadingScreen() {
               </Pressable>
             </KeyboardAvoidingView>
           )}
+          </>
+          )}
         </ScrollView>
+      </View>
+    );
+  }
+
+  // ── Render: Full IB paper (answering) ────────────────────────────────────────
+  if (phase === "paper" && paper) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <LinearGradient colors={isDark ? ["#0A1F0F", "#0F1117"] : ["#E8F8EE", "#F5F6FA"]} style={StyleSheet.absoluteFill} />
+        <View style={[s.header, { paddingTop: topPad + 12 }]}>
+          <Pressable onPress={resetToSetup} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.screenTitle, { color: colors.text }]} numberOfLines={1}>Examen de lectura</Text>
+            <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: ACCENT }}>3 textos · IB Spanish B</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 24 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[s.hintRow, { backgroundColor: ACCENT + "15", borderColor: ACCENT + "30", marginBottom: 14 }]}>
+            <Ionicons name="finger-print-outline" size={14} color={ACCENT} />
+            <Text style={[s.hintText, { color: ACCENT }]}>Toca una palabra para ver su definición. No es obligatorio responder todo: cada respuesta vacía o incorrecta resta un punto.</Text>
+          </View>
+
+          <PaperView
+            texts={paper.texts}
+            answers={paperAnswers}
+            setField={setPaperField}
+            submitted={false}
+            grades={{}}
+            accent={ACCENT}
+            colors={colors}
+            showBody="always"
+            onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+          />
+
+          <Pressable
+            onPress={submitPaper}
+            disabled={gradingPaper}
+            style={({ pressed }) => [s.primaryBtn, { marginTop: 20, opacity: pressed || gradingPaper ? 0.8 : 1 }]}
+          >
+            <LinearGradient colors={[ACCENT, ACCENT_DARK]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primaryBtnGrad}>
+              {gradingPaper ? (
+                <>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={s.primaryBtnText}>Corrigiendo…</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+                  <Text style={s.primaryBtnText}>Enviar respuestas</Text>
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
+        </ScrollView>
+
+        {wordPopup && (
+          <WordModal word={wordPopup.word} context={wordPopup.context} onClose={() => setWordPopup(null)} themeColor={ACCENT} />
+        )}
+      </View>
+    );
+  }
+
+  // ── Render: Full IB paper (review) ───────────────────────────────────────────
+  if (phase === "review" && paper && paperResult) {
+    const pct = paperResult.total > 0 ? paperResult.correct / paperResult.total : 0;
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <LinearGradient colors={isDark ? ["#0A1F0F", "#0F1117"] : ["#E8F8EE", "#F5F6FA"]} style={StyleSheet.absoluteFill} />
+        <View style={[s.header, { paddingTop: topPad + 12 }]}>
+          <Pressable onPress={resetToSetup} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={[s.screenTitle, { color: colors.text, flex: 1 }]}>Resultados del examen</Text>
+        </View>
+
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[s.scoreCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+            <Text style={[s.scoreTitle, { color: colors.text }]}>Puntuación</Text>
+            <ScorePill correct={paperResult.correct} total={paperResult.total} />
+            <Text style={[s.scoreSubtitle, { color: colors.textSecondary }]}>
+              {pct >= 0.7
+                ? "¡Muy buen examen! Revisa las correcciones por debajo."
+                : pct >= 0.5
+                ? "Buen intento. Estudia las respuestas correctas marcadas."
+                : "Sigue practicando. Revisa cada texto y sus respuestas."}
+            </Text>
+          </View>
+
+          <PaperView
+            texts={paper.texts}
+            answers={paperAnswers}
+            setField={setPaperField}
+            submitted
+            grades={paperGrades}
+            accent={ACCENT}
+            colors={colors}
+            showBody="always"
+            onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+          />
+
+          <Pressable
+            onPress={resetToSetup}
+            style={({ pressed }) => [s.outlineBtn, { borderColor: colors.border, marginTop: 16, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="documents-outline" size={18} color={colors.text} />
+            <Text style={[s.outlineBtnText, { color: colors.text }]}>Nuevo examen</Text>
+          </Pressable>
+        </ScrollView>
+
+        {wordPopup && (
+          <WordModal word={wordPopup.word} context={wordPopup.context} onClose={() => setWordPopup(null)} themeColor={ACCENT} />
+        )}
       </View>
     );
   }
@@ -809,20 +1116,19 @@ export default function ReadingScreen() {
                 </Text>
                 <Pressable
                   onPress={submitAnswers}
-                  disabled={!allAnswered}
                   style={({ pressed }) => [
                     s.submitBtn,
                     {
-                      backgroundColor: allAnswered ? ACCENT : colors.cardAlt,
-                      borderColor: allAnswered ? ACCENT : colors.border,
+                      backgroundColor: ACCENT,
+                      borderColor: ACCENT,
                       opacity: pressed ? 0.8 : 1,
                     },
                   ]}
                 >
-                  <Text style={[s.submitBtnText, { color: allAnswered ? "#fff" : colors.textSecondary }]}>
+                  <Text style={[s.submitBtnText, { color: "#fff" }]}>
                     Enviar respuestas
                   </Text>
-                  <Ionicons name="checkmark-circle-outline" size={18} color={allAnswered ? "#fff" : colors.textSecondary} />
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
                 </Pressable>
               </View>
             </>

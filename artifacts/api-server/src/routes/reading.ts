@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendOpenAIError } from "./openaiError";
+import { paperSchemaInstructions, gradePromptFor, type AiGradeItem } from "../lib/paper";
 
 const router: IRouter = Router();
 
@@ -164,6 +165,77 @@ Return ONLY valid JSON.`,
   } catch (err) {
     console.error("reading/questions error:", err);
     return sendOpenAIError(res, err, "Error al generar preguntas.");
+  }
+});
+
+// ── Full IB exam paper: 3 texts (Texto A/B/C) with mixed question blocks ───────
+router.post("/reading/paper", async (req, res) => {
+  const { theme = "experiencias", customFocus } = req.body as {
+    theme?: string;
+    customFocus?: string;
+  };
+  const themeName = THEME_NAMES[theme] ?? theme;
+  const focusLine = customFocus?.trim()
+    ? `\n- Enfoque: incorpora de forma natural "${customFocus.trim()}"`
+    : "";
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `Eres un examinador del IB Spanish B (Prueba 2, Comprensión de lectura). Crea un examen completo de lectura con TRES textos auténticos y distintos (Texto A, B, C), cada uno con sus propios bloques de preguntas, imitando un examen real.
+
+Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}
+- Texto A: ~250-350 palabras (informativo).
+- Texto B: ~300-400 palabras (artículo/entrevista).
+- Texto C: ~350-450 palabras (reportaje/opinión, con líneas numeradas implícitas para referentes).
+- Cada texto debe tener 2-4 bloques de tipos DISTINTOS.
+
+${paperSchemaInstructions("reading")}`,
+        },
+        { role: "user", content: `Genera el examen de lectura sobre "${themeName}".` },
+      ],
+      temperature: 0.6,
+      max_completion_tokens: 4000,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw);
+    return res.json({ texts: parsed.texts ?? [] });
+  } catch (err) {
+    console.error("reading/paper error:", err);
+    return sendOpenAIError(res, err, "Error al generar el examen de lectura.");
+  }
+});
+
+// ── Batch grade free-text answers ─────────────────────────────────────────────
+router.post("/reading/grade", async (req, res) => {
+  const { items } = req.body as { items: AiGradeItem[] };
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.json({ results: [] });
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: gradePromptFor("reading") },
+        { role: "user", content: JSON.stringify({ items }) },
+      ],
+      temperature: 0.1,
+      max_completion_tokens: 1500,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw);
+    return res.json({ results: parsed.results ?? [] });
+  } catch (err) {
+    console.error("reading/grade error:", err);
+    return sendOpenAIError(res, err, "Error al corregir las respuestas.");
   }
 });
 

@@ -28,9 +28,20 @@ import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
 import { mistakesFromListeningAnswers } from "@/lib/mistakes";
+import { PaperView } from "@/components/PaperView";
+import { PassageAudioPlayer } from "@/components/PassageAudioPlayer";
+import {
+  collectAiGradeItems,
+  gradePaper,
+  mistakesFromPaper,
+  type FieldResult,
+  type GradeMap,
+  type Paper,
+} from "@/lib/paper";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Phase = "setup" | "listening" | "questions" | "review";
+type Phase = "setup" | "listening" | "questions" | "review" | "paper";
+type ExamMode = "quick" | "full";
 type PlayStatus = "idle" | "loading" | "ready" | "playing" | "paused" | "ended";
 type PassageType = "conversation" | "interview" | "monologue" | "news";
 
@@ -115,10 +126,18 @@ export default function ListeningScreen() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [numQuestions, setNumQuestions] = useState(6);
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [currentAnswer, setCurrentAnswer] = useState("");
+  const [quickAnswers, setQuickAnswers] = useState<Record<string, string>>({});
   const [checkingAnswer, setCheckingAnswer] = useState(false);
   const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
+
+  // ── Exam mode + full-paper state ───────────────────────────────────────────────
+  const [examMode, setExamMode] = useState<ExamMode>("quick");
+  const [paper, setPaper] = useState<Paper | null>(null);
+  const [paperAnswers, setPaperAnswers] = useState<Record<string, string>>({});
+  const [paperGrades, setPaperGrades] = useState<GradeMap>({});
+  const [paperResult, setPaperResult] = useState<{ correct: number; total: number } | null>(null);
+  const [generatingPaper, setGeneratingPaper] = useState(false);
+  const [gradingPaper, setGradingPaper] = useState(false);
 
   const selectedTheme = THEMES.find((t) => t.id === selectedThemeId) ?? THEMES[0];
   const themeColor = selectedTheme.color;
@@ -304,8 +323,7 @@ export default function ListeningScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setQuestionsLoading(true);
     setAnswers({});
-    setCurrentQIndex(0);
-    setCurrentAnswer("");
+    setQuickAnswers({});
     try {
       const res = await apiFetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
@@ -327,47 +345,121 @@ export default function ListeningScreen() {
     }
   };
 
-  // ── Check answer ──────────────────────────────────────────────────────────────
-  const checkAnswer = async () => {
-    const q = questions[currentQIndex];
-    if (!q || !currentAnswer.trim() || checkingAnswer) return;
+  // ── Submit all quick-mode answers at once ──────────────────────────────────────
+  const norm = (s: string) =>
+    (s ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,;:!?¿¡"']/g, "").replace(/\s+/g, " ");
+
+  const submitQuick = async () => {
+    if (checkingAnswer) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCheckingAnswer(true);
     try {
-      const res = await apiFetch(`${getApiUrl()}api/listening/check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q.question,
-          questionType: q.type,
-          studentAnswer: currentAnswer.trim(),
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation,
-          passage,
-        }),
-      });
-      if (!res.ok) throw new Error("Check failed");
-      const result = await res.json();
-      setAnswers((prev) => ({
-        ...prev,
-        [q.id]: { given: currentAnswer.trim(), correct: result.correct, feedback: result.feedback },
-      }));
-    } catch {
-      setAnswers((prev) => ({
-        ...prev,
-        [q.id]: { given: currentAnswer.trim(), correct: false, feedback: "Error al verificar la respuesta." },
-      }));
+      // Free-text questions graded by AI in one batch
+      const aiItems = questions
+        .filter((q) => !q.options)
+        .map((q) => ({
+          id: q.id,
+          type: "short-answer" as const,
+          prompt: q.question,
+          studentAnswer: (quickAnswers[q.id] ?? "").trim(),
+          expectedAnswer: q.correctAnswer,
+        }));
+      const aiResults: Record<string, FieldResult> = {};
+      if (aiItems.length > 0) {
+        try {
+          const res = await apiFetch(`${getApiUrl()}api/listening/grade`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: aiItems }),
+          });
+          const data = await res.json();
+          for (const r of data.results ?? []) aiResults[r.id] = { correct: !!r.correct, feedback: r.feedback };
+        } catch {
+          // fall through to exact-match
+        }
+      }
+
+      const next: Record<string, AnswerRecord> = {};
+      for (const q of questions) {
+        const given = (quickAnswers[q.id] ?? "").trim();
+        let correct = false;
+        let feedback = "";
+        if (q.options) {
+          correct = !!given && given === q.correctAnswer;
+          feedback = correct ? "Correcto." : `Respuesta correcta: ${q.correctAnswer}`;
+        } else {
+          const ai = aiResults[q.id];
+          correct = !given ? false : ai ? ai.correct : norm(given) === norm(q.correctAnswer);
+          feedback = ai?.feedback ?? (correct ? "Correcto." : `Respuesta esperada: ${q.correctAnswer}`);
+        }
+        next[q.id] = { given, correct, feedback };
+      }
+      setAnswers(next);
+      setPhase("review");
     } finally {
       setCheckingAnswer(false);
     }
   };
 
-  const handleNextQuestion = () => {
-    setCurrentAnswer("");
-    if (currentQIndex < questions.length - 1) {
-      setCurrentQIndex((i) => i + 1);
-    } else {
+  // ── Full-paper handlers ─────────────────────────────────────────────────────
+  const generatePaper = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setGeneratingPaper(true);
+    try {
+      const res = await apiFetch(`${getApiUrl()}api/listening/paper`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          theme: selectedThemeId,
+          customFocus: persistence.weakPractice
+            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
+            : customFocus.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Paper generation failed");
+      const data = await res.json();
+      setPaper({ texts: data.texts ?? [] });
+      setPaperAnswers({});
+      setPaperGrades({});
+      setPaperResult(null);
+      setPhase("paper");
+    } catch {
+      Alert.alert("Error", "No se pudo generar el examen. Inténtalo de nuevo.");
+    } finally {
+      setGeneratingPaper(false);
+    }
+  };
+
+  const setPaperField = (fieldId: string, value: string) => {
+    setPaperAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  const submitPaper = async () => {
+    if (!paper || gradingPaper) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setGradingPaper(true);
+    try {
+      const aiItems = collectAiGradeItems(paper, paperAnswers);
+      const aiResults: Record<string, FieldResult> = {};
+      if (aiItems.length > 0) {
+        try {
+          const res = await apiFetch(`${getApiUrl()}api/listening/grade`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: aiItems }),
+          });
+          const data = await res.json();
+          for (const r of data.results ?? []) aiResults[r.id] = { correct: !!r.correct, feedback: r.feedback };
+        } catch {
+          // fall back to exact match
+        }
+      }
+      const { grades, correct, total } = gradePaper(paper, paperAnswers, aiResults);
+      setPaperGrades(grades);
+      setPaperResult({ correct, total });
       setPhase("review");
+    } finally {
+      setGradingPaper(false);
     }
   };
 
@@ -392,15 +484,17 @@ export default function ListeningScreen() {
   };
 
   const correctCount = Object.values(answers).filter((a) => a.correct).length;
-  const totalAnswered = Object.keys(answers).length;
 
   useSessionComplete(
     "listening",
     "review",
     phase,
-    () => mistakesFromListeningAnswers(questions, answers),
-    () => ({ correct: correctCount, total: questions.length }),
-    [questions, answers, correctCount],
+    () =>
+      paper
+        ? mistakesFromPaper(paper, paperAnswers, paperGrades, "listening")
+        : mistakesFromListeningAnswers(questions, answers),
+    () => (paper && paperResult ? paperResult : { correct: correctCount, total: questions.length }),
+    [questions, answers, correctCount, paper, paperGrades, paperResult],
   );
 
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -433,6 +527,24 @@ export default function ListeningScreen() {
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
 
+          {/* Exam mode toggle (quick vs full IB paper) */}
+          <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+            <Pressable
+              onPress={() => setExamMode("quick")}
+              style={[s.modeBtn, examMode === "quick" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons name="flash-outline" size={16} color={examMode === "quick" ? "#fff" : colors.textSecondary} />
+              <Text style={[s.modeBtnText, { color: examMode === "quick" ? "#fff" : colors.textSecondary }]}>Práctica rápida</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setExamMode("full")}
+              style={[s.modeBtn, examMode === "full" && { backgroundColor: themeColor }]}
+            >
+              <Ionicons name="documents-outline" size={16} color={examMode === "full" ? "#fff" : colors.textSecondary} />
+              <Text style={[s.modeBtnText, { color: examMode === "full" ? "#fff" : colors.textSecondary }]}>Examen completo</Text>
+            </Pressable>
+          </View>
+
           {/* Theme selector */}
           <Text style={[s.sectionTitle, { color: colors.text }]}>Tema IB</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.themeRow}>
@@ -454,7 +566,46 @@ export default function ListeningScreen() {
             ))}
           </ScrollView>
 
+          {examMode === "full" && (
+            <>
+              <View style={[s.customFocusCard, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}>
+                <View style={s.customFocusHeader}>
+                  <Ionicons name="options-outline" size={15} color={colors.textSecondary} />
+                  <Text style={[s.customFocusLabel, { color: colors.textSecondary }]}>Enfoque personalizado <Text style={{ fontFamily: "Inter_400Regular" }}>(opcional)</Text></Text>
+                </View>
+                <TextInput
+                  style={[s.customFocusInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.cardAlt }]}
+                  placeholder="p.ej. medio ambiente, tecnología, salud…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={customFocus}
+                  onChangeText={setCustomFocus}
+                  multiline={false}
+                  returnKeyType="done"
+                />
+              </View>
 
+              <View style={[s.contextCard, { backgroundColor: themeColor + "15", borderColor: themeColor + "30" }]}>
+                <Ionicons name="information-circle-outline" size={16} color={themeColor} />
+                <Text style={[s.contextText, { color: themeColor }]}>
+                  Genera 3 audios (Texto A/B/C) con sus preguntas al estilo del examen IB. Verás todas las preguntas a la vez y enviarás una sola vez.
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={generatePaper}
+                disabled={generatingPaper}
+                style={({ pressed }) => [s.beginBtn, { opacity: pressed || generatingPaper ? 0.8 : 1 }]}
+              >
+                <LinearGradient colors={[themeColor, selectedTheme.colorDark]} style={s.beginGrad}>
+                  {generatingPaper ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="documents-outline" size={20} color="#fff" />}
+                  <Text style={s.beginText}>{generatingPaper ? "Generando examen…" : "Generar examen completo"}</Text>
+                </LinearGradient>
+              </Pressable>
+            </>
+          )}
+
+          {examMode === "quick" && (
+          <>
           {/* Passage type */}
           <Text style={[s.sectionTitle, { color: colors.text, marginTop: 8 }]}>Tipo de pasaje</Text>
           <View style={s.typeGrid}>
@@ -581,6 +732,97 @@ export default function ListeningScreen() {
               <Text style={s.beginText}>Comenzar práctica</Text>
             </LinearGradient>
           </Pressable>
+          </>
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FULL IB PAPER PHASE (answering + review)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  if ((phase === "paper" || (phase === "review" && paper)) && paper) {
+    const reviewing = phase === "review";
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <LinearGradient colors={isDark ? ["#0D1B2A", "#0F1117"] : ["#E8F4FD", "#F5F6FA"]} style={StyleSheet.absoluteFill} />
+
+        <View style={[s.header, { paddingTop: topPad + 8, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Pressable onPress={reviewing ? undefined : handleExit} style={({ pressed }) => [s.headerBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name={reviewing ? "document-text-outline" : "close"} size={20} color={reviewing ? themeColor : "#FF4444"} />
+          </Pressable>
+          <View style={s.headerCenter}>
+            <Text style={[s.headerTitle, { color: colors.text }]}>{reviewing ? "Resultados" : "Examen de audio"}</Text>
+            <Text style={[s.headerSub, { color: themeColor }]}>3 textos · Spanish B</Text>
+          </View>
+          <View style={{ width: 44 }} />
+        </View>
+
+        {wordPopup && (
+          <WordModal word={wordPopup.word} context={wordPopup.context} themeColor={themeColor} onClose={() => setWordPopup(null)} />
+        )}
+
+        <ScrollView contentContainerStyle={[s.questionsContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false}>
+          {reviewing && paperResult && (
+            <View style={[s.progressCard, { backgroundColor: colors.card, borderColor: colors.border, alignItems: "center", gap: 6 }]}>
+              <Text style={[s.scoreNum, { color: themeColor }]}>{paperResult.correct}/{paperResult.total}</Text>
+              <Text style={[s.scoreLabel, { color: colors.textSecondary }]}>respuestas correctas</Text>
+            </View>
+          )}
+
+          {!reviewing && (
+            <View style={[s.contextCard, { backgroundColor: themeColor + "15", borderColor: themeColor + "30" }]}>
+              <Ionicons name="information-circle-outline" size={16} color={themeColor} />
+              <Text style={[s.contextText, { color: themeColor }]}>
+                Escucha cada audio y responde. No es obligatorio rellenar todo: cada respuesta vacía o incorrecta resta un punto.
+              </Text>
+            </View>
+          )}
+
+          <PaperView
+            texts={paper.texts}
+            answers={paperAnswers}
+            setField={setPaperField}
+            submitted={reviewing}
+            grades={paperGrades}
+            accent={themeColor}
+            colors={colors}
+            showBody="afterSubmit"
+            renderTextExtra={(t) =>
+              !reviewing ? (
+                <PassageAudioPlayer text={t.body} accent={themeColor} colors={colors} cacheKey={t.id} />
+              ) : null
+            }
+            onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+          />
+
+          {!reviewing ? (
+            <Pressable
+              onPress={submitPaper}
+              disabled={gradingPaper}
+              style={({ pressed }) => [s.questionsBtn, { marginTop: 20, opacity: pressed || gradingPaper ? 0.8 : 1 }]}
+            >
+              <LinearGradient colors={[themeColor, selectedTheme.colorDark]} style={s.questionsBtnGrad}>
+                {gradingPaper ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="checkmark-done-outline" size={20} color="#fff" />}
+                <Text style={s.questionsBtnText}>{gradingPaper ? "Corrigiendo…" : "Enviar respuestas"}</Text>
+              </LinearGradient>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setPhase("setup");
+                setPaper(null);
+                setPaperAnswers({});
+                setPaperGrades({});
+                setPaperResult(null);
+                cleanupAudio();
+              }}
+              style={({ pressed }) => [s.tryAgainBtn, { borderColor: colors.border, marginTop: 20, opacity: pressed ? 0.8 : 1 }]}
+            >
+              <Text style={[s.tryAgainText, { color: themeColor }]}>Nuevo examen</Text>
+            </Pressable>
+          )}
         </ScrollView>
       </View>
     );
@@ -789,10 +1031,8 @@ export default function ListeningScreen() {
   // QUESTIONS PHASE
   // ═══════════════════════════════════════════════════════════════════════════════
   if (phase === "questions") {
-    const q = questions[currentQIndex];
-    const answered = q ? answers[q.id] : undefined;
-    const progress = totalAnswered / questions.length;
-    const isLastQ = currentQIndex === questions.length - 1;
+    const answeredCount = questions.filter((qq) => (quickAnswers[qq.id] ?? "").trim()).length;
+    const progress = questions.length > 0 ? answeredCount / questions.length : 0;
     const qTypeColors: Record<string, string> = {
       "multiple-choice": "#3498DB",
       "true-false": "#2ECC71",
@@ -800,7 +1040,16 @@ export default function ListeningScreen() {
       detail: "#9B59B6",
       inference: "#E74C3C",
     };
-    const qColor = q ? (qTypeColors[q.type] ?? themeColor) : themeColor;
+    const typeLabel = (t: string) =>
+      t === "multiple-choice"
+        ? "Opción múltiple"
+        : t === "true-false"
+        ? "Verdadero / Falso"
+        : t === "short-answer"
+        ? "Respuesta corta"
+        : t === "detail"
+        ? "Detalle"
+        : "Inferencia";
 
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
@@ -832,31 +1081,22 @@ export default function ListeningScreen() {
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={[s.questionsContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false}>
-          {/* Progress bar (F38) */}
+        <ScrollView contentContainerStyle={[s.questionsContent, { paddingBottom: botPad + 32 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Progress + hint */}
           <View style={[s.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.progressLabel, { color: colors.textSecondary }]}>
-              {totalAnswered} / {questions.length} preguntas completadas
+              {answeredCount} / {questions.length} respondidas
             </Text>
             <View style={[s.progressTrack, { backgroundColor: colors.cardAlt }]}>
               <View style={[s.progressFill, { backgroundColor: themeColor, width: `${Math.round(progress * 100)}%` as any }]} />
             </View>
-            <View style={s.progressPips}>
-              {questions.map((qq, i) => {
-                const a = answers[qq.id];
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      s.pip,
-                      {
-                        backgroundColor: a ? (a.correct ? "#2ECC71" : "#FF4444") : i === currentQIndex ? themeColor : colors.cardAlt,
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
+          </View>
+
+          <View style={[s.contextCard, { backgroundColor: themeColor + "12", borderColor: themeColor + "30" }]}>
+            <Ionicons name="information-circle-outline" size={16} color={themeColor} />
+            <Text style={[s.contextText, { color: themeColor }]}>
+              No es obligatorio responder todas. Cada respuesta vacía o incorrecta resta un punto.
+            </Text>
           </View>
 
           {/* Audio replay mini-player */}
@@ -871,130 +1111,72 @@ export default function ListeningScreen() {
             <Text style={[s.miniPlayerSpeed, { color: themeColor }]}>{playbackSpeed}x</Text>
           </View>
 
-          {/* Current question */}
-          {q && (
-            <>
-              <View style={[s.qCard, { backgroundColor: colors.card, borderColor: qColor + "50", borderLeftColor: qColor, borderLeftWidth: 4 }]}>
+          {/* All questions at once */}
+          {questions.map((q, idx) => {
+            const qColor = qTypeColors[q.type] ?? themeColor;
+            const given = quickAnswers[q.id] ?? "";
+            return (
+              <View key={q.id} style={[s.qCard, { backgroundColor: colors.card, borderColor: qColor + "50", borderLeftColor: qColor, borderLeftWidth: 4 }]}>
                 <View style={s.qTypeRow}>
                   <View style={[s.qTypeBadge, { backgroundColor: qColor + "20" }]}>
-                    <Text style={[s.qTypeBadgeText, { color: qColor }]}>
-                      {q.type === "multiple-choice"
-                        ? "Opción múltiple"
-                        : q.type === "true-false"
-                        ? "Verdadero / Falso"
-                        : q.type === "short-answer"
-                        ? "Respuesta corta"
-                        : q.type === "detail"
-                        ? "Detalle"
-                        : "Inferencia"}
-                    </Text>
+                    <Text style={[s.qTypeBadgeText, { color: qColor }]}>{typeLabel(q.type)}</Text>
                   </View>
-                  <Text style={[s.qNumber, { color: colors.textSecondary }]}>
-                    Pregunta {currentQIndex + 1} de {questions.length}
-                  </Text>
+                  <Text style={[s.qNumber, { color: colors.textSecondary }]}>{idx + 1} / {questions.length}</Text>
                 </View>
                 <TappableText
                   text={q.question}
                   textStyle={[s.qText, { color: colors.text }]}
                   onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
                 />
-              </View>
 
-              {/* Options for MC and TF */}
-              {q.options && !answered && (
-                <View style={s.optionsContainer}>
-                  {q.options.map((opt, i) => (
-                    <Pressable
-                      key={i}
-                      onPress={() => setCurrentAnswer(opt)}
-                      style={[
-                        s.optionBtn,
-                        {
-                          backgroundColor: currentAnswer === opt ? qColor + "18" : colors.card,
-                          borderColor: currentAnswer === opt ? qColor : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[s.optionText, { color: currentAnswer === opt ? qColor : colors.text }]}>{opt}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
-              {/* Text input for short-answer, detail, inference */}
-              {!q.options && !answered && (
-                <TextInput
-                  style={[s.answerInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
-                  value={currentAnswer}
-                  onChangeText={setCurrentAnswer}
-                  placeholder="Escribe tu respuesta aquí…"
-                  placeholderTextColor={colors.textSecondary}
-                  multiline
-                  textAlignVertical="top"
-                  autoCorrect={false}
-                />
-              )}
-
-              {/* Answered: show feedback */}
-              {answered && (
-                <View
-                  style={[
-                    s.feedbackCard,
-                    {
-                      backgroundColor: answered.correct ? "#2ECC7115" : "#FF444415",
-                      borderColor: answered.correct ? "#2ECC71" : "#FF4444",
-                    },
-                  ]}
-                >
-                  <View style={s.feedbackHeader}>
-                    <Ionicons
-                      name={answered.correct ? "checkmark-circle" : "close-circle"}
-                      size={20}
-                      color={answered.correct ? "#2ECC71" : "#FF4444"}
-                    />
-                    <Text style={[s.feedbackResult, { color: answered.correct ? "#2ECC71" : "#FF4444" }]}>
-                      {answered.correct ? "Correcto" : "Incorrecto"}
-                    </Text>
+                {q.options ? (
+                  <View style={[s.optionsContainer, { marginTop: 10 }]}>
+                    {q.options.map((opt, i) => {
+                      const active = given === opt;
+                      return (
+                        <Pressable
+                          key={i}
+                          onPress={() => setQuickAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                          style={[
+                            s.optionBtn,
+                            {
+                              backgroundColor: active ? qColor + "18" : colors.cardAlt,
+                              borderColor: active ? qColor : colors.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[s.optionText, { color: active ? qColor : colors.text }]}>{opt}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                  <Text style={[s.feedbackText, { color: colors.text }]}>{answered.feedback}</Text>
-                  {!answered.correct && (
-                    <View style={s.correctAnswerRow}>
-                      <Text style={[s.correctAnswerLabel, { color: colors.textSecondary }]}>Respuesta correcta: </Text>
-                      <Text style={[s.correctAnswerText, { color: "#2ECC71" }]}>{q.correctAnswer}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
+                ) : (
+                  <TextInput
+                    style={[s.answerInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.cardAlt, marginTop: 10 }]}
+                    value={given}
+                    onChangeText={(v) => setQuickAnswers((prev) => ({ ...prev, [q.id]: v }))}
+                    placeholder="Escribe tu respuesta aquí…"
+                    placeholderTextColor={colors.textSecondary}
+                    multiline
+                    textAlignVertical="top"
+                    autoCorrect={false}
+                  />
+                )}
+              </View>
+            );
+          })}
 
-              {/* Submit / Next */}
-              {!answered ? (
-                <Pressable
-                  onPress={checkAnswer}
-                  disabled={!currentAnswer.trim() || checkingAnswer}
-                  style={({ pressed }) => [
-                    s.submitBtn,
-                    { opacity: pressed || !currentAnswer.trim() || checkingAnswer ? 0.5 : 1 },
-                  ]}
-                >
-                  <LinearGradient colors={[qColor, qColor + "BB"]} style={s.submitGrad}>
-                    {checkingAnswer ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Ionicons name="send" size={16} color="#fff" />
-                    )}
-                    <Text style={s.submitText}>{checkingAnswer ? "Verificando…" : "Enviar respuesta"}</Text>
-                  </LinearGradient>
-                </Pressable>
-              ) : (
-                <Pressable onPress={handleNextQuestion} style={({ pressed }) => [s.nextBtn, { opacity: pressed ? 0.85 : 1 }]}>
-                  <LinearGradient colors={[themeColor, selectedTheme.colorDark]} style={s.nextGrad}>
-                    <Text style={s.nextText}>{isLastQ ? "Ver resultados" : "Siguiente pregunta"}</Text>
-                    <Ionicons name={isLastQ ? "checkmark-circle-outline" : "arrow-forward"} size={18} color="#fff" />
-                  </LinearGradient>
-                </Pressable>
-              )}
-            </>
-          )}
+          {/* Single submit button */}
+          <Pressable
+            onPress={submitQuick}
+            disabled={checkingAnswer}
+            style={({ pressed }) => [s.questionsBtn, { marginTop: 20, opacity: pressed || checkingAnswer ? 0.8 : 1 }]}
+          >
+            <LinearGradient colors={[themeColor, selectedTheme.colorDark]} style={s.questionsBtnGrad}>
+              {checkingAnswer ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="checkmark-done-outline" size={20} color="#fff" />}
+              <Text style={s.questionsBtnText}>{checkingAnswer ? "Corrigiendo…" : "Enviar respuestas"}</Text>
+            </LinearGradient>
+          </Pressable>
         </ScrollView>
       </View>
     );
