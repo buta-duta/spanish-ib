@@ -156,6 +156,54 @@ function voiceForSpeaker(speaker: string, speakerVoiceMap: Map<string, VoiceId>)
   return voice;
 }
 
+function mergeConsecutiveSegments(segments: DialogueSeg[]): DialogueSeg[] {
+  if (segments.length === 0) return [];
+  const merged: DialogueSeg[] = [{ ...segments[0] }];
+  for (let i = 1; i < segments.length; i++) {
+    const prev = merged[merged.length - 1];
+    if (segments[i].speaker === prev.speaker) {
+      prev.text += " " + segments[i].text;
+    } else {
+      merged.push({ ...segments[i] });
+    }
+  }
+  return merged;
+}
+
+async function ttsWithRetry(text: string, voice: VoiceId, retries = 2): Promise<Buffer> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const buf = await textToSpeech(text, voice, "mp3");
+      if (buf.length < 100) throw new Error("Empty TTS audio");
+      return buf;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 // ── Generate passage (F35) ────────────────────────────────────────────────────
 router.post("/listening/passage", async (req, res) => {
   const { theme, passageType, customFocus } = req.body;
@@ -226,25 +274,22 @@ router.post("/listening/tts", async (req, res) => {
         speakers.size === 1 && segments[0]
           ? voiceForSpeaker(segments[0].speaker, voiceMap)
           : "onyx";
-      const audioBuffer = await textToSpeech(passage.trim(), voice, "mp3");
+      const audioBuffer = await ttsWithRetry(passage.trim(), voice);
       res.json({ audioBase64: audioBuffer.toString("base64"), isDualVoice: false });
       return;
     }
 
-    // Dialogue: multi-voice with pauses (F40)
-    const segments = parseDialogue(passage);
+    // Dialogue: multi-voice — merge same-speaker turns, limited parallel TTS
+    const segments = mergeConsecutiveSegments(parseDialogue(passage));
     const speakerVoiceMap = new Map<string, VoiceId>();
 
     for (const seg of segments) {
       voiceForSpeaker(seg.speaker, speakerVoiceMap);
     }
 
-    // Generate all segment audios + pauses IN PARALLEL (fast)
-    const segmentPromises = segments.map((seg) =>
-      textToSpeech(seg.text, voiceForSpeaker(seg.speaker, speakerVoiceMap), "mp3")
+    const segmentBuffers = await mapWithConcurrency(segments, 3, (seg) =>
+      ttsWithRetry(seg.text, voiceForSpeaker(seg.speaker, speakerVoiceMap)),
     );
-
-    const segmentBuffers = await Promise.all(segmentPromises);
 
     // Concatenate segments directly — OpenAI TTS already has natural trailing
     // silence in each clip so no explicit gap audio is needed.

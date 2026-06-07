@@ -4,6 +4,7 @@
   "installCommand": "pnpm install",
   "functions": {
     "api/index.js": {
+      "maxDuration": 60,
       "includeFiles": "artifacts/api-server/dist/**"
     }
   },

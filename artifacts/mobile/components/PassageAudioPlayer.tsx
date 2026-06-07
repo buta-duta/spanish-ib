@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { TappableText } from "@/components/WordModal";
-import { apiFetch, getApiUrl } from "@/lib/api";
+import { fetchListeningTts } from "@/lib/listeningTts";
 
 const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 1.75, 2];
 
 type Colors = { card: string; cardAlt: string; text: string; textSecondary: string; border: string };
-type Status = "idle" | "loading" | "ready" | "playing" | "paused" | "ended";
+type Status = "idle" | "loading" | "ready" | "playing" | "paused" | "ended" | "error";
 
 // Self-contained TTS audio player for a single listening passage.
 export function PassageAudioPlayer({
@@ -34,6 +34,7 @@ export function PassageAudioPlayer({
   const audioRef = useRef<string | null>(null);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const nativeSoundRef = useRef<Audio.Sound | null>(null);
+  const loadGenRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -46,29 +47,38 @@ export function PassageAudioPlayer({
     };
   }, []);
 
-  const ensureAudio = async (): Promise<string | null> => {
-    if (audioRef.current) return audioRef.current;
+  const loadAudio = useCallback(async () => {
+    if (!text.trim()) return;
+    const gen = ++loadGenRef.current;
+    audioRef.current = null;
+    setPlayCount(0);
     setStatus("loading");
-    try {
-      const res = await apiFetch(`${getApiUrl()}api/listening/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage: text }),
-      });
-      if (!res.ok) throw new Error("TTS failed");
-      const data = await res.json();
-      audioRef.current = data.audioBase64 as string;
-      return audioRef.current;
-    } catch {
-      setStatus("idle");
-      return null;
+    if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current = null; }
+    if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
+
+    const data = await fetchListeningTts(text);
+    if (gen !== loadGenRef.current) return;
+    if (!data?.audioBase64) {
+      setStatus("error");
+      return;
     }
-  };
+    audioRef.current = data.audioBase64;
+    setStatus("ready");
+  }, [text]);
+
+  useEffect(() => {
+    loadAudio();
+  }, [loadAudio, cacheKey]);
 
   const play = async () => {
+    if (status === "loading" || status === "error") return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const base64 = await ensureAudio();
-    if (!base64) return;
+    const base64 = audioRef.current;
+    if (!base64) {
+      await loadAudio();
+      if (!audioRef.current) return;
+    }
+    const audio = audioRef.current!;
 
     if (Platform.OS === "web") {
       if (webAudioRef.current) {
@@ -80,16 +90,16 @@ export function PassageAudioPlayer({
         setStatus("playing");
         return;
       }
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
       const blob = new Blob([bytes], { type: "audio/mpeg" });
       const blobUrl = URL.createObjectURL(blob);
-      const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
-      webAudioRef.current = audio;
-      audio.playbackRate = speed;
-      audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ended"); };
-      audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ready"); };
+      const el = new (window as any).Audio(blobUrl) as HTMLAudioElement;
+      webAudioRef.current = el;
+      el.playbackRate = speed;
+      el.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ended"); };
+      el.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ready"); };
       setPlayCount((c) => c + 1);
-      await audio.play();
+      await el.play();
       setStatus("playing");
     } else {
       try {
@@ -106,7 +116,7 @@ export function PassageAudioPlayer({
         }
         await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true });
         const path = (FileSystem.cacheDirectory ?? "") + `listening_${cacheKey}.mp3`;
-        await FileSystem.writeAsStringAsync(path, base64, { encoding: "base64" });
+        await FileSystem.writeAsStringAsync(path, audio, { encoding: "base64" });
         const { sound } = await Audio.Sound.createAsync({ uri: path });
         nativeSoundRef.current = sound;
         sound.setOnPlaybackStatusUpdate((st) => {
@@ -144,28 +154,24 @@ export function PassageAudioPlayer({
     <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.row}>
         <Pressable
-          onPress={play}
+          onPress={status === "error" ? loadAudio : play}
           disabled={status === "loading"}
           style={({ pressed }) => [s.playBtn, { backgroundColor: accent, opacity: pressed || status === "loading" ? 0.75 : 1 }]}
         >
           {status === "loading" ? (
             <ActivityIndicator color="#fff" size="small" />
+          ) : status === "error" ? (
+            <Ionicons name="refresh" size={22} color="#fff" />
           ) : (
             <Ionicons name="play" size={22} color="#fff" />
           )}
         </Pressable>
-        <Pressable
-          onPress={() => setShowTranscript((v) => !v)}
-          style={[s.transcriptBtn, { borderColor: accent, backgroundColor: showTranscript ? accent : "transparent" }]}
-        >
-          <Text style={[s.transcriptIcon, { color: showTranscript ? "#fff" : accent }]}>
-            {showTranscript ? "v" : "^"}
-          </Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
+        <View style={s.meta}>
           <Text style={[s.statusText, { color: colors.text }]}>
             {status === "loading"
               ? "Generando audio…"
+              : status === "error"
+              ? "Error al generar audio"
               : isPlaying
               ? "Reproduciendo"
               : status === "ended"
@@ -174,6 +180,19 @@ export function PassageAudioPlayer({
           </Text>
           <Text style={[s.countText, { color: colors.textSecondary }]}>Reproducciones: {playCount}</Text>
         </View>
+        <Pressable
+          onPress={() => setShowTranscript((v) => !v)}
+          style={[
+            s.transcriptPill,
+            {
+              borderColor: accent,
+              backgroundColor: showTranscript ? accent + "18" : colors.cardAlt,
+            },
+          ]}
+        >
+          <Text style={[s.transcriptPillText, { color: accent }]}>Transcript</Text>
+          <Text style={[s.transcriptCaret, { color: accent }]}>{showTranscript ? "v" : "^"}</Text>
+        </Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.speedRow}>
         {SPEED_OPTIONS.map((sp) => (
@@ -205,10 +224,20 @@ export function PassageAudioPlayer({
 
 const s = StyleSheet.create({
   card: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 10 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
   playBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  transcriptBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  transcriptIcon: { fontSize: 18, fontFamily: "Inter_700Bold", lineHeight: 20 },
+  meta: { flex: 1 },
+  transcriptPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  transcriptPillText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  transcriptCaret: { fontSize: 11, fontFamily: "Inter_700Bold", lineHeight: 13 },
   statusText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   countText: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   speedRow: { gap: 6 },

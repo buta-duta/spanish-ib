@@ -30,6 +30,7 @@ import { apiFetch, getApiUrl } from "@/lib/api";
 import { mistakesFromListeningAnswers } from "@/lib/mistakes";
 import { PaperView } from "@/components/PaperView";
 import { PassageAudioPlayer } from "@/components/PassageAudioPlayer";
+import { fetchListeningTts } from "@/lib/listeningTts";
 import {
   collectAiGradeItems,
   gradePaper,
@@ -192,17 +193,11 @@ export default function ListeningScreen() {
     setPlayStatus("loading");
     setAudioBase64(null);
     setPlayCount(0);
-    // Clean up any existing audio
     if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current = null; }
     if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
     try {
-      const res = await apiFetch(`${getApiUrl()}api/listening/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage: text }),
-      });
-      if (!res.ok) throw new Error("TTS failed");
-      const data = await res.json();
+      const data = await fetchListeningTts(text);
+      if (!data?.audioBase64) throw new Error("TTS failed");
       setAudioBase64(data.audioBase64);
       setIsDualVoice(data.isDualVoice ?? false);
       setPlayStatus("ready");
