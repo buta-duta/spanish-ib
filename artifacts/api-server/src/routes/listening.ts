@@ -3,7 +3,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
 import { Buffer } from "node:buffer";
 import { sendOpenAIError } from "./openaiError";
-import { paperSchemaInstructions, gradePromptFor, type AiGradeItem } from "../lib/paper";
+import { gradePromptFor, type AiGradeItem } from "../lib/paper";
 
 const router: IRouter = Router();
 
@@ -17,6 +17,16 @@ const THEME_NAMES: Record<string, string> = {
 
 const VOICES = ["nova", "onyx", "shimmer", "alloy", "echo", "fable"] as const;
 type VoiceId = typeof VOICES[number];
+const FEMALE_VOICES: VoiceId[] = ["nova", "shimmer", "alloy"];
+const MALE_VOICES: VoiceId[] = ["onyx", "echo", "fable"];
+const FEMALE_NAMES = new Set([
+  "ana", "andrea", "beatriz", "carmen", "claudia", "elena", "isabel", "laura", "lucia", "lucía",
+  "maria", "maría", "paula", "rocio", "rocío", "sofia", "sofía", "teresa", "valeria",
+]);
+const MALE_NAMES = new Set([
+  "alejandro", "andres", "andrés", "carlos", "diego", "ernesto", "fernando", "javier", "jorge",
+  "juan", "luis", "manuel", "miguel", "pablo", "pedro", "rafael", "sergio",
+]);
 
 // ── Silent MP3 generator ─────────────────────────────────────────────────────
 // Creates valid MPEG1 Layer3 frames filled with zeros (silence).
@@ -78,6 +88,45 @@ function parseDialogue(text: string): DialogueSeg[] {
   }
   flush();
   return segments.filter((s) => s.text.length > 0);
+}
+
+function normalizeSpeakerName(speaker: string): string {
+  return speaker
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(entrevistador|entrevistadora|invitado|invitada|locutor|locutora|presentador|presentadora)\s*/i, "")
+    .replace(/[^a-záéíóúüñ\s]/gi, "")
+    .trim()
+    .split(/\s+/)[0] ?? "";
+}
+
+function speakerGender(speaker: string): "female" | "male" | "unknown" {
+  const normalized = normalizeSpeakerName(speaker);
+  const raw = speaker.toLowerCase();
+  if (raw.includes("entrevistadora") || raw.includes("locutora") || raw.includes("presentadora") || raw.includes("invitada")) {
+    return "female";
+  }
+  if (raw.includes("entrevistador") || raw.includes("locutor") || raw.includes("presentador") || raw.includes("invitado")) {
+    return "male";
+  }
+  if (FEMALE_NAMES.has(normalized)) return "female";
+  if (MALE_NAMES.has(normalized)) return "male";
+  if (normalized.endsWith("a")) return "female";
+  if (normalized.endsWith("o")) return "male";
+  return "unknown";
+}
+
+function voiceForSpeaker(speaker: string, speakerVoiceMap: Map<string, VoiceId>): VoiceId {
+  const existing = speakerVoiceMap.get(speaker);
+  if (existing) return existing;
+
+  const gender = speakerGender(speaker);
+  const pool = gender === "male" ? MALE_VOICES : gender === "female" ? FEMALE_VOICES : VOICES;
+  const usedFromPool = [...speakerVoiceMap.values()].filter((v) => pool.includes(v)).length;
+  const voice = pool[usedFromPool % pool.length];
+  speakerVoiceMap.set(speaker, voice);
+  return voice;
 }
 
 // ── Generate passage (F35) ────────────────────────────────────────────────────
@@ -152,13 +201,9 @@ router.post("/listening/tts", async (req, res) => {
     // Dialogue: multi-voice with pauses (F40)
     const segments = parseDialogue(passage);
     const speakerVoiceMap = new Map<string, VoiceId>();
-    let voiceIdx = 0;
 
     for (const seg of segments) {
-      if (!speakerVoiceMap.has(seg.speaker)) {
-        speakerVoiceMap.set(seg.speaker, VOICES[voiceIdx % VOICES.length]);
-        voiceIdx++;
-      }
+      voiceForSpeaker(seg.speaker, speakerVoiceMap);
     }
 
     // Generate all segment audios + pauses IN PARALLEL (fast)
@@ -305,20 +350,114 @@ router.post("/listening/paper", async (req, res) => {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      max_completion_tokens: 4000,
+      max_completion_tokens: 5000,
       messages: [
         {
           role: "system",
-          content: `Eres un examinador del IB Spanish B (Prueba 1, Comprensión auditiva). Crea un examen completo de audio con TRES textos distintos (Texto A, B, C), cada uno con su transcripción para leer en voz alta y sus propios bloques de preguntas, imitando un examen real.
+          content: `Eres un examinador del IB Spanish B (Prueba 1, Comprensión auditiva). Crea un examen completo de práctica con TRES textos distintos (Texto A, B, C), cada uno con su transcripción y preguntas. Debe seguir EXACTAMENTE la estructura de numeración y formatos indicados abajo.
 
 Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}
-- Texto A: una conversación entre dos personas (usa "Nombre: texto" por turno).
-- Texto B: un programa de radio / entrevista (incluye un bloque cloze-max3 con el texto de un anuncio).
-- Texto C: un monólogo o testimonio personal.
-- Cada texto: 180-280 palabras habladas y 2-4 bloques de tipos DISTINTOS.
-- Usa SOBRE TODO opción múltiple (A/B/C), short-answer, cloze-max3 y choose-5-true (como el examen real de audio). NO uses heading-match ni referent.
+- El examen muestra 20 preguntas numeradas del 1 al 20.
+- Texto A: 4 preguntas numeradas (1-4), con la pregunta 3 pidiendo dos ejemplos (a) y (b). Debe tener contenido suficiente para responder 5 puntos de información.
+- Texto B: preguntas 5-14. Las preguntas 5-9 son de opción múltiple A/B/C. Las preguntas 10-14 son un cloze con cinco huecos [ – 10 – ] a [ – 14 – ].
+- Texto C: preguntas 15-20. Las preguntas 15-19 son de opción múltiple A/B/C. La pregunta 20 es "Elige las cinco frases verdaderas. [5]" con opciones A-J.
+- Adapta longitud y dificultad al número de preguntas: Texto A 170-230 palabras, Texto B 280-360 palabras, Texto C 320-420 palabras.
+- Para diálogos usa siempre etiquetas "Nombre: texto". Si asignas nombres con género claro (Lucía, María, Rocío, Carlos, Juan, Ernesto), el audio usará una voz acorde al género.
+- NO uses heading-match, referent, true-false-justify, gap-fill-bank, find-word ni sentence-completion en listening full practice.
 
-${paperSchemaInstructions("listening")}`,
+Devuelve SOLO JSON válido con esta forma EXACTA:
+{
+  "texts": [
+    {
+      "id": "A",
+      "label": "Texto A",
+      "title": "Título corto",
+      "context": "Vas a escuchar...",
+      "body": "Transcripción completa con etiquetas de hablante si hay diálogo",
+      "blocks": [
+        {
+          "type": "short-answer",
+          "instruction": "Contesta a las siguientes preguntas.",
+          "items": [
+            { "id": "a1", "number": "1", "question": "¿En qué ...?", "answer": "respuesta esperada", "explanation": "evidencia breve" },
+            { "id": "a2", "number": "2", "question": "¿Cuánto tiempo ...?", "answer": "respuesta esperada", "explanation": "evidencia breve" },
+            { "id": "a3", "number": "3", "question": "¿De dónde reciben dinero...? Da dos ejemplos.\\n(a)\\n(b)", "answer": "dos fuentes aceptables separadas por punto y coma", "explanation": "evidencia breve" },
+            { "id": "a4", "number": "4", "question": "¿Cuál es la mejor forma de ...?", "answer": "respuesta esperada", "explanation": "evidencia breve" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "label": "Texto B",
+      "title": "Título corto",
+      "context": "Vas a escuchar...",
+      "body": "Transcripción completa",
+      "blocks": [
+        {
+          "type": "multiple-choice",
+          "instruction": "Elige la respuesta correcta.",
+          "items": [
+            { "id": "b5", "number": "5", "question": "Según ..., ¿...?", "options": ["A. ...", "B. ...", "C. ..."], "answer": "A", "explanation": "evidencia breve" },
+            { "id": "b6", "number": "6", "question": "Según ..., ¿...?", "options": ["A. ...", "B. ...", "C. ..."], "answer": "B", "explanation": "evidencia breve" },
+            { "id": "b7", "number": "7", "question": "¿En qué tipo de eventos ...?", "options": ["A. ...", "B. ...", "C. ..."], "answer": "C", "explanation": "evidencia breve" },
+            { "id": "b8", "number": "8", "question": "Según ..., ¿qué función ...?", "options": ["A. ...", "B. ...", "C. ..."], "answer": "A", "explanation": "evidencia breve" },
+            { "id": "b9", "number": "9", "question": "¿Qué efecto tendrá ...?", "options": ["A. ...", "B. ...", "C. ..."], "answer": "B", "explanation": "evidencia breve" }
+          ]
+        },
+        {
+          "type": "cloze-max3",
+          "instruction": "Completa los espacios en blanco. Usa como máximo tres palabras por espacio.",
+          "intro": "Texto breve con huecos [ – 10 – ], [ – 11 – ], [ – 12 – ], [ – 13 – ], [ – 14 – ].",
+          "items": [
+            { "id": "b10", "number": "10", "stem": "[ – 10 – ]", "answer": "máximo tres palabras", "explanation": "evidencia breve" },
+            { "id": "b11", "number": "11", "stem": "[ – 11 – ]", "answer": "máximo tres palabras", "explanation": "evidencia breve" },
+            { "id": "b12", "number": "12", "stem": "[ – 12 – ]", "answer": "máximo tres palabras", "explanation": "evidencia breve" },
+            { "id": "b13", "number": "13", "stem": "[ – 13 – ]", "answer": "máximo tres palabras", "explanation": "evidencia breve" },
+            { "id": "b14", "number": "14", "stem": "[ – 14 – ]", "answer": "máximo tres palabras", "explanation": "evidencia breve" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "label": "Texto C",
+      "title": "Título corto",
+      "context": "Vas a escuchar...",
+      "body": "Transcripción completa",
+      "blocks": [
+        {
+          "type": "multiple-choice",
+          "instruction": "Elige la respuesta correcta.",
+          "items": [
+            { "id": "c15", "number": "15", "question": "...", "options": ["A. ...", "B. ...", "C. ..."], "answer": "A", "explanation": "evidencia breve" },
+            { "id": "c16", "number": "16", "question": "...", "options": ["A. ...", "B. ...", "C. ..."], "answer": "B", "explanation": "evidencia breve" },
+            { "id": "c17", "number": "17", "question": "...", "options": ["A. ...", "B. ...", "C. ..."], "answer": "C", "explanation": "evidencia breve" },
+            { "id": "c18", "number": "18", "question": "...", "options": ["A. ...", "B. ...", "C. ..."], "answer": "A", "explanation": "evidencia breve" },
+            { "id": "c19", "number": "19", "question": "...", "options": ["A. ...", "B. ...", "C. ..."], "answer": "B", "explanation": "evidencia breve" }
+          ]
+        },
+        {
+          "type": "choose-5-true",
+          "number": "20",
+          "instruction": "Elige las cinco frases verdaderas. [5]",
+          "options": [
+            { "letter": "A", "text": "..." }, { "letter": "B", "text": "..." }, { "letter": "C", "text": "..." }, { "letter": "D", "text": "..." }, { "letter": "E", "text": "..." },
+            { "letter": "F", "text": "..." }, { "letter": "G", "text": "..." }, { "letter": "H", "text": "..." }, { "letter": "I", "text": "..." }, { "letter": "J", "text": "..." }
+          ],
+          "answers": ["A", "E", "G", "I", "J"]
+        }
+      ]
+    }
+  ]
+}
+
+Phrasing constraints:
+- Use the exact instructions: "Contesta a las siguientes preguntas.", "Elige la respuesta correcta.", "Completa los espacios en blanco. Usa como máximo tres palabras por espacio.", "Elige las cinco frases verdaderas. [5]".
+- The content of all questions/options must change to match the generated audio text.
+- Keep all questions and options in Spanish.
+- Every answer must be directly supported by the corresponding transcript.
+- Ensure the visible numbers are exactly 1 through 20 and no extra numbered questions are added.`,
         },
         { role: "user", content: `Genera el examen de audio sobre "${themeName}".` },
       ],

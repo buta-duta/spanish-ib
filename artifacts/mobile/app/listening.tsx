@@ -587,7 +587,7 @@ export default function ListeningScreen() {
               <View style={[s.contextCard, { backgroundColor: themeColor + "15", borderColor: themeColor + "30" }]}>
                 <Ionicons name="information-circle-outline" size={16} color={themeColor} />
                 <Text style={[s.contextText, { color: themeColor }]}>
-                  Genera 3 audios (Texto A/B/C) con sus preguntas al estilo del examen IB. Verás todas las preguntas a la vez y enviarás una sola vez.
+                  Genera 3 audios (Texto A/B/C) con 20 preguntas numeradas al estilo del examen IB. Verás todo a la vez y enviarás una sola vez.
                 </Text>
               </View>
 
@@ -754,7 +754,7 @@ export default function ListeningScreen() {
           </Pressable>
           <View style={s.headerCenter}>
             <Text style={[s.headerTitle, { color: colors.text }]}>{reviewing ? "Resultados" : "Examen de audio"}</Text>
-            <Text style={[s.headerSub, { color: themeColor }]}>3 textos · Spanish B</Text>
+            <Text style={[s.headerSub, { color: themeColor }]}>3 textos · 20 preguntas</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -791,7 +791,13 @@ export default function ListeningScreen() {
             showBody="afterSubmit"
             renderTextExtra={(t) =>
               !reviewing ? (
-                <PassageAudioPlayer text={t.body} accent={themeColor} colors={colors} cacheKey={t.id} />
+                <PassageAudioPlayer
+                  text={t.body}
+                  accent={themeColor}
+                  colors={colors}
+                  cacheKey={t.id}
+                  onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}
+                />
               ) : null
             }
             onWordPress={(word, ctx) => setWordPopup({ word, context: ctx })}

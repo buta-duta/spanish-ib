@@ -18,6 +18,7 @@ export type BankOption = { letter: string; text: string };
 
 export type QuestionBlock = {
   type: BlockType;
+  number?: string; // global question number for whole-paper blocks such as "20"
   instruction: string;
   intro?: string; // optional contextual lead-in (e.g. the cloze advert text)
   // Shared option bank for heading-match / gap-fill-bank / choose-5-true
@@ -29,6 +30,7 @@ export type QuestionBlock = {
 
 export type QuestionItem = {
   id: string;
+  number?: string; // global question number shown to the student
   // Display fields (only the relevant ones are populated per block type)
   question?: string; // short-answer, multiple-choice
   options?: string[]; // multiple-choice display options ("A. ...")

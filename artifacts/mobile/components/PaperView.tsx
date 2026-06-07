@@ -119,6 +119,18 @@ function ResultLine({
   );
 }
 
+function TappableLine({
+  text,
+  textStyle,
+  onWordPress,
+}: {
+  text: string;
+  textStyle: object;
+  onWordPress: (word: string, ctx: string) => void;
+}) {
+  return <TappableText text={text} textStyle={textStyle} onWordPress={onWordPress} />;
+}
+
 function BlockView({
   textId,
   block,
@@ -144,24 +156,34 @@ function BlockView({
 
   return (
     <View style={[pv.block, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[pv.instruction, { color: colors.text }]}>{block.instruction}</Text>
+      <TappableLine
+        text={`${block.number ? `${block.number}. ` : ""}${block.instruction}`}
+        textStyle={[pv.instruction, { color: colors.text }]}
+        onWordPress={onWordPress}
+      />
 
       {/* Shared option bank for heading-match / gap-fill-bank */}
       {(block.type === "heading-match" || block.type === "gap-fill-bank") && !!block.options?.length && (
         <View style={[pv.bank, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
           {block.options.map((o) => (
-            <Text key={o.letter} style={[pv.bankItem, { color: colors.text }]}>
-              <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{o.letter}. </Text>
-              {o.text}
-            </Text>
+            <TappableLine
+              key={o.letter}
+              text={`${o.letter}. ${o.text}`}
+              textStyle={[pv.bankItem, { color: colors.text }]}
+              onWordPress={onWordPress}
+            />
           ))}
         </View>
       )}
 
       {!!block.intro && (
-        <Text style={[pv.intro, { color: colors.text, backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
-          {block.intro}
-        </Text>
+        <View style={[pv.intro, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+          <TappableLine
+            text={block.intro}
+            textStyle={[pv.introText, { color: colors.text }]}
+            onWordPress={onWordPress}
+          />
+        </View>
       )}
 
       {/* choose-5-true */}
@@ -175,6 +197,7 @@ function BlockView({
           grades={grades}
           accent={accent}
           colors={colors}
+          onWordPress={onWordPress}
         />
       )}
 
@@ -187,33 +210,39 @@ function BlockView({
             <View key={it.id} style={pv.item}>
               {/* Prompt */}
               {!!it.question && (
-                <Text style={[pv.qText, { color: colors.text }]}>
-                  <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{idx + 1}. </Text>
-                  {it.question}
-                </Text>
+                <TappableLine
+                  text={`${it.number ?? String(idx + 1)}. ${it.question}`}
+                  textStyle={[pv.qText, { color: colors.text }]}
+                  onWordPress={onWordPress}
+                />
               )}
               {!!it.statement && (
-                <Text style={[pv.qText, { color: colors.text }]}>
-                  <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{idx + 1}. </Text>
-                  {it.statement}
-                </Text>
+                <TappableLine
+                  text={`${it.number ?? String(idx + 1)}. ${it.statement}`}
+                  textStyle={[pv.qText, { color: colors.text }]}
+                  onWordPress={onWordPress}
+                />
               )}
               {!!it.clue && (
-                <Text style={[pv.qText, { color: colors.text }]}>
-                  <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{idx + 1}. </Text>
-                  {it.clue}
-                </Text>
+                <TappableLine
+                  text={`${it.number ?? String(idx + 1)}. ${it.clue}`}
+                  textStyle={[pv.qText, { color: colors.text }]}
+                  onWordPress={onWordPress}
+                />
               )}
               {!!it.stem && (
-                <Text style={[pv.qText, { color: colors.text }]}>
-                  <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{it.stem} </Text>
-                </Text>
+                <TappableLine
+                  text={`${it.number ? `${it.number}. ` : ""}${it.stem}`}
+                  textStyle={[pv.qText, { color: colors.text }]}
+                  onWordPress={onWordPress}
+                />
               )}
               {!!it.phrase && (
-                <Text style={[pv.qText, { color: colors.text }]}>
-                  <Text style={{ color: accent, fontFamily: "Inter_700Bold" }}>{idx + 1}. </Text>
-                  {it.phrase}
-                </Text>
+                <TappableLine
+                  text={`${it.number ?? String(idx + 1)}. ${it.phrase}`}
+                  textStyle={[pv.qText, { color: colors.text }]}
+                  onWordPress={onWordPress}
+                />
               )}
 
               {/* Answer control */}
@@ -229,7 +258,11 @@ function BlockView({
                         onPress={() => setField(it.id, letter)}
                         style={[pv.option, { backgroundColor: active ? accent + "18" : colors.cardAlt, borderColor: active ? accent : colors.border }]}
                       >
-                        <Text style={[pv.optionText, { color: colors.text }]}>{opt}</Text>
+                        <TappableLine
+                          text={opt}
+                          textStyle={[pv.optionText, { color: colors.text }]}
+                          onWordPress={onWordPress}
+                        />
                       </Pressable>
                     );
                   })}
@@ -334,6 +367,7 @@ function ChooseFiveTrue({
   grades,
   accent,
   colors,
+  onWordPress,
 }: {
   textId: string;
   block: QuestionBlock;
@@ -343,6 +377,7 @@ function ChooseFiveTrue({
   grades: GradeMap;
   accent: string;
   colors: Colors;
+  onWordPress: (word: string, ctx: string) => void;
 }) {
   const key = blockKey(textId, block);
   const selected = (answers[key] ?? "").split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
@@ -390,10 +425,13 @@ function ChooseFiveTrue({
             <View style={[pv.checkbox, { borderColor: isSel ? accent : colors.border, backgroundColor: isSel ? accent : "transparent" }]}>
               {isSel && <Ionicons name="checkmark" size={12} color="#fff" />}
             </View>
-            <Text style={[pv.optionText, { color: colors.text, flex: 1 }]}>
-              <Text style={{ fontFamily: "Inter_700Bold", color: accent }}>{o.letter}. </Text>
-              {o.text}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <TappableLine
+                text={`${o.letter}. ${o.text}`}
+                textStyle={[pv.optionText, { color: colors.text }]}
+                onWordPress={onWordPress}
+              />
+            </View>
             {submitted && isCorrect && <Ionicons name="checkmark-circle" size={16} color={GREEN} />}
           </Pressable>
         );
@@ -414,7 +452,8 @@ const pv = StyleSheet.create({
   instruction: { fontSize: 14, fontFamily: "Inter_600SemiBold", lineHeight: 20 },
   bank: { borderRadius: 10, borderWidth: 1, padding: 12, gap: 6 },
   bankItem: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
-  intro: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22, padding: 12, borderRadius: 10, borderWidth: 1 },
+  intro: { padding: 12, borderRadius: 10, borderWidth: 1 },
+  introText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   item: { gap: 6 },
   qText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
   option: { padding: 12, borderRadius: 10, borderWidth: 1 },

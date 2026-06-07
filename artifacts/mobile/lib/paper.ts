@@ -17,6 +17,7 @@ export type BankOption = { letter: string; text: string };
 
 export type QuestionItem = {
   id: string;
+  number?: string;
   question?: string;
   options?: string[];
   clue?: string;
@@ -30,6 +31,7 @@ export type QuestionItem = {
 
 export type QuestionBlock = {
   type: BlockType;
+  number?: string;
   instruction: string;
   intro?: string;
   options?: BankOption[];

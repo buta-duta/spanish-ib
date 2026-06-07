@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { TappableText } from "@/components/WordModal";
 import { apiFetch, getApiUrl } from "@/lib/api";
 
 const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 1.75, 2];
@@ -18,15 +19,18 @@ export function PassageAudioPlayer({
   accent,
   colors,
   cacheKey,
+  onWordPress,
 }: {
   text: string;
   accent: string;
   colors: Colors;
   cacheKey: string;
+  onWordPress?: (word: string, ctx: string) => void;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [speed, setSpeed] = useState(1);
   const [playCount, setPlayCount] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef<string | null>(null);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const nativeSoundRef = useRef<Audio.Sound | null>(null);
@@ -145,6 +149,14 @@ export function PassageAudioPlayer({
             <Ionicons name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
           )}
         </Pressable>
+        <Pressable
+          onPress={() => setShowTranscript((v) => !v)}
+          style={[s.transcriptBtn, { borderColor: accent, backgroundColor: showTranscript ? accent : "transparent" }]}
+        >
+          <Text style={[s.transcriptIcon, { color: showTranscript ? "#fff" : accent }]}>
+            {showTranscript ? "v" : "^"}
+          </Text>
+        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[s.statusText, { color: colors.text }]}>
             {status === "loading"
@@ -171,6 +183,19 @@ export function PassageAudioPlayer({
           </Pressable>
         ))}
       </ScrollView>
+      {showTranscript && (
+        <View style={[s.transcriptCard, { borderColor: colors.border, backgroundColor: colors.cardAlt }]}>
+          <Text style={[s.transcriptLabel, { color: colors.textSecondary }]}>Transcripción</Text>
+          {text.split("\n").filter(Boolean).map((para, idx) => (
+            <TappableText
+              key={idx}
+              text={para}
+              textStyle={[s.transcriptText, { color: colors.text }]}
+              onWordPress={onWordPress ?? (() => {})}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -179,9 +204,14 @@ const s = StyleSheet.create({
   card: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   playBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  transcriptBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  transcriptIcon: { fontSize: 18, fontFamily: "Inter_700Bold", lineHeight: 20 },
   statusText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   countText: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   speedRow: { gap: 6 },
   speedBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
   speedText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  transcriptCard: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
+  transcriptLabel: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.6 },
+  transcriptText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
 });
