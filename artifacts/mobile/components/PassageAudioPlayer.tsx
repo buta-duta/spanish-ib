@@ -71,54 +71,59 @@ export function PassageAudioPlayer({
     if (!base64) return;
 
     if (Platform.OS === "web") {
-      if (!webAudioRef.current) {
-        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-        const blob = new Blob([bytes], { type: "audio/mpeg" });
-        const blobUrl = URL.createObjectURL(blob);
-        const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
-        webAudioRef.current = audio;
-        audio.playbackRate = speed;
-        audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ended"); };
-        audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ready"); };
-        setPlayCount((c) => c + 1);
-      } else {
+      if (webAudioRef.current) {
+        webAudioRef.current.pause();
+        webAudioRef.current.currentTime = 0;
         webAudioRef.current.playbackRate = speed;
+        setPlayCount((c) => c + 1);
+        await webAudioRef.current.play();
+        setStatus("playing");
+        return;
       }
-      await webAudioRef.current.play();
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const blobUrl = URL.createObjectURL(blob);
+      const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
+      webAudioRef.current = audio;
+      audio.playbackRate = speed;
+      audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ended"); };
+      audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setStatus("ready"); };
+      setPlayCount((c) => c + 1);
+      await audio.play();
       setStatus("playing");
     } else {
       try {
-        if (!nativeSoundRef.current) {
-          await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true });
-          const path = (FileSystem.cacheDirectory ?? "") + `listening_${cacheKey}.mp3`;
-          await FileSystem.writeAsStringAsync(path, base64, { encoding: "base64" });
-          const { sound } = await Audio.Sound.createAsync({ uri: path });
-          nativeSoundRef.current = sound;
-          sound.setOnPlaybackStatusUpdate((st) => {
-            if (!st.isLoaded) return;
-            if (st.didJustFinish) {
-              nativeSoundRef.current = null;
-              sound.unloadAsync().catch(() => {});
-              setStatus("ended");
-            }
+        if (nativeSoundRef.current) {
+          await nativeSoundRef.current.setStatusAsync({
+            shouldPlay: true,
+            positionMillis: 0,
+            rate: speed,
+            shouldCorrectPitch: true,
           });
           setPlayCount((c) => c + 1);
+          setStatus("playing");
+          return;
         }
-        await nativeSoundRef.current!.setStatusAsync({ shouldPlay: true, rate: speed, shouldCorrectPitch: true });
+        await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true });
+        const path = (FileSystem.cacheDirectory ?? "") + `listening_${cacheKey}.mp3`;
+        await FileSystem.writeAsStringAsync(path, base64, { encoding: "base64" });
+        const { sound } = await Audio.Sound.createAsync({ uri: path });
+        nativeSoundRef.current = sound;
+        sound.setOnPlaybackStatusUpdate((st) => {
+          if (!st.isLoaded) return;
+          if (st.didJustFinish) {
+            nativeSoundRef.current = null;
+            sound.unloadAsync().catch(() => {});
+            setStatus("ended");
+          }
+        });
+        setPlayCount((c) => c + 1);
+        await sound.playAsync();
         setStatus("playing");
       } catch {
         setStatus("ready");
       }
     }
-  };
-
-  const pause = async () => {
-    if (Platform.OS === "web") {
-      webAudioRef.current?.pause();
-    } else {
-      await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false });
-    }
-    setStatus("paused");
   };
 
   const changeSpeed = async (sp: number) => {
@@ -130,7 +135,7 @@ export function PassageAudioPlayer({
         await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false, positionMillis: 0 }).catch(() => {});
       }
     } catch {}
-    if (status === "playing" || status === "paused") setStatus("ready");
+    if (status === "playing") setStatus("ready");
   };
 
   const isPlaying = status === "playing";
@@ -139,14 +144,14 @@ export function PassageAudioPlayer({
     <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.row}>
         <Pressable
-          onPress={isPlaying ? pause : play}
+          onPress={play}
           disabled={status === "loading"}
           style={({ pressed }) => [s.playBtn, { backgroundColor: accent, opacity: pressed || status === "loading" ? 0.75 : 1 }]}
         >
           {status === "loading" ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Ionicons name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
+            <Ionicons name="play" size={22} color="#fff" />
           )}
         </Pressable>
         <Pressable
@@ -163,8 +168,6 @@ export function PassageAudioPlayer({
               ? "Generando audio…"
               : isPlaying
               ? "Reproduciendo"
-              : status === "paused"
-              ? "Pausado"
               : status === "ended"
               ? "Finalizado"
               : "Reproducir audio"}

@@ -235,67 +235,64 @@ export default function ListeningScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPlayCount((c) => c + 1);
 
     if (Platform.OS === "web") {
-      if (!webAudioRef.current) {
-        // Convert base64 → Blob URL (data URIs return NaN/~5s duration on mobile Safari)
-        const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
-        const blob = new Blob([bytes], { type: "audio/mpeg" });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
-        webAudioRef.current = audio;
-        audio.playbackRate = playbackSpeed;
-        audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); };
-        audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ready"); };
-        setPlayCount((c) => c + 1);
-      } else {
+      if (webAudioRef.current) {
+        webAudioRef.current.pause();
+        webAudioRef.current.currentTime = 0;
         webAudioRef.current.playbackRate = playbackSpeed;
+        await webAudioRef.current.play();
+        setPlayStatus("playing");
+        return;
       }
-      await webAudioRef.current.play();
+      const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const audio = new (window as any).Audio(blobUrl) as HTMLAudioElement;
+      webAudioRef.current = audio;
+      audio.playbackRate = playbackSpeed;
+      audio.onended = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ended"); };
+      audio.onerror = () => { URL.revokeObjectURL(blobUrl); webAudioRef.current = null; setPlayStatus("ready"); };
+      await audio.play();
       setPlayStatus("playing");
     } else {
       try {
-        if (!nativeSoundRef.current) {
-          await Audio.setAudioModeAsync({
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-            allowsRecordingIOS: false,
+        if (nativeSoundRef.current) {
+          await nativeSoundRef.current.setStatusAsync({
+            shouldPlay: true,
+            positionMillis: 0,
+            rate: playbackSpeed,
+            shouldCorrectPitch: true,
           });
-          const path = (FileSystem.cacheDirectory ?? "") + "listening.mp3";
-          await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
-          const { sound } = await Audio.Sound.createAsync({ uri: path });
-          nativeSoundRef.current = sound;
-          sound.setOnPlaybackStatusUpdate((s) => {
-            if (!s.isLoaded) return;
-            if (s.didJustFinish) {
-              nativeSoundRef.current = null;
-              sound.unloadAsync().catch(() => {});
-              setPlayStatus("ended");
-            }
-          });
-          setPlayCount((c) => c + 1);
+          setPlayStatus("playing");
+          return;
         }
-        await nativeSoundRef.current!.setStatusAsync({
-          shouldPlay: true,
-          rate: playbackSpeed,
-          shouldCorrectPitch: true,
+        await Audio.setAudioModeAsync({
+          staysActiveInBackground: true,
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
         });
+        const path = (FileSystem.cacheDirectory ?? "") + "listening.mp3";
+        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" });
+        const { sound } = await Audio.Sound.createAsync({ uri: path });
+        nativeSoundRef.current = sound;
+        sound.setOnPlaybackStatusUpdate((s) => {
+          if (!s.isLoaded) return;
+          if (s.didJustFinish) {
+            nativeSoundRef.current = null;
+            sound.unloadAsync().catch(() => {});
+            setPlayStatus("ended");
+          }
+        });
+        await sound.playAsync();
         setPlayStatus("playing");
       } catch {
         setPlayStatus("ready");
       }
     }
   }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays]);
-
-  const pauseAudio = useCallback(async () => {
-    if (Platform.OS === "web") {
-      webAudioRef.current?.pause();
-    } else {
-      await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false });
-    }
-    setPlayStatus("paused");
-  }, []);
 
   // Speed change: stop and reset to beginning — user presses play again at new speed
   const handleSpeedChange = useCallback(async (speed: number) => {
@@ -312,7 +309,7 @@ export default function ListeningScreen() {
         }
       }
     } catch {}
-    if (playStatus === "playing" || playStatus === "paused") {
+    if (playStatus === "playing") {
       setPlayStatus("ready");
     }
   }, [playStatus]);
@@ -838,8 +835,8 @@ export default function ListeningScreen() {
   // LISTENING PHASE
   // ═══════════════════════════════════════════════════════════════════════════════
   if (phase === "listening") {
-    const canPlay = playStatus === "ready" || playStatus === "paused" || playStatus === "ended";
     const isPlaying = playStatus === "playing";
+    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays);
     const playsLeft = maxPlays - playCount;
 
     return (
@@ -890,11 +887,11 @@ export default function ListeningScreen() {
           <View style={[s.playerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.playerLabel, { color: colors.textSecondary }]}>Controles de reproducción</Text>
 
-            {/* Play / Pause button */}
+            {/* Play button — each press restarts from the beginning */}
             <View style={s.playerRow}>
               <Pressable
-                onPress={isPlaying ? pauseAudio : playAudio}
-                disabled={!canPlay && !isPlaying || audioLoading}
+                onPress={playAudio}
+                disabled={playDisabled}
                 style={({ pressed }) => [
                   s.playBtn,
                   { backgroundColor: themeColor, opacity: pressed || audioLoading ? 0.75 : 1 },
@@ -902,8 +899,6 @@ export default function ListeningScreen() {
               >
                 {audioLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
-                ) : isPlaying ? (
-                  <Ionicons name="pause" size={28} color="#fff" />
                 ) : (
                   <Ionicons name="play" size={28} color="#fff" />
                 )}
@@ -915,8 +910,6 @@ export default function ListeningScreen() {
                     ? "Generando audio…"
                     : isPlaying
                     ? "Reproduciendo"
-                    : playStatus === "paused"
-                    ? "Pausado"
                     : playStatus === "ended"
                     ? "Finalizado"
                     : playStatus === "ready"
@@ -1039,6 +1032,7 @@ export default function ListeningScreen() {
   if (phase === "questions") {
     const answeredCount = questions.filter((qq) => (quickAnswers[qq.id] ?? "").trim()).length;
     const progress = questions.length > 0 ? answeredCount / questions.length : 0;
+    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays);
     const qTypeColors: Record<string, string> = {
       "multiple-choice": "#3498DB",
       "true-false": "#2ECC71",
@@ -1108,10 +1102,11 @@ export default function ListeningScreen() {
           {/* Audio replay mini-player */}
           <View style={[s.miniPlayer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Pressable
-              onPress={playStatus === "playing" ? pauseAudio : playAudio}
-              style={[s.miniPlayBtn, { backgroundColor: themeColor }]}
+              onPress={playAudio}
+              disabled={playDisabled}
+              style={[s.miniPlayBtn, { backgroundColor: themeColor, opacity: playDisabled ? 0.5 : 1 }]}
             >
-              <Ionicons name={playStatus === "playing" ? "pause" : "play"} size={16} color="#fff" />
+              <Ionicons name="play" size={16} color="#fff" />
             </Pressable>
             <Text style={[s.miniPlayerText, { color: colors.textSecondary }]}>Reproducir audio</Text>
             <Text style={[s.miniPlayerSpeed, { color: themeColor }]}>{playbackSpeed}x</Text>

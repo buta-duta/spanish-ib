@@ -15,18 +15,24 @@ const THEME_NAMES: Record<string, string> = {
   "compartir-el-planeta": "Compartir el planeta",
 };
 
-const VOICES = ["nova", "onyx", "shimmer", "alloy", "echo", "fable"] as const;
-type VoiceId = typeof VOICES[number];
-const FEMALE_VOICES: VoiceId[] = ["nova", "shimmer", "alloy"];
-const MALE_VOICES: VoiceId[] = ["onyx", "echo", "fable"];
+type VoiceId = "nova" | "shimmer" | "onyx" | "echo";
+// OpenAI voices with clearly gendered delivery
+const FEMALE_VOICES: VoiceId[] = ["nova", "shimmer"];
+const MALE_VOICES: VoiceId[] = ["onyx", "echo"];
 const FEMALE_NAMES = new Set([
-  "ana", "andrea", "beatriz", "carmen", "claudia", "elena", "isabel", "laura", "lucia", "lucía",
-  "maria", "maría", "paula", "rocio", "rocío", "sofia", "sofía", "teresa", "valeria",
+  "ana", "andrea", "beatriz", "carmen", "claudia", "cristina", "elena", "isabel", "laura", "lucia",
+  "maria", "marina", "marta", "monica", "paula", "patricia", "rocio", "rosa", "sara", "silvia",
+  "sofia", "teresa", "valeria", "veronica", "victoria",
 ]);
 const MALE_NAMES = new Set([
-  "alejandro", "andres", "andrés", "carlos", "diego", "ernesto", "fernando", "javier", "jorge",
-  "juan", "luis", "manuel", "miguel", "pablo", "pedro", "rafael", "sergio",
+  "adrian", "alberto", "alejandro", "alfonso", "andres", "angel", "antonio", "carlos", "daniel",
+  "david", "diego", "eduardo", "enrique", "ernesto", "felipe", "fernando", "francisco", "guillermo",
+  "hector", "hugo", "ivan", "javier", "jorge", "jose", "juan", "julio", "lucas", "luis", "manuel",
+  "marcos", "mario", "martin", "mateo", "miguel", "oscar", "pablo", "pedro", "rafael", "raul",
+  "ricardo", "roberto", "ruben", "samuel", "sergio", "victor",
 ]);
+// Rare Spanish male first names ending in -a
+const MALE_NAMES_ENDING_A = new Set(["bautista", "luca", "maikel", "mika", "mustafa", "nazaret"]);
 
 // ── Silent MP3 generator ─────────────────────────────────────────────────────
 // Creates valid MPEG1 Layer3 frames filled with zeros (silence).
@@ -90,39 +96,60 @@ function parseDialogue(text: string): DialogueSeg[] {
   return segments.filter((s) => s.text.length > 0);
 }
 
-function normalizeSpeakerName(speaker: string): string {
-  return speaker
+function normalizeToken(value: string): string {
+  return value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/^(entrevistador|entrevistadora|invitado|invitada|locutor|locutora|presentador|presentadora)\s*/i, "")
-    .replace(/[^a-záéíóúüñ\s]/gi, "")
-    .trim()
-    .split(/\s+/)[0] ?? "";
+    .replace(/[^a-z]/g, "");
 }
 
-function speakerGender(speaker: string): "female" | "male" | "unknown" {
-  const normalized = normalizeSpeakerName(speaker);
-  const raw = speaker.toLowerCase();
-  if (raw.includes("entrevistadora") || raw.includes("locutora") || raw.includes("presentadora") || raw.includes("invitada")) {
-    return "female";
+function extractSpeakerFirstName(speaker: string): string {
+  const trimmed = speaker.trim();
+  const roleWithName = trimmed.match(
+    /^(?:entrevistador|entrevistadora|invitado|invitada|locutor|locutora|presentador|presentadora)(?:\/a)?\s+(.+)$/i,
+  );
+  if (roleWithName?.[1]) {
+    return normalizeToken(roleWithName[1].split(/\s+/)[0] ?? "");
   }
-  if (raw.includes("entrevistador") || raw.includes("locutor") || raw.includes("presentador") || raw.includes("invitado")) {
-    return "male";
+  return normalizeToken(trimmed.split(/\s+/)[0] ?? "");
+}
+
+function speakerGender(speaker: string): "female" | "male" {
+  const raw = speaker
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (/entrevistadora|invitada|locutora|presentadora|narradora/.test(raw)) return "female";
+  if (/entrevistador\/a|invitado\/a|locutor\/a|presentador\/a/.test(raw)) {
+    const name = extractSpeakerFirstName(speaker);
+    return name ? genderFromFirstName(name) : "male";
   }
-  if (FEMALE_NAMES.has(normalized)) return "female";
-  if (MALE_NAMES.has(normalized)) return "male";
-  if (normalized.endsWith("a")) return "female";
-  if (normalized.endsWith("o")) return "male";
-  return "unknown";
+  if (/entrevistador|invitado|locutor|presentador|narrador/.test(raw)) {
+    const name = extractSpeakerFirstName(speaker);
+    return name && name !== normalizeToken(speaker.split(/\s+/)[0] ?? "") ? genderFromFirstName(name) : "male";
+  }
+
+  const firstName = extractSpeakerFirstName(speaker);
+  if (!firstName) return "male";
+  return genderFromFirstName(firstName);
+}
+
+function genderFromFirstName(name: string): "female" | "male" {
+  if (FEMALE_NAMES.has(name)) return "female";
+  if (MALE_NAMES.has(name) || MALE_NAMES_ENDING_A.has(name)) return "male";
+  if (name.endsWith("a")) return "female";
+  if (name.endsWith("o")) return "male";
+  // Most unattested Spanish first names ending in consonant/e are male (José→jose, Lucas, etc.)
+  return "male";
 }
 
 function voiceForSpeaker(speaker: string, speakerVoiceMap: Map<string, VoiceId>): VoiceId {
   const existing = speakerVoiceMap.get(speaker);
   if (existing) return existing;
 
-  const gender = speakerGender(speaker);
-  const pool = gender === "male" ? MALE_VOICES : gender === "female" ? FEMALE_VOICES : VOICES;
+  const pool = speakerGender(speaker) === "female" ? FEMALE_VOICES : MALE_VOICES;
   const usedFromPool = [...speakerVoiceMap.values()].filter((v) => pool.includes(v)).length;
   const voice = pool[usedFromPool % pool.length];
   speakerVoiceMap.set(speaker, voice);
@@ -192,8 +219,14 @@ router.post("/listening/tts", async (req, res) => {
 
   try {
     if (!isDialogue(passage)) {
-      // Single narrator voice for monologue/news
-      const audioBuffer = await textToSpeech(passage.trim(), "shimmer", "mp3");
+      const segments = parseDialogue(passage);
+      const speakers = new Set(segments.map((s) => s.speaker));
+      const voiceMap = new Map<string, VoiceId>();
+      const voice =
+        speakers.size === 1 && segments[0]
+          ? voiceForSpeaker(segments[0].speaker, voiceMap)
+          : "onyx";
+      const audioBuffer = await textToSpeech(passage.trim(), voice, "mp3");
       res.json({ audioBase64: audioBuffer.toString("base64"), isDualVoice: false });
       return;
     }
@@ -208,7 +241,7 @@ router.post("/listening/tts", async (req, res) => {
 
     // Generate all segment audios + pauses IN PARALLEL (fast)
     const segmentPromises = segments.map((seg) =>
-      textToSpeech(seg.text, speakerVoiceMap.get(seg.speaker) ?? "shimmer", "mp3")
+      textToSpeech(seg.text, voiceForSpeaker(seg.speaker, speakerVoiceMap), "mp3")
     );
 
     const segmentBuffers = await Promise.all(segmentPromises);
