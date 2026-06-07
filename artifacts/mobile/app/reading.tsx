@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { FlashcardPracticeToggle } from "@/components/FlashcardPracticeToggle";
 import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WeakPracticeSetup } from "@/components/WeakPracticeSetup";
 import { WordModal } from "@/components/WordModal";
@@ -29,6 +30,8 @@ import { useProgress } from "@/contexts/ProgressContext";
 import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { buildModuleCustomFocus, flashcardWordsPayload } from "@/lib/customFocus";
+import { extractPaperTopics } from "@/lib/paperHistory";
 import { mistakesFromReadingAnswers } from "@/lib/mistakes";
 import { PaperView } from "@/components/PaperView";
 import {
@@ -41,7 +44,6 @@ import {
 } from "@/lib/paper";
 import {
   blockTypesToReadingFocus,
-  buildWeakCustomFocus,
   getLastFullPaperMissedTypes,
 } from "@/lib/weakPractice";
 
@@ -233,13 +235,13 @@ export default function ReadingScreen() {
 
   const missedBlockTypes = getLastFullPaperMissedTypes(progress.sessionSummaries, "reading");
   const flashcardWords = progress.flashcards.map((c) => c.word);
-  const weakCustomFocus = () =>
-    buildWeakCustomFocus(
-      persistence.weakPractice,
-      persistence.weakAreas.map((w) => w.label),
+  const moduleCustomFocus = () =>
+    buildModuleCustomFocus(
       customFocus,
       includeFlashcards,
       flashcardWords,
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
     );
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -252,7 +254,7 @@ export default function ReadingScreen() {
         body: JSON.stringify({
           theme: selectedTheme,
           textType: selectedType,
-          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
+          customFocus: moduleCustomFocus(),
         }),
       });
       const data = await res.json();
@@ -291,9 +293,8 @@ export default function ReadingScreen() {
       if (persistence.weakPractice && examMode === "quick" && missedBlockTypes.length) {
         body.focusTypes = blockTypesToReadingFocus(missedBlockTypes);
       }
-      if (persistence.weakPractice && includeFlashcards && flashcardWords.length) {
-        body.flashcardWords = flashcardWords;
-      }
+      const fc = flashcardWordsPayload(includeFlashcards, flashcardWords);
+      if (fc) body.flashcardWords = fc;
       const res = await apiFetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -342,11 +343,14 @@ export default function ReadingScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           theme: selectedTheme,
-          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
+          customFocus: moduleCustomFocus(),
+          previousTopics: progress.getPaperHistory("reading"),
         }),
       });
       const data = await res.json();
-      setPaper({ texts: data.texts ?? [] });
+      const nextPaper = { texts: data.texts ?? [] };
+      setPaper(nextPaper);
+      void progress.appendPaperHistory("reading", extractPaperTopics(nextPaper));
       setPaperAnswers({});
       setPaperGrades({});
       setPaperResult(null);
@@ -562,12 +566,17 @@ export default function ReadingScreen() {
               colors={{ ...colors, tint: ACCENT }}
               accent={ACCENT}
               missedTypes={missedBlockTypes}
-              includeFlashcards={includeFlashcards}
-              onToggleFlashcards={setIncludeFlashcards}
-              flashcardCount={flashcardWords.length}
               quickMode={examMode === "quick"}
             />
           ) : null}
+
+          <FlashcardPracticeToggle
+            colors={colors}
+            accent={ACCENT}
+            includeFlashcards={includeFlashcards}
+            onToggle={setIncludeFlashcards}
+            flashcardCount={flashcardWords.length}
+          />
 
           {/* Exam mode toggle (quick vs full IB paper) */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>

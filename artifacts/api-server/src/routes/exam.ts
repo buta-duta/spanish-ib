@@ -190,7 +190,7 @@ router.post("/exam/chat", async (req, res) => {
 
 
 router.post("/exam/image-chat", async (req, res) => {
-  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip } = req.body;
+  const { messages, theme, imageDescription, imageCaption, sessionTurn, rephrase, skip, practiceFocus } = req.body;
   if (!messages || !imageDescription) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -222,6 +222,7 @@ IMAGE DESCRIPTION:
 ${imageDescription}
 
 THEME: ${themeName[themeKey] || "Compartir el planeta"}
+${typeof practiceFocus === "string" && practiceFocus.trim() ? PRACTICE_FOCUS_INSTRUCTION(practiceFocus.trim()) : ""}
 
 MANDATORY RESPONSE FORMAT (Return ONLY JSON):
 {

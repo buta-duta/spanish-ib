@@ -1,3 +1,4 @@
+import { buildModuleCustomFocus } from "@/lib/customFocus";
 import type { BlockType } from "@/lib/paper";
 import type { ModuleId, SessionSummary } from "@/types/progress";
 
@@ -72,13 +73,7 @@ export function buildWeakCustomFocus(
   includeFlashcards: boolean,
   flashcardWords: string[],
 ): string | undefined {
-  const parts: string[] = [];
-  if (userFocus.trim()) parts.push(userFocus.trim());
-  if (weakPractice && weakLabels.length) parts.push(`Focus on: ${weakLabels.join(", ")}`);
-  if (weakPractice && includeFlashcards && flashcardWords.length) {
-    parts.push(`Naturally incorporate these saved vocabulary words: ${flashcardWords.slice(0, 24).join(", ")}`);
-  }
-  return parts.length ? parts.join(". ") : undefined;
+  return buildModuleCustomFocus(userFocus, includeFlashcards, flashcardWords, weakPractice, weakLabels);
 }
 
 export function formatMissedTypeLabels(types: BlockType[]): string {

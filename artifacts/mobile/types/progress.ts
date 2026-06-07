@@ -53,6 +53,7 @@ export type UserProgressStore = {
   modules: Partial<Record<ModuleId, ModuleSnapshot>>;
   sessionSummaries: SessionSummary[];
   weakAreas: WeakArea[];
+  paperHistory?: Partial<Record<"reading" | "listening", string[]>>;
 };
 
 export const EMPTY_PROGRESS: UserProgressStore = {

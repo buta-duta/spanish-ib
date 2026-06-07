@@ -11,6 +11,7 @@ import React, {
 import type { ExamSession, Flashcard } from "@/types/userData";
 import { useAuth } from "@/contexts/AuthContext";
 import { normalizeFlashcardWord } from "@/lib/flashcardWord";
+import { appendPaperTopics } from "@/lib/paperHistory";
 import { localSessionSummary } from "@/lib/mistakes";
 import { apiFetch, getApiUrl } from "@/lib/api";
 import { loadProgressStore, saveProgressStore } from "@/lib/progressStorage";
@@ -55,6 +56,8 @@ type ProgressContextValue = {
   completeSession: (input: CompleteSessionInput) => Promise<SessionSummary>;
   getWeakAreas: (module?: ModuleId | "general") => WeakArea[];
   getLatestSummary: (module: ModuleId) => SessionSummary | undefined;
+  getPaperHistory: (module: "reading" | "listening") => string[];
+  appendPaperHistory: (module: "reading" | "listening", topics: string[]) => Promise<void>;
   resetModule: (module: ModuleId) => Promise<void>;
   resetAll: () => Promise<void>;
 };
@@ -276,6 +279,26 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.sessionSummaries.find((s) => s.module === module);
   }, []);
 
+  const getPaperHistory = useCallback((module: "reading" | "listening") => {
+    return storeRef.current.paperHistory?.[module] ?? [];
+  }, []);
+
+  const appendPaperHistory = useCallback(
+    async (module: "reading" | "listening", topics: string[]) => {
+      if (!topics.length) return;
+      const current = storeRef.current;
+      const prev = current.paperHistory?.[module] ?? [];
+      await persist({
+        ...current,
+        paperHistory: {
+          ...current.paperHistory,
+          [module]: appendPaperTopics(prev, topics),
+        },
+      });
+    },
+    [persist],
+  );
+
   const resetModule = useCallback(
     async (module: ModuleId) => {
       const current = storeRef.current;
@@ -316,6 +339,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       completeSession,
       getWeakAreas,
       getLatestSummary,
+      getPaperHistory,
+      appendPaperHistory,
       resetModule,
       resetAll,
     }),
@@ -335,6 +360,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       completeSession,
       getWeakAreas,
       getLatestSummary,
+      getPaperHistory,
+      appendPaperHistory,
       resetModule,
       resetAll,
     ],

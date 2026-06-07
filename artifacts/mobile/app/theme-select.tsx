@@ -19,10 +19,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
+import { FlashcardPracticeToggle } from "@/components/FlashcardPracticeToggle";
 import { EXAMINER_GUIDES } from "@/constants/examinerGuide";
 import { useIBTheme } from "@/contexts/ThemeContext";
 import { useExam } from "@/contexts/ExamContext";
 import { useProgress } from "@/contexts/ProgressContext";
+import { buildModuleCustomFocus } from "@/lib/customFocus";
 import { draftToSession, isExamDraft, type ExamDraftSnapshot } from "@/lib/examDraft";
 
 // ── Examiner Guide Modal ──────────────────────────────────────────────────────
@@ -263,6 +265,11 @@ export default function ThemeSelectScreen() {
   const guideTheme = guideThemeId ? THEMES.find((t) => t.id === guideThemeId) : null;
   const [level, setLevel] = useState<"b">("b");
   const [practiceFocus, setPracticeFocus] = useState("");
+  const [includeFlashcards, setIncludeFlashcards] = useState(false);
+
+  const flashcardWords = progress.flashcards.map((c) => c.word);
+  const combinedPracticeFocus = () =>
+    buildModuleCustomFocus(practiceFocus, includeFlashcards, flashcardWords);
 
   const examSnapData = progress.getModuleSnapshot("exam")?.data;
   const examDraft: ExamDraftSnapshot | null =
@@ -273,7 +280,7 @@ export default function ThemeSelectScreen() {
     const wasRepeated = usedThemes.includes(themeId);
     await selectTheme(themeId);
     const theme = THEMES.find((t) => t.id === themeId)!;
-    startSession(themeId, theme.name, wasRepeated, level, practiceFocus);
+    startSession(themeId, theme.name, wasRepeated, level, combinedPracticeFocus());
     router.push("/exam");
   };
 
@@ -281,7 +288,7 @@ export default function ThemeSelectScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const theme = await selectRandomTheme();
     const wasRepeated = usedThemes.includes(theme.id);
-    startSession(theme.id, theme.name, wasRepeated, level, practiceFocus);
+    startSession(theme.id, theme.name, wasRepeated, level, combinedPracticeFocus());
     router.push("/exam");
   };
 
@@ -345,6 +352,14 @@ export default function ThemeSelectScreen() {
             </View>
           </View>
         )}
+
+        <FlashcardPracticeToggle
+          colors={colors}
+          accent={colors.tint}
+          includeFlashcards={includeFlashcards}
+          onToggle={setIncludeFlashcards}
+          flashcardCount={flashcardWords.length}
+        />
 
         <View style={[styles.focusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.focusLabel, { color: colors.text }]}>Enfoque de práctica (opcional)</Text>

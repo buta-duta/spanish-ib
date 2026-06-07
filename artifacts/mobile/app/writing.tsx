@@ -19,11 +19,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { FlashcardPracticeToggle } from "@/components/FlashcardPracticeToggle";
 import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WordModal, TappableText } from "@/components/WordModal";
 import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { useSessionComplete } from "@/hooks/useSessionComplete";
+import { useProgress } from "@/contexts/ProgressContext";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { buildModuleCustomFocus } from "@/lib/customFocus";
 import { mistakesFromWritingFeedback } from "@/lib/mistakes";
 
 const ACCENT = "#E67E22";
@@ -185,6 +188,7 @@ export default function WritingScreen() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [previousPrompts, setPreviousPrompts] = useState<string[]>([]);
   const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [includeFlashcards, setIncludeFlashcards] = useState(false);
 
   // Writing
   const [essay, setEssay] = useState("");
@@ -216,6 +220,16 @@ export default function WritingScreen() {
     { selectedTheme, selectedType, promptMode, essayLength: wc, hasFeedback: !!feedback },
     phase !== "setup",
   );
+  const progress = useProgress();
+  const flashcardWords = progress.flashcards.map((c) => c.word);
+  const moduleCustomFocus = () =>
+    buildModuleCustomFocus(
+      "",
+      includeFlashcards,
+      flashcardWords,
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
+    );
 
   useSessionComplete(
     "writing",
@@ -238,9 +252,7 @@ export default function WritingScreen() {
           theme: selectedTheme,
           textType: selectedType,
           previousPrompts,
-          customFocus: persistence.weakPractice
-            ? persistence.weakAreas.map((w) => w.label).join(". ") || undefined
-            : undefined,
+          customFocus: moduleCustomFocus(),
         }),
       });
       const data = await res.json();
@@ -379,6 +391,14 @@ export default function WritingScreen() {
             onPracticeWeak={() => router.push({ pathname: "/writing", params: { practiceWeak: "1" } })}
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
+          <FlashcardPracticeToggle
+            colors={colors}
+            accent={ACCENT}
+            includeFlashcards={includeFlashcards}
+            onToggle={setIncludeFlashcards}
+            flashcardCount={flashcardWords.length}
+          />
 
           {/* Theme */}
           <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

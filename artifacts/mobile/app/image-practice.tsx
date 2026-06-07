@@ -27,10 +27,12 @@ import Colors from "@/constants/colors";
 import { PRACTICE_IMAGES, type PracticeImage } from "@/constants/practiceImages";
 import { THEMES } from "@/constants/themes";
 import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { FlashcardPracticeToggle } from "@/components/FlashcardPracticeToggle";
 import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { useProgress } from "@/contexts/ProgressContext";
 import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { buildModuleCustomFocus } from "@/lib/customFocus";
 import { mistakesFromImageFeedback } from "@/lib/mistakes";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -259,6 +261,7 @@ export default function ImagePracticeScreen() {
   const [level, setLevel] = useState<"b">("b");
   const [selectedThemeId, setSelectedThemeId] = useState(THEMES[0].id);
   const [selectedImage, setSelectedImage] = useState<PracticeImage | null>(null);
+  const [includeFlashcards, setIncludeFlashcards] = useState(false);
 
   // ── Prep timer (F29) ─────────────────────────────────────────────────────────
   const [prepStarted, setPrepStarted] = useState(false);
@@ -340,6 +343,15 @@ export default function ImagePracticeScreen() {
     { selectedThemeId, imageId: selectedImage?.id, messageCount: messages.length },
     phase !== "select",
   );
+  const flashcardWords = progress.flashcards.map((c) => c.word);
+  const modulePracticeFocus = () =>
+    buildModuleCustomFocus(
+      "",
+      includeFlashcards,
+      flashcardWords,
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
+    );
 
   // ── Image full-screen modal (F31) ────────────────────────────────────────────
   const [imgModalVisible, setImgModalVisible] = useState(false);
@@ -505,6 +517,7 @@ export default function ImagePracticeScreen() {
             rephrase,
             skip,
             level: level || "b",
+            practiceFocus: modulePracticeFocus(),
           }),
         });
 
@@ -539,7 +552,7 @@ export default function ImagePracticeScreen() {
         if (hasUser) setSessionTurn((t) => t + 1);
       }
     },
-    [selectedImage, sessionTurn, playTTS, startExamTimer, level]
+    [selectedImage, sessionTurn, playTTS, startExamTimer, level, includeFlashcards, persistence.weakPractice, persistence.weakAreas, flashcardWords]
   );
 
   // ── Question controls (F31) ──────────────────────────────────────────────────
@@ -781,6 +794,13 @@ export default function ImagePracticeScreen() {
             onPracticeWeak={() => router.push({ pathname: "/image-practice", params: { practiceWeak: "1" } })}
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+          <FlashcardPracticeToggle
+            colors={colors}
+            accent={themeColor}
+            includeFlashcards={includeFlashcards}
+            onToggle={setIncludeFlashcards}
+            flashcardCount={flashcardWords.length}
+          />
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.themeTabs} style={sc.themeTabsScroll}>

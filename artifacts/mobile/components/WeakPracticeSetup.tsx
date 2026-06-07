@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import type { BlockType } from "@/lib/paper";
 import { formatMissedTypeLabels } from "@/lib/weakPractice";
@@ -11,17 +11,11 @@ export function WeakPracticeSetup({
   colors,
   accent,
   missedTypes,
-  includeFlashcards,
-  onToggleFlashcards,
-  flashcardCount,
   quickMode,
 }: {
   colors: Colors;
   accent: string;
   missedTypes: BlockType[];
-  includeFlashcards: boolean;
-  onToggleFlashcards: (v: boolean) => void;
-  flashcardCount: number;
   quickMode: boolean;
 }) {
   return (
@@ -41,17 +35,6 @@ export function WeakPracticeSetup({
           Complete a full past paper first to target specific question types.
         </Text>
       ) : null}
-      <Pressable
-        onPress={() => onToggleFlashcards(!includeFlashcards)}
-        style={styles.checkRow}
-      >
-        <View style={[styles.checkbox, { borderColor: accent, backgroundColor: includeFlashcards ? accent : "transparent" }]}>
-          {includeFlashcards ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-        </View>
-        <Text style={[styles.checkLabel, { color: colors.text }]}>
-          Include my flashcard words ({flashcardCount})
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -61,7 +44,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   desc: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   types: { fontSize: 12, fontFamily: "Inter_600SemiBold", lineHeight: 17 },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  checkLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
 });

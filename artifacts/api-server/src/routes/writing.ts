@@ -24,10 +24,11 @@ const TEXT_TYPE_NAMES: Record<string, string> = {
 
 // ── Generate writing prompt ───────────────────────────────────────────────────
 router.post("/writing/prompt", async (req, res) => {
-  const { theme = "experiencias", textType = "article", previousPrompts = [] } = req.body as {
+  const { theme = "experiencias", textType = "article", previousPrompts = [], customFocus } = req.body as {
     theme?: string;
     textType?: string;
     previousPrompts?: string[];
+    customFocus?: string;
   };
 
   const themeName = THEME_NAMES[theme] ?? theme;
@@ -36,6 +37,9 @@ router.post("/writing/prompt", async (req, res) => {
     previousPrompts.length > 0
       ? `\n\nNO repitas estas preguntas anteriores:\n${previousPrompts.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
       : "";
+  const focusLine = customFocus?.trim()
+    ? `\n\nIncorpora de forma natural: "${customFocus.trim()}"`
+    : "";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -58,7 +62,7 @@ REQUISITOS:
 - Nivel: B1-B2.
 - Tema: ${themeName}.
 - Tipo de texto sugerido como una de las opciones: ${typeName}.
-- Vocabulario temático específico relacionado con ${themeName}.${avoidSection}
+- Vocabulario temático específico relacionado con ${themeName}.${avoidSection}${focusLine}
 
 Devuelve ÚNICAMENTE el texto de la pregunta en español (párrafo introductorio + instrucción + destinatario + las tres opciones de tipo de texto).`,
         },

@@ -3,8 +3,8 @@ import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
 import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
+import { FlashcardPracticeToggle } from "@/components/FlashcardPracticeToggle";
 import { WeakAreaBanner } from "@/components/WeakAreaBanner";
 import { WordModal, TappableText } from "@/components/WordModal";
 import { useModulePersistence } from "@/hooks/useModulePersistence";
@@ -34,6 +35,9 @@ import { PlayStopButton } from "@/components/PlayStopButton";
 import { WeakPracticeSetup } from "@/components/WeakPracticeSetup";
 import { useProgress } from "@/contexts/ProgressContext";
 import { fetchListeningTts } from "@/lib/listeningTts";
+import { buildModuleCustomFocus, flashcardWordsPayload } from "@/lib/customFocus";
+import { isListeningDraft, type ListeningDraftSnapshot } from "@/lib/listeningDraft";
+import { extractPaperTopics } from "@/lib/paperHistory";
 import {
   collectAiGradeItems,
   gradePaper,
@@ -44,7 +48,6 @@ import {
 } from "@/lib/paper";
 import {
   blockTypesToListeningFocus,
-  buildWeakCustomFocus,
   getLastFullPaperMissedTypes,
 } from "@/lib/weakPractice";
 
@@ -92,6 +95,7 @@ const generateId = () => Math.random().toString(36).slice(2);
 
 // ── Main Screen ────────────────────────────────────────────────────────────────
 export default function ListeningScreen() {
+  const { resume: resumeParam } = useLocalSearchParams<{ resume?: string }>();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -154,30 +158,51 @@ export default function ListeningScreen() {
   const selectedTheme = THEMES.find((t) => t.id === selectedThemeId) ?? THEMES[0];
   const themeColor = selectedTheme.color;
   const typeColor = TYPE_COLORS[selectedType];
+  const initializedRef = useRef(false);
+
+  const listeningDraft = (): ListeningDraftSnapshot => ({
+    phase,
+    examMode,
+    selectedThemeId,
+    selectedType,
+    manualPassage,
+    customFocus,
+    includeFlashcards,
+    passageTitle,
+    passageContext,
+    passage,
+    showPassage,
+    playCount,
+    maxPlays,
+    unlimitedPlays,
+    playbackSpeed,
+    isDualVoice,
+    numQuestions,
+    questions,
+    quickAnswers,
+    answers,
+    paper,
+    paperAnswers,
+    paperGrades,
+    paperResult,
+  });
 
   const persistence = useModulePersistence(
     "listening",
     phase,
-    {
-      selectedThemeId,
-      selectedType,
-      passageTitle,
-      passage,
-      numQuestions,
-      questionCount: questions.length,
-    },
-    phase !== "setup",
+    listeningDraft() as unknown as Record<string, unknown>,
+    phase !== "setup" && phase !== "review",
   );
 
   const missedBlockTypes = getLastFullPaperMissedTypes(progress.sessionSummaries, "listening");
   const flashcardWords = progress.flashcards.map((c) => c.word);
-  const weakCustomFocus = () =>
-    buildWeakCustomFocus(
-      persistence.weakPractice,
-      persistence.weakAreas.map((w) => w.label),
+  const moduleCustomFocus = () =>
+    buildModuleCustomFocus(
       customFocus,
       includeFlashcards,
       flashcardWords,
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
     );
 
   // ── Generate passage ──────────────────────────────────────────────────────────
@@ -191,7 +216,7 @@ export default function ListeningScreen() {
         body: JSON.stringify({
           theme: selectedThemeId,
           passageType: selectedType,
-          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
+          customFocus: moduleCustomFocus(),
         }),
       });
       if (!res.ok) throw new Error("Generation failed");
@@ -208,11 +233,11 @@ export default function ListeningScreen() {
   };
 
   // ── Load audio (TTS with F40 dialogue support) ────────────────────────────────
-  const loadAudio = async (text: string) => {
+  const loadAudio = async (text: string, resetPlayCount = true) => {
     setAudioLoading(true);
     setPlayStatus("loading");
     setAudioBase64(null);
-    setPlayCount(0);
+    if (resetPlayCount) setPlayCount(0);
     if (webAudioRef.current) { webAudioRef.current.pause(); webAudioRef.current = null; }
     if (nativeSoundRef.current) { await nativeSoundRef.current.unloadAsync().catch(() => {}); nativeSoundRef.current = null; }
     try {
@@ -227,6 +252,59 @@ export default function ListeningScreen() {
     } finally {
       setAudioLoading(false);
     }
+  };
+
+  const restoreDraft = useCallback((draft: ListeningDraftSnapshot) => {
+    setPhase(draft.phase);
+    setExamMode(draft.examMode);
+    setSelectedThemeId(draft.selectedThemeId);
+    setSelectedType(draft.selectedType as PassageType);
+    setManualPassage(draft.manualPassage);
+    setCustomFocus(draft.customFocus);
+    setIncludeFlashcards(draft.includeFlashcards);
+    setPassageTitle(draft.passageTitle);
+    setPassageContext(draft.passageContext);
+    setPassage(draft.passage);
+    setShowPassage(draft.showPassage);
+    setMaxPlays(draft.maxPlays);
+    setUnlimitedPlays(draft.unlimitedPlays);
+    setPlaybackSpeed(draft.playbackSpeed);
+    setIsDualVoice(draft.isDualVoice);
+    setNumQuestions(draft.numQuestions);
+    setQuestions(draft.questions);
+    setQuickAnswers(draft.quickAnswers);
+    setAnswers(draft.answers);
+    setPaper(draft.paper);
+    setPaperAnswers(draft.paperAnswers);
+    setPaperGrades(draft.paperGrades);
+    setPaperResult(draft.paperResult);
+    setAudioBase64(null);
+    setPlayStatus("idle");
+    setPlayCount(draft.playCount);
+    if (draft.passage.trim() && (draft.phase === "listening" || draft.phase === "questions")) {
+      void loadAudio(draft.passage, false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!progress.loaded || initializedRef.current) return;
+    initializedRef.current = true;
+    if (resumeParam !== "1") return;
+    const snap = persistence.snapshot;
+    if (isListeningDraft(snap?.data)) restoreDraft(snap.data);
+  }, [progress.loaded, resumeParam, persistence.snapshot, restoreDraft]);
+
+  const savedDraft = persistence.snapshot?.data;
+  const canContinueSession = phase === "setup" && isListeningDraft(savedDraft);
+
+  const handleContinueSession = () => {
+    if (!isListeningDraft(savedDraft)) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    restoreDraft(savedDraft);
+  };
+
+  const handleDiscardDraft = () => {
+    void persistence.clearSnapshot();
   };
 
   const handleBeginListening = async () => {
@@ -334,9 +412,8 @@ export default function ListeningScreen() {
       if (persistence.weakPractice && examMode === "quick" && missedBlockTypes.length) {
         body.focusTypes = blockTypesToListeningFocus(missedBlockTypes);
       }
-      if (persistence.weakPractice && includeFlashcards && flashcardWords.length) {
-        body.flashcardWords = flashcardWords;
-      }
+      const fc = flashcardWordsPayload(includeFlashcards, flashcardWords);
+      if (fc) body.flashcardWords = fc;
       const res = await apiFetch(`${getApiUrl()}api/listening/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -442,12 +519,15 @@ export default function ListeningScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           theme: selectedThemeId,
-          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
+          customFocus: moduleCustomFocus(),
+          previousTopics: progress.getPaperHistory("listening"),
         }),
       });
       if (!res.ok) throw new Error("Paper generation failed");
       const data = await res.json();
-      setPaper({ texts: data.texts ?? [] });
+      const nextPaper = { texts: data.texts ?? [] };
+      setPaper(nextPaper);
+      void progress.appendPaperHistory("listening", extractPaperTopics(nextPaper));
       setPaperAnswers({});
       setPaperGrades({});
       setPaperResult(null);
@@ -558,17 +638,54 @@ export default function ListeningScreen() {
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
 
+          {canContinueSession && isListeningDraft(savedDraft) ? (
+            <View style={[s.continueCard, { backgroundColor: colors.card, borderColor: themeColor + "55" }]}>
+              <View style={s.continueHeader}>
+                <Ionicons name="play-circle-outline" size={22} color={themeColor} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.continueTitle, { color: colors.text }]}>Continuar sesión</Text>
+                  <Text style={[s.continueSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {savedDraft.examMode === "full" && savedDraft.paper
+                      ? `Examen completo · ${savedDraft.paper.texts.length} textos`
+                      : savedDraft.passageTitle || "Práctica rápida"}
+                  </Text>
+                </View>
+              </View>
+              <View style={s.continueActions}>
+                <Pressable
+                  onPress={handleDiscardDraft}
+                  style={({ pressed }) => [s.continueDiscard, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Text style={[s.continueDiscardText, { color: colors.textSecondary }]}>Descartar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleContinueSession}
+                  style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.9 : 1 }]}
+                >
+                  <LinearGradient colors={[themeColor, selectedTheme.colorDark]} style={s.continueBtn}>
+                    <Text style={s.continueBtnText}>Continuar</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {persistence.weakPractice ? (
             <WeakPracticeSetup
               colors={{ ...colors, tint: themeColor }}
               accent={themeColor}
               missedTypes={missedBlockTypes}
-              includeFlashcards={includeFlashcards}
-              onToggleFlashcards={setIncludeFlashcards}
-              flashcardCount={flashcardWords.length}
               quickMode={examMode === "quick"}
             />
           ) : null}
+
+          <FlashcardPracticeToggle
+            colors={colors}
+            accent={themeColor}
+            includeFlashcards={includeFlashcards}
+            onToggle={setIncludeFlashcards}
+            flashcardCount={flashcardWords.length}
+          />
 
           {/* Exam mode toggle (quick vs full IB paper) */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
@@ -1290,7 +1407,20 @@ export default function ListeningScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => { setPhase("setup"); setPassage(""); setManualPassage(""); setPassageTitle(""); setAudioBase64(null); setQuestions([]); setAnswers({}); setPlayStatus("idle"); setPlayCount(0); cleanupAudio(); }}
+          onPress={() => {
+            void persistence.clearSnapshot();
+            setPhase("setup");
+            setPassage("");
+            setManualPassage("");
+            setPassageTitle("");
+            setPaper(null);
+            setAudioBase64(null);
+            setQuestions([]);
+            setAnswers({});
+            setPlayStatus("idle");
+            setPlayCount(0);
+            cleanupAudio();
+          }}
           style={({ pressed }) => [s.tryAgainBtn, { borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
         >
           <Text style={[s.tryAgainText, { color: themeColor }]}>Nueva práctica</Text>
@@ -1311,6 +1441,15 @@ const s = StyleSheet.create({
 
   // Setup
   setupContent: { paddingHorizontal: 16, paddingTop: 20, gap: 14 },
+  continueCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
+  continueHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  continueTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  continueSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  continueActions: { flexDirection: "row", gap: 10, alignItems: "center" },
+  continueDiscard: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  continueDiscardText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  continueBtn: { borderRadius: 10, paddingVertical: 11, alignItems: "center" },
+  continueBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   sectionTitle: { fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 2 },
   themeRow: { paddingVertical: 4, gap: 8 },
   themeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },

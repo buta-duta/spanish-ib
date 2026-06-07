@@ -182,14 +182,19 @@ Return ONLY valid JSON.`,
 
 // ── Full IB exam paper: 3 texts (Texto A/B/C) with mixed question blocks ───────
 router.post("/reading/paper", async (req, res) => {
-  const { theme = "experiencias", customFocus } = req.body as {
+  const { theme = "experiencias", customFocus, previousTopics } = req.body as {
     theme?: string;
     customFocus?: string;
+    previousTopics?: string[];
   };
   const themeName = THEME_NAMES[theme] ?? theme;
   const focusLine = customFocus?.trim()
     ? `\n- Enfoque: incorpora de forma natural "${customFocus.trim()}"`
     : "";
+  const avoidLine =
+    Array.isArray(previousTopics) && previousTopics.length
+      ? `\n\nNO repitas estos casos/títulos de exámenes anteriores — crea textos y preguntas completamente diferentes:\n${previousTopics.slice(-10).map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}`
+      : "";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -199,7 +204,7 @@ router.post("/reading/paper", async (req, res) => {
           role: "system",
           content: `Eres un examinador del IB Spanish B (Prueba 2, Comprensión de lectura). Crea un examen completo de lectura con TRES textos auténticos y distintos (Texto A, B, C), cada uno con sus propios bloques de preguntas, imitando un examen real.
 
-Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}
+Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}${avoidLine}
 - Texto A: ~250-350 palabras (informativo).
 - Texto B: ~300-400 palabras (artículo/entrevista).
 - Texto C: ~350-450 palabras (reportaje/opinión, con líneas numeradas implícitas para referentes).

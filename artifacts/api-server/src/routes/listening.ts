@@ -20,16 +20,23 @@ type VoiceId = "nova" | "shimmer" | "onyx" | "echo";
 const FEMALE_VOICES: VoiceId[] = ["nova", "shimmer"];
 const MALE_VOICES: VoiceId[] = ["onyx", "echo"];
 const FEMALE_NAMES = new Set([
-  "ana", "andrea", "beatriz", "carmen", "claudia", "cristina", "elena", "isabel", "laura", "lucia",
-  "maria", "marina", "marta", "monica", "paula", "patricia", "rocio", "rosa", "sara", "silvia",
-  "sofia", "teresa", "valeria", "veronica", "victoria",
+  "alicia", "alejandra", "amalia", "ana", "andrea", "angela", "beatriz", "belen", "camila", "carmen",
+  "carolina", "cecilia", "clara", "claudia", "consuelo", "cristina", "daniela", "diana", "dolores", "elena",
+  "elisa", "esther", "eva", "fatima", "gabriela", "gema", "gloria", "ines", "inmaculada", "irene",
+  "isabel", "jimena", "julia", "laura", "leticia", "lola", "lourdes", "lucia", "lucrecia", "magdalena",
+  "manuela", "marcela", "margarita", "maria", "marina", "marta", "mercedes", "milagros", "monica",
+  "natalia", "nicole", "noelia", "nuria", "olga", "paloma", "patricia", "paula", "penelope", "pilar",
+  "purificacion", "pura", "raquel", "rebeca", "regina", "remedios", "rocio", "rosa", "rosario", "sara",
+  "silvia", "sofia", "soledad", "sonia", "susana", "teresa", "valeria", "veronica", "victoria", "yolanda",
 ]);
 const MALE_NAMES = new Set([
-  "adrian", "alberto", "alejandro", "alfonso", "andres", "angel", "antonio", "carlos", "daniel",
-  "david", "diego", "eduardo", "enrique", "ernesto", "felipe", "fernando", "francisco", "guillermo",
-  "hector", "hugo", "ivan", "javier", "jorge", "jose", "juan", "julio", "lucas", "luis", "manuel",
-  "marcos", "mario", "martin", "mateo", "miguel", "oscar", "pablo", "pedro", "rafael", "raul",
-  "ricardo", "roberto", "ruben", "samuel", "sergio", "victor",
+  "adrian", "agustin", "alberto", "alejandro", "alfonso", "alvaro", "andres", "angel", "antonio", "braulio",
+  "carlos", "cesar", "cristobal", "daniel", "david", "diego", "eduardo", "emilio", "enrique", "ernesto",
+  "fabian", "felipe", "fernando", "francisco", "gonzalo", "guillermo", "hector", "hugo", "ignacio", "ivan",
+  "jaime", "javier", "jesus", "joaquin", "jorge", "jose", "juan", "julio", "lorenzo", "lucas", "luis",
+  "manuel", "marcos", "mariano", "mario", "martin", "mateo", "miguel", "nicolas", "oscar", "pablo",
+  "pedro", "rafael", "ramon", "raul", "ricardo", "roberto", "rodrigo", "ruben", "samuel", "santos",
+  "sergio", "tomas", "victor",
 ]);
 // Rare Spanish male first names ending in -a
 const MALE_NAMES_ENDING_A = new Set(["bautista", "luca", "maikel", "mika", "mustafa", "nazaret"]);
@@ -104,10 +111,29 @@ function normalizeToken(value: string): string {
     .replace(/[^a-z]/g, "");
 }
 
+function cleanSpeakerLabel(speaker: string): string {
+  return speaker
+    .replace(/^\s*(?:sr\.?|sra\.?|srta\.?|don|doña|d\.)\s+/i, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function genderFromLabelHints(raw: string): "female" | "male" | null {
+  if (/\(mujer\)|\(f\)|\bfemenin|\bmujer\b|\bseñora\b|\bseñorita\b|\bchica\b|\bama\b|\bactriz\b|\bdirectora\b|\bentrevistada\b|\blocutora\b|\bpresentadora\b|\bnarradora\b|\binvitada\b/.test(raw)) {
+    return "female";
+  }
+  if (/\(hombre\)|\(m\)|\bmasculin|\bhombre\b|\bseñor\b|\bchico\b|\bactor\b|\bdirector\b|\bentrevistador\b|\blocutor\b|\bpresentador\b|\bnarrador\b|\binvitado\b/.test(raw)) {
+    return "male";
+  }
+  return null;
+}
+
 function extractSpeakerFirstName(speaker: string): string {
-  const trimmed = speaker.trim();
+  const cleaned = cleanSpeakerLabel(speaker);
+  const trimmed = cleaned.trim();
   const roleWithName = trimmed.match(
-    /^(?:entrevistador|entrevistadora|invitado|invitada|locutor|locutora|presentador|presentadora)(?:\/a)?\s+(.+)$/i,
+    /^(?:entrevistador|entrevistadora|invitado|invitada|locutor|locutora|presentador|presentadora|narrador|narradora)(?:\/a)?\s+(.+)$/i,
   );
   if (roleWithName?.[1]) {
     return normalizeToken(roleWithName[1].split(/\s+/)[0] ?? "");
@@ -121,14 +147,18 @@ function speakerGender(speaker: string): "female" | "male" {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+  const hint = genderFromLabelHints(raw);
+  if (hint) return hint;
+
   if (/entrevistadora|invitada|locutora|presentadora|narradora/.test(raw)) return "female";
-  if (/entrevistador\/a|invitado\/a|locutor\/a|presentador\/a/.test(raw)) {
+  if (/entrevistador\/a|invitado\/a|locutor\/a|presentador\/a|narrador\/a/.test(raw)) {
     const name = extractSpeakerFirstName(speaker);
     return name ? genderFromFirstName(name) : "male";
   }
   if (/entrevistador|invitado|locutor|presentador|narrador/.test(raw)) {
     const name = extractSpeakerFirstName(speaker);
-    return name && name !== normalizeToken(speaker.split(/\s+/)[0] ?? "") ? genderFromFirstName(name) : "male";
+    if (name) return genderFromFirstName(name);
+    return "male";
   }
 
   const firstName = extractSpeakerFirstName(speaker);
@@ -139,9 +169,8 @@ function speakerGender(speaker: string): "female" | "male" {
 function genderFromFirstName(name: string): "female" | "male" {
   if (FEMALE_NAMES.has(name)) return "female";
   if (MALE_NAMES.has(name) || MALE_NAMES_ENDING_A.has(name)) return "male";
-  if (name.endsWith("a")) return "female";
+  if (name.endsWith("a") && !name.endsWith("ia") && name.length > 3) return "female";
   if (name.endsWith("o")) return "male";
-  // Most unattested Spanish first names ending in consonant/e are male (José→jose, Lucas, etc.)
   return "male";
 }
 
@@ -215,10 +244,10 @@ router.post("/listening/passage", async (req, res) => {
     : "";
 
   const formatInstructions: Record<string, string> = {
-    conversation: `FORMAT: A natural dialogue between 2 people. Label each turn clearly as:\nNombre A: [text]\nNombre B: [text]\nUse realistic Spanish first names. Include natural fillers: bueno, pues, eh..., mira, oye. Aim for 6-10 turns each.`,
-    interview: `FORMAT: A radio/podcast interview. Label turns as:\nEntrevistador/a: [text]\nInvitado/a [name]: [text]\nThe interviewer asks probing questions; the guest gives detailed answers. Include at least one follow-up question.`,
+    conversation: `FORMAT: A natural dialogue between 2 people. Label each turn clearly as:\nNombre: [text]\nUse realistic Spanish first names with clear gender (e.g. Lucía, Carlos). Include natural fillers: bueno, pues, eh..., mira, oye. Aim for 6-10 turns each.`,
+    interview: `FORMAT: A radio/podcast interview. Use gender-consistent labels:\nEntrevistadora [name]: or Entrevistador [name]: [text]\nInvitada [name]: or Invitado [name]: [text]\nMatch role gender to the speaker's name (never Entrevistador Lucía). The interviewer asks probing questions; the guest gives detailed answers.`,
     monologue: `FORMAT: A single speaker narrating in first person. A personal story, reflection, or account. Include natural spoken-language features: repetition, self-correction, filler words.`,
-    news: `FORMAT: A news broadcast. One or two presenters. May include a short "on location" report segment. Formal register. Dates, statistics, and names may be included.`,
+    news: `FORMAT: A news broadcast. One or two presenters with gender-consistent names (Presentadora Ana / Presentador Carlos). May include a short "on location" report segment. Formal register.`,
   };
 
   const prompt = `Generate an IB Spanish B listening passage for the theme "${themeName}".
@@ -429,12 +458,20 @@ Return ONLY valid JSON:
 
 // ── Full IB listening exam paper: 3 audio texts (Texto A/B/C) ─────────────────
 router.post("/listening/paper", async (req, res) => {
-  const { theme, customFocus } = req.body;
+  const { theme, customFocus, previousTopics } = req.body as {
+    theme?: string;
+    customFocus?: string;
+    previousTopics?: string[];
+  };
   const themeKey = (theme || "identidades").toLowerCase().replace(/\s+/g, "-");
   const themeName = THEME_NAMES[themeKey] || "Identidades";
   const focusLine = customFocus?.trim()
     ? `\n- Enfoque: incorpora de forma natural "${customFocus.trim()}"`
     : "";
+  const avoidLine =
+    Array.isArray(previousTopics) && previousTopics.length
+      ? `\n\nNO repitas estos casos/títulos de exámenes anteriores — crea audios y preguntas completamente diferentes:\n${previousTopics.slice(-10).map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}`
+      : "";
 
   try {
     const response = await openai.chat.completions.create({
@@ -445,7 +482,7 @@ router.post("/listening/paper", async (req, res) => {
           role: "system",
           content: `Eres un examinador del IB Spanish B (Prueba 1, Comprensión auditiva). Crea un examen completo de práctica con TRES textos distintos (Texto A, B, C), cada uno con su transcripción y preguntas. Debe seguir EXACTAMENTE la estructura de numeración y formatos indicados abajo.
 
-Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}
+Nivel: B1-B2. Tema general orientativo: "${themeName}".${focusLine}${avoidLine}
 - El examen muestra 20 preguntas numeradas del 1 al 20.
 - Texto A: 4 preguntas numeradas (1-4), con la pregunta 3 pidiendo dos ejemplos (a) y (b). Debe tener contenido suficiente para responder 5 puntos de información.
 - Texto B: preguntas 5-14. Las preguntas 5-9 son de opción múltiple A/B/C. Las preguntas 10-14 son un cloze con cinco huecos [ – 10 – ] a [ – 14 – ].

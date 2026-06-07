@@ -15,6 +15,7 @@ function normalizeStore(parsed: Partial<UserProgressStore>): UserProgressStore {
     modules: parsed.modules && typeof parsed.modules === "object" ? parsed.modules : {},
     sessionSummaries: Array.isArray(parsed.sessionSummaries) ? parsed.sessionSummaries : [],
     weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas : [],
+    paperHistory: parsed.paperHistory && typeof parsed.paperHistory === "object" ? parsed.paperHistory : {},
   };
 }
 
