@@ -11,6 +11,7 @@ export function useSessionComplete(
   getScore?: () => { correct: number; total: number } | undefined,
   deps: unknown[] = [],
   ready = true,
+  sessionMode?: "quick" | "full",
 ) {
   const progress = useProgress();
   const doneRef = useRef(false);
@@ -27,6 +28,7 @@ export function useSessionComplete(
       mistakes: getMistakes(),
       score: getScore?.(),
       clearSnapshot: true,
+      mode: sessionMode,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, completePhase, progress.loaded, moduleId, ready, ...deps]);

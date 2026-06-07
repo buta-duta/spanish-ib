@@ -485,7 +485,7 @@ router.post("/exam/word", async (req, res) => {
         { role: "system", content: "You are a Spanish language dictionary. Return only valid JSON with no markdown code blocks." },
         {
           role: "user",
-          content: `Spanish word: "${word}"\nContext sentence: "${(context || word).slice(0, 300)}"\n\nReturn JSON only:\n{ "phonetic": "readable syllable pronunciation like deh-sah-rroh-yoh", "meaning": "concise English meaning based on context (max 15 words)", "partOfSpeech": "noun / verb / adjective / adverb / etc" }`,
+          content: `Spanish word: "${word}"\nContext sentence: "${(context || word).slice(0, 300)}"\n\nReturn JSON only:\n{ "phonetic": "readable syllable pronunciation like deh-sah-rroh-yoh", "meaning": "concise English meaning based on context (max 15 words)", "partOfSpeech": "noun / verb / adjective / adverb / etc", "dictionaryForm": "flashcard lemma: infinitive for verbs (hablar, comer, vivir), single neutral noun form without gender slashes (estudiante not estudiante/a, profesor not el profesor)" }`,
         },
       ],
       response_format: { type: "json_object" },

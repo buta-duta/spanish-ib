@@ -243,6 +243,7 @@ export function mistakesFromPaper(
             out.push({
               id: mid(),
               category: `${baseCategory}_${tag}`,
+              questionType: block.type,
               description: `${skillWord} (${text.label}): no marcaste la frase verdadera "${opt?.text ?? letter}"`,
               correction: opt?.text ?? letter,
             });
@@ -257,6 +258,7 @@ export function mistakesFromPaper(
         out.push({
           id: mid(),
           category: `${baseCategory}_${tag}`,
+          questionType: block.type,
           description: `${skillWord} (${text.label}): ${String(promptText).slice(0, 90)}`,
           example: answers[it.id] || (answers[tfField(it.id)] ?? ""),
           correction: it.answer + (it.justification ? ` — ${it.justification}` : ""),

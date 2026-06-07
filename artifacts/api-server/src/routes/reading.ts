@@ -86,14 +86,27 @@ Return a JSON object:
 
 // ── Generate IB-style questions ───────────────────────────────────────────────
 router.post("/reading/questions", async (req, res) => {
-  const { text, title = "", count = 8 } = req.body as { text: string; title?: string; count?: number };
+  const { text, title = "", count = 8, focusTypes, flashcardWords } = req.body as {
+    text: string;
+    title?: string;
+    count?: number;
+    focusTypes?: ("mcq" | "tf" | "synonym")[];
+    flashcardWords?: string[];
+  };
   if (!text || text.length < 50) {
     return res.status(400).json({ error: "Texto demasiado corto." });
   }
 
-  const mcqCount = Math.max(1, Math.round(count * 0.4));
-  const tfCount  = Math.max(1, Math.round(count * 0.35));
-  const synCount = Math.max(1, count - mcqCount - tfCount);
+  const allowed = focusTypes?.length ? [...new Set(focusTypes)] : ["mcq", "tf", "synonym"] as const;
+  const perType = Math.max(1, Math.floor(count / allowed.length));
+  const typeLines = allowed.map((t) => {
+    if (t === "mcq") return `- ${perType} multiple choice (type: "mcq") with options A, B, C, D`;
+    if (t === "tf") return `- ${perType} true/false (type: "tf") with a statement the student evaluates`;
+    return `- ${perType} synonym (type: "synonym") asking to find a word in the text`;
+  }).join("\n");
+  const vocabLine = flashcardWords?.length
+    ? `\nWhere natural, weave in or test these saved vocabulary words: ${flashcardWords.slice(0, 20).join(", ")}.`
+    : "";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -105,10 +118,9 @@ router.post("/reading/questions", async (req, res) => {
 
 Given a Spanish text, generate exactly ${count} questions in Spanish that test reading comprehension, inference, and vocabulary.
 
-Mix EXACTLY these question types:
-- ${mcqCount} multiple choice (type: "mcq") with options A, B, C, D
-- ${tfCount} true/false (type: "tf") with a statement the student evaluates
-- ${synCount} synonym (type: "synonym") asking to find a word in the text that means the same as a given word
+Use ONLY these question types (IB-style quick practice):
+${typeLines}
+${vocabLine}
 
 For MCQ: distractors must be plausible but wrong based on the text.
 For T/F: write clear statements that are definitively true or false based on the text.

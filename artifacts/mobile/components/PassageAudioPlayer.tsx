@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { TappableText } from "@/components/WordModal";
+import { PlayStopButton } from "@/components/PlayStopButton";
 import { fetchListeningTts } from "@/lib/listeningTts";
 
 const SPEED_OPTIONS = [0.8, 1, 1.25, 1.5, 1.75, 2];
@@ -70,8 +71,22 @@ export function PassageAudioPlayer({
     loadAudio();
   }, [loadAudio, cacheKey]);
 
+  const stopPlayback = async () => {
+    if (Platform.OS === "web") {
+      webAudioRef.current?.pause();
+    } else {
+      await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false }).catch(() => {});
+    }
+    setStatus("ready");
+  };
+
   const play = async () => {
     if (status === "loading" || status === "error") return;
+    if (status === "playing") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await stopPlayback();
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const base64 = audioRef.current;
     if (!base64) {
@@ -153,19 +168,24 @@ export function PassageAudioPlayer({
   return (
     <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.row}>
-        <Pressable
-          onPress={status === "error" ? loadAudio : play}
-          disabled={status === "loading"}
-          style={({ pressed }) => [s.playBtn, { backgroundColor: accent, opacity: pressed || status === "loading" ? 0.75 : 1 }]}
-        >
-          {status === "loading" ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : status === "error" ? (
+        {status === "error" ? (
+          <Pressable
+            onPress={loadAudio}
+            style={[s.playBtn, { backgroundColor: accent }]}
+          >
             <Ionicons name="refresh" size={22} color="#fff" />
-          ) : (
-            <Ionicons name="play" size={22} color="#fff" />
-          )}
-        </Pressable>
+          </Pressable>
+        ) : (
+          <PlayStopButton
+            playing={isPlaying}
+            loading={status === "loading"}
+            disabled={status === "loading"}
+            onPress={play}
+            size={46}
+            color="#fff"
+            backgroundColor={accent}
+          />
+        )}
         <View style={s.meta}>
           <Text style={[s.statusText, { color: colors.text }]}>
             {status === "loading"

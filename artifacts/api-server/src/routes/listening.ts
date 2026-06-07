@@ -308,8 +308,22 @@ router.post("/listening/tts", async (req, res) => {
 
 // ── Generate IB comprehension questions (F36) ─────────────────────────────────
 router.post("/listening/questions", async (req, res) => {
-  const { passage, count = 6 } = req.body;
+  const { passage, count = 6, focusTypes, flashcardWords } = req.body as {
+    passage?: string;
+    count?: number;
+    focusTypes?: string[];
+    flashcardWords?: string[];
+  };
   if (!passage) { res.status(400).json({ error: "Missing passage" }); return; }
+
+  const allowed = focusTypes?.length
+    ? [...new Set(focusTypes)]
+    : ["multiple-choice", "true-false", "short-answer", "detail", "inference"];
+  const perType = Math.max(1, Math.floor(count / allowed.length));
+  const typeLines = allowed.map((t) => `- ${perType} × ${t}`).join("\n");
+  const vocabLine = flashcardWords?.length
+    ? `\nWhere natural, include or test these saved vocabulary words: ${flashcardWords.slice(0, 20).join(", ")}.`
+    : "";
 
   const prompt = `Eres un examinador del IB Spanish B. Genera ${count} preguntas de comprensión auditiva basadas en este texto:
 
@@ -317,12 +331,9 @@ router.post("/listening/questions", async (req, res) => {
 ${passage}
 ---
 
-Crea una mezcla equilibrada de estos tipos de preguntas:
-- multiple-choice (opciones A/B/C/D)
-- true-false (con justificación)
-- short-answer (detalle factual del texto)
-- detail (información específica)
-- inference (inferencia a partir del contexto)
+Genera SOLO estos tipos de pregunta (práctica de tipos débiles del examen completo):
+${typeLines}
+${vocabLine}
 
 Directrices:
 - TODAS las preguntas y opciones deben estar en ESPAÑOL

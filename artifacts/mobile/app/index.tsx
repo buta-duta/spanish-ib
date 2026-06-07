@@ -185,7 +185,7 @@ export default function HomeScreen() {
               <View style={[styles.weakCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Text style={[styles.weakTitle, { color: theme.text }]}>Practice your weak areas</Text>
                 <Text style={[styles.weakSub, { color: theme.textSecondary }]}>
-                  Optional general review from all modules
+                  Select Quick Practice in Reading or Listening to practice question types you missed on your last full past paper.
                 </Text>
                 <View style={styles.weakRow}>
                   {MODULE_IDS.map((id) => {

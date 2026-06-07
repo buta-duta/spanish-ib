@@ -26,10 +26,10 @@ export function WeakAreaBanner({ module, weakAreas, weakPractice, colors, onPrac
           {weakPractice ? "Weak-area practice mode" : "Areas to improve"}
         </Text>
       </View>
-      <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={3}>
+      <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={4}>
         {weakPractice
-          ? `This session focuses on: ${top}`
-          : `From your last sessions: ${top}`}
+          ? `This session focuses on: ${top}. Select Quick Practice to practice question types you had difficulty with on your last full past paper.`
+          : `From your last sessions: ${top}. Use Quick Practice in Reading or Listening to target missed question types from a full past paper.`}
       </Text>
       {!weakPractice && onPracticeWeak ? (
         <Pressable onPress={onPracticeWeak} style={[styles.btn, { backgroundColor: colors.tint }]}>

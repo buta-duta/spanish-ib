@@ -10,6 +10,7 @@ import React, {
 
 import type { ExamSession, Flashcard } from "@/types/userData";
 import { useAuth } from "@/contexts/AuthContext";
+import { normalizeFlashcardWord } from "@/lib/flashcardWord";
 import { localSessionSummary } from "@/lib/mistakes";
 import { apiFetch, getApiUrl } from "@/lib/api";
 import { loadProgressStore, saveProgressStore } from "@/lib/progressStorage";
@@ -28,6 +29,7 @@ type CompleteSessionInput = {
   mistakes: MistakeItem[];
   score?: { correct: number; total: number };
   clearSnapshot?: boolean;
+  mode?: "quick" | "full";
 };
 
 type ProgressContextValue = {
@@ -39,7 +41,7 @@ type ProgressContextValue = {
   weakAreas: WeakArea[];
   addFlashcard: (
     word: string,
-    data: { meaning: string; phonetic: string; partOfSpeech: string },
+    data: { meaning: string; phonetic: string; partOfSpeech: string; dictionaryForm?: string },
   ) => Promise<"added" | "duplicate">;
   removeFlashcard: (id: string) => Promise<void>;
   clearFlashcards: () => Promise<void>;
@@ -121,14 +123,15 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const addFlashcard = useCallback(
     async (
       word: string,
-      data: { meaning: string; phonetic: string; partOfSpeech: string },
+      data: { meaning: string; phonetic: string; partOfSpeech: string; dictionaryForm?: string },
     ): Promise<"added" | "duplicate"> => {
-      const key = word.toLowerCase().trim();
+      const normalized = normalizeFlashcardWord(word, data.partOfSpeech, data.dictionaryForm);
+      const key = normalized.toLowerCase().trim();
       const current = storeRef.current;
       if (current.flashcards.some((c) => c.word.toLowerCase() === key)) return "duplicate";
       const card: Flashcard = {
         id: `fc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        word: word.trim(),
+        word: normalized,
         meaning: data.meaning,
         phonetic: data.phonetic,
         partOfSpeech: data.partOfSpeech,
@@ -207,7 +210,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 
   const completeSession = useCallback(
     async (input: CompleteSessionInput): Promise<SessionSummary> => {
-      const { module, mistakes, score, clearSnapshot = true } = input;
+      const { module, mistakes, score, clearSnapshot = true, mode } = input;
       let summaryText: string;
       let focusAreas: string[];
 
@@ -240,6 +243,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         focusAreas,
         mistakes,
         score,
+        mode,
       };
 
       const current = storeRef.current;

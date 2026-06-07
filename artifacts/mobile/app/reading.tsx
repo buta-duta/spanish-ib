@@ -23,7 +23,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { SessionSummaryPanel } from "@/components/SessionSummaryPanel";
 import { WeakAreaBanner } from "@/components/WeakAreaBanner";
+import { WeakPracticeSetup } from "@/components/WeakPracticeSetup";
 import { WordModal } from "@/components/WordModal";
+import { useProgress } from "@/contexts/ProgressContext";
 import { useModulePersistence } from "@/hooks/useModulePersistence";
 import { useSessionComplete } from "@/hooks/useSessionComplete";
 import { apiFetch, getApiUrl } from "@/lib/api";
@@ -37,6 +39,11 @@ import {
   type GradeMap,
   type Paper,
 } from "@/lib/paper";
+import {
+  blockTypesToReadingFocus,
+  buildWeakCustomFocus,
+  getLastFullPaperMissedTypes,
+} from "@/lib/weakPractice";
 
 const ACCENT = "#27AE60";
 const ACCENT_DARK = "#1E8449";
@@ -180,8 +187,9 @@ export default function ReadingScreen() {
 
   // Custom focus (Feature 27)
   const [customFocus, setCustomFocus] = useState("");
+  const [includeFlashcards, setIncludeFlashcards] = useState(false);
 
-  // Generated content
+  const progress = useProgress();
   const [readingTitle, setReadingTitle] = useState("");
   const [readingText, setReadingText] = useState("");
 
@@ -223,6 +231,17 @@ export default function ReadingScreen() {
     phase !== "setup",
   );
 
+  const missedBlockTypes = getLastFullPaperMissedTypes(progress.sessionSummaries, "reading");
+  const flashcardWords = progress.flashcards.map((c) => c.word);
+  const weakCustomFocus = () =>
+    buildWeakCustomFocus(
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
+      customFocus,
+      includeFlashcards,
+      flashcardWords,
+    );
+
   // ── Handlers ────────────────────────────────────────────────────────────────
   const generateText = async () => {
     setGeneratingText(true);
@@ -233,9 +252,7 @@ export default function ReadingScreen() {
         body: JSON.stringify({
           theme: selectedTheme,
           textType: selectedType,
-          customFocus: persistence.weakPractice
-            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
-            : customFocus.trim() || undefined,
+          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -266,10 +283,21 @@ export default function ReadingScreen() {
   const generateQuestions = async () => {
     setGeneratingQs(true);
     try {
+      const body: Record<string, unknown> = {
+        text: readingText,
+        title: readingTitle,
+        count: numQuestions,
+      };
+      if (persistence.weakPractice && examMode === "quick" && missedBlockTypes.length) {
+        body.focusTypes = blockTypesToReadingFocus(missedBlockTypes);
+      }
+      if (persistence.weakPractice && includeFlashcards && flashcardWords.length) {
+        body.flashcardWords = flashcardWords;
+      }
       const res = await apiFetch(`${getApiUrl()}api/reading/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: readingText, title: readingTitle, count: numQuestions }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       setQuestions(data.questions ?? []);
@@ -314,9 +342,7 @@ export default function ReadingScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           theme: selectedTheme,
-          customFocus: persistence.weakPractice
-            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
-            : customFocus.trim() || undefined,
+          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -493,6 +519,8 @@ export default function ReadingScreen() {
           ),
     () => (paper && paperResult ? paperResult : { correct: correctCount, total: questions.length }),
     [questions, answers, correctCount, paper, paperGrades, paperResult],
+    true,
+    paper ? "full" : "quick",
   );
 
   // ── Render: Setup ──────────────────────────────────────────────────────────
@@ -528,6 +556,18 @@ export default function ReadingScreen() {
             onPracticeWeak={() => router.push({ pathname: "/reading", params: { practiceWeak: "1" } })}
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
+          {persistence.weakPractice ? (
+            <WeakPracticeSetup
+              colors={{ ...colors, tint: ACCENT }}
+              accent={ACCENT}
+              missedTypes={missedBlockTypes}
+              includeFlashcards={includeFlashcards}
+              onToggleFlashcards={setIncludeFlashcards}
+              flashcardCount={flashcardWords.length}
+              quickMode={examMode === "quick"}
+            />
+          ) : null}
 
           {/* Exam mode toggle (quick vs full IB paper) */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>

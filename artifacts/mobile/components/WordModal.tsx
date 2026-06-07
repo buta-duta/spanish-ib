@@ -1,12 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system/legacy";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,8 +14,11 @@ import {
 import Colors from "@/constants/colors";
 import { useFlashcards } from "@/contexts/FlashcardContext";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { speakSpanishWord } from "@/lib/wordTts";
 
-export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string };
+import { speakSpanishWord } from "@/lib/wordTts";
+
+export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string; dictionaryForm?: string };
 
 // Module-level caches — persist across screen renders
 export const wordExplainCache = new Map<string, WordInfo>();
@@ -64,21 +64,7 @@ export function WordModal({
     if (ttsLoading) return;
     setTtsLoading(true);
     try {
-      const res = await apiFetch(`${getApiUrl()}api/exam/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: word }),
-      });
-      const { audioBase64 } = await res.json();
-      if (Platform.OS === "web") {
-        const audio = new (globalThis as any).Audio(`data:audio/mp3;base64,${audioBase64}`);
-        audio.play();
-      } else {
-        const path = (FileSystem.cacheDirectory ?? "") + "word_tts.mp3";
-        await FileSystem.writeAsStringAsync(path, audioBase64, { encoding: "base64" as any });
-        const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true });
-        sound.setOnPlaybackStatusUpdate((s) => { if (s.isLoaded && s.didJustFinish) sound.unloadAsync(); });
-      }
+      await speakSpanishWord(word, "word_modal");
     } catch { } finally { setTtsLoading(false); }
   };
 

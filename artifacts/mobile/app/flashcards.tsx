@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Platform,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { useFlashcards, type Flashcard } from "@/contexts/FlashcardContext";
+import { speakSpanishWord } from "@/lib/wordTts";
 
 const ACCENT = "#8E44AD";
 const ACCENT_DARK = "#7D3C98";
@@ -38,6 +40,19 @@ function FlipCard({
 }) {
   const flipAnim = useRef(new Animated.Value(0)).current;
   const [flipped, setFlipped] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const speak = async (e?: { stopPropagation?: () => void }) => {
+    e?.stopPropagation?.();
+    if (speaking) return;
+    setSpeaking(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await speakSpanishWord(card.word, `fc_${card.id}`);
+    } catch { /* ignore */ } finally {
+      setSpeaking(false);
+    }
+  };
 
   const flip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,6 +94,13 @@ function FlipCard({
         {!!card.phonetic && (
           <Text style={[fc.frontPhonetic, { color: ACCENT }]}>/{card.phonetic}/</Text>
         )}
+        <Pressable onPress={speak} style={[fc.speakBtn, { backgroundColor: ACCENT + "20" }]} hitSlop={8}>
+          {speaking ? (
+            <ActivityIndicator size="small" color={ACCENT} />
+          ) : (
+            <Ionicons name="volume-medium-outline" size={16} color={ACCENT} />
+          )}
+        </Pressable>
         <View style={[fc.tapHint, { borderColor: colors.border }]}>
           <Ionicons name="sync-outline" size={12} color={colors.textSecondary} />
           <Text style={[fc.tapHintText, { color: colors.textSecondary }]}>Toca para voltear</Text>
@@ -143,6 +165,7 @@ const fc = StyleSheet.create({
   langText: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   frontWord: { fontSize: 28, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 6 },
   frontPhonetic: { fontSize: 15, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  speakBtn: { marginTop: 6, width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   tapHint: {
     position: "absolute",
     bottom: 10,
@@ -179,6 +202,19 @@ function PracticeCard({
 }) {
   const flipAnim = useRef(new Animated.Value(0)).current;
   const [flipped, setFlipped] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const speak = async (e?: { stopPropagation?: () => void }) => {
+    e?.stopPropagation?.();
+    if (speaking) return;
+    setSpeaking(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await speakSpanishWord(card.word, `fc_practice_${card.id}`);
+    } catch { /* ignore */ } finally {
+      setSpeaking(false);
+    }
+  };
 
   const flip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -220,6 +256,13 @@ function PracticeCard({
         {!!card.phonetic && (
           <Text style={[pc.phonetic, { color: ACCENT }]}>/{card.phonetic}/</Text>
         )}
+        <Pressable onPress={speak} style={[pc.speakBtn, { backgroundColor: ACCENT + "20" }]} hitSlop={8}>
+          {speaking ? (
+            <ActivityIndicator size="small" color={ACCENT} />
+          ) : (
+            <Ionicons name="volume-medium-outline" size={18} color={ACCENT} />
+          )}
+        </Pressable>
         <View style={[pc.tapHint, { borderColor: colors.border }]}>
           <Ionicons name="sync-outline" size={14} color={colors.textSecondary} />
           <Text style={[pc.tapHintText, { color: colors.textSecondary }]}>Toca para ver el significado</Text>
@@ -279,6 +322,7 @@ const pc = StyleSheet.create({
   badgeText: { fontSize: 12, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.5 },
   word: { fontSize: 36, fontFamily: "Inter_700Bold", textAlign: "center" },
   phonetic: { fontSize: 17, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  speakBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   pos: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
   meaning: { fontSize: 18, fontFamily: "Inter_500Medium", lineHeight: 26, textAlign: "center" },
   tapHint: {

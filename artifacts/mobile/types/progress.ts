@@ -18,6 +18,7 @@ export type MistakeItem = {
   description: string;
   example?: string;
   correction?: string;
+  questionType?: string;
 };
 
 export type SessionSummary = {
@@ -28,6 +29,7 @@ export type SessionSummary = {
   focusAreas: string[];
   mistakes: MistakeItem[];
   score?: { correct: number; total: number };
+  mode?: "quick" | "full";
 };
 
 export type WeakArea = {

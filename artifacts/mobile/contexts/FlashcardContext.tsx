@@ -7,7 +7,7 @@ export type { Flashcard };
 
 type FlashcardContextType = {
   cards: Flashcard[];
-  addCard: (word: string, data: { meaning: string; phonetic: string; partOfSpeech: string }) => Promise<"added" | "duplicate">;
+  addCard: (word: string, data: { meaning: string; phonetic: string; partOfSpeech: string; dictionaryForm?: string }) => Promise<"added" | "duplicate">;
   removeCard: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   hasWord: (word: string) => boolean;

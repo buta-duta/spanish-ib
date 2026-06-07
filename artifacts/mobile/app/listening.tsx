@@ -30,6 +30,9 @@ import { apiFetch, getApiUrl } from "@/lib/api";
 import { mistakesFromListeningAnswers } from "@/lib/mistakes";
 import { PaperView } from "@/components/PaperView";
 import { PassageAudioPlayer } from "@/components/PassageAudioPlayer";
+import { PlayStopButton } from "@/components/PlayStopButton";
+import { WeakPracticeSetup } from "@/components/WeakPracticeSetup";
+import { useProgress } from "@/contexts/ProgressContext";
 import { fetchListeningTts } from "@/lib/listeningTts";
 import {
   collectAiGradeItems,
@@ -39,6 +42,11 @@ import {
   type GradeMap,
   type Paper,
 } from "@/lib/paper";
+import {
+  blockTypesToListeningFocus,
+  buildWeakCustomFocus,
+  getLastFullPaperMissedTypes,
+} from "@/lib/weakPractice";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = "setup" | "listening" | "questions" | "review" | "paper";
@@ -100,6 +108,9 @@ export default function ListeningScreen() {
   const [manualPassage, setManualPassage] = useState("");
   const [generatingPassage, setGeneratingPassage] = useState(false);
   const [customFocus, setCustomFocus] = useState("");
+  const [includeFlashcards, setIncludeFlashcards] = useState(false);
+
+  const progress = useProgress();
 
   // ── Passage state ─────────────────────────────────────────────────────────────
   const [passageTitle, setPassageTitle] = useState("");
@@ -158,6 +169,17 @@ export default function ListeningScreen() {
     phase !== "setup",
   );
 
+  const missedBlockTypes = getLastFullPaperMissedTypes(progress.sessionSummaries, "listening");
+  const flashcardWords = progress.flashcards.map((c) => c.word);
+  const weakCustomFocus = () =>
+    buildWeakCustomFocus(
+      persistence.weakPractice,
+      persistence.weakAreas.map((w) => w.label),
+      customFocus,
+      includeFlashcards,
+      flashcardWords,
+    );
+
   // ── Generate passage ──────────────────────────────────────────────────────────
   const generatePassage = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -169,9 +191,7 @@ export default function ListeningScreen() {
         body: JSON.stringify({
           theme: selectedThemeId,
           passageType: selectedType,
-          customFocus: persistence.weakPractice
-            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
-            : customFocus.trim() || undefined,
+          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("Generation failed");
@@ -223,8 +243,22 @@ export default function ListeningScreen() {
   };
 
   // ── Audio playback ────────────────────────────────────────────────────────────
+  const stopAudio = useCallback(async () => {
+    if (Platform.OS === "web") {
+      webAudioRef.current?.pause();
+    } else {
+      await nativeSoundRef.current?.setStatusAsync({ shouldPlay: false }).catch(() => {});
+    }
+    setPlayStatus("ready");
+  }, []);
+
   const playAudio = useCallback(async () => {
     if (!audioBase64) return;
+    if (playStatus === "playing") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await stopAudio();
+      return;
+    }
     if (!unlimitedPlays && playCount >= maxPlays) {
       Alert.alert("Límite de reproducciones", `Has alcanzado el límite de ${maxPlays} reproducciones.`);
       return;
@@ -287,9 +321,42 @@ export default function ListeningScreen() {
         setPlayStatus("ready");
       }
     }
-  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays]);
+  }, [audioBase64, playbackSpeed, playCount, maxPlays, unlimitedPlays, playStatus, stopAudio]);
 
-  // Speed change: stop and reset to beginning — user presses play again at new speed
+  const generateQuestions = async () => {
+    if (!passage.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setQuestionsLoading(true);
+    setAnswers({});
+    setQuickAnswers({});
+    try {
+      const body: Record<string, unknown> = { passage, count: numQuestions };
+      if (persistence.weakPractice && examMode === "quick" && missedBlockTypes.length) {
+        body.focusTypes = blockTypesToListeningFocus(missedBlockTypes);
+      }
+      if (persistence.weakPractice && includeFlashcards && flashcardWords.length) {
+        body.flashcardWords = flashcardWords;
+      }
+      const res = await apiFetch(`${getApiUrl()}api/listening/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Question generation failed");
+      const data = await res.json();
+      const qs: Question[] = (data.questions ?? []).map((q: any, i: number) => ({
+        ...q,
+        id: q.id ?? `q${i + 1}`,
+      }));
+      setQuestions(qs);
+      setPhase("questions");
+    } catch {
+      Alert.alert("Error", "No se pudieron generar las preguntas.");
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+
   const handleSpeedChange = useCallback(async (speed: number) => {
     setPlaybackSpeed(speed);
     try {
@@ -308,34 +375,6 @@ export default function ListeningScreen() {
       setPlayStatus("ready");
     }
   }, [playStatus]);
-
-  // ── Generate questions ────────────────────────────────────────────────────────
-  const generateQuestions = async () => {
-    if (!passage.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setQuestionsLoading(true);
-    setAnswers({});
-    setQuickAnswers({});
-    try {
-      const res = await apiFetch(`${getApiUrl()}api/listening/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passage, count: numQuestions }),
-      });
-      if (!res.ok) throw new Error("Question generation failed");
-      const data = await res.json();
-      const qs: Question[] = (data.questions ?? []).map((q: any, i: number) => ({
-        ...q,
-        id: q.id ?? `q${i + 1}`,
-      }));
-      setQuestions(qs);
-      setPhase("questions");
-    } catch {
-      Alert.alert("Error", "No se pudieron generar las preguntas.");
-    } finally {
-      setQuestionsLoading(false);
-    }
-  };
 
   // ── Submit all quick-mode answers at once ──────────────────────────────────────
   const norm = (s: string) =>
@@ -403,9 +442,7 @@ export default function ListeningScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           theme: selectedThemeId,
-          customFocus: persistence.weakPractice
-            ? [customFocus.trim(), ...persistence.weakAreas.map((w) => w.label)].filter(Boolean).join(". ") || undefined
-            : customFocus.trim() || undefined,
+          customFocus: persistence.weakPractice ? weakCustomFocus() : customFocus.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("Paper generation failed");
@@ -487,6 +524,8 @@ export default function ListeningScreen() {
         : mistakesFromListeningAnswers(questions, answers),
     () => (paper && paperResult ? paperResult : { correct: correctCount, total: questions.length }),
     [questions, answers, correctCount, paper, paperGrades, paperResult],
+    true,
+    paper ? "full" : "quick",
   );
 
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -518,6 +557,18 @@ export default function ListeningScreen() {
             onPracticeWeak={() => router.push({ pathname: "/listening", params: { practiceWeak: "1" } })}
           />
           <SessionSummaryPanel summary={persistence.latestSummary} colors={colors} />
+
+          {persistence.weakPractice ? (
+            <WeakPracticeSetup
+              colors={{ ...colors, tint: themeColor }}
+              accent={themeColor}
+              missedTypes={missedBlockTypes}
+              includeFlashcards={includeFlashcards}
+              onToggleFlashcards={setIncludeFlashcards}
+              flashcardCount={flashcardWords.length}
+              quickMode={examMode === "quick"}
+            />
+          ) : null}
 
           {/* Exam mode toggle (quick vs full IB paper) */}
           <View style={[s.modeToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
@@ -831,7 +882,7 @@ export default function ListeningScreen() {
   // ═══════════════════════════════════════════════════════════════════════════════
   if (phase === "listening") {
     const isPlaying = playStatus === "playing";
-    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays);
+    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays && !isPlaying);
     const playsLeft = maxPlays - playCount;
 
     return (
@@ -884,20 +935,15 @@ export default function ListeningScreen() {
 
             {/* Play button — each press restarts from the beginning */}
             <View style={s.playerRow}>
-              <Pressable
-                onPress={playAudio}
+              <PlayStopButton
+                playing={isPlaying}
+                loading={audioLoading}
                 disabled={playDisabled}
-                style={({ pressed }) => [
-                  s.playBtn,
-                  { backgroundColor: themeColor, opacity: pressed || audioLoading ? 0.75 : 1 },
-                ]}
-              >
-                {audioLoading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Ionicons name="play" size={28} color="#fff" />
-                )}
-              </Pressable>
+                onPress={playAudio}
+                size={56}
+                color="#fff"
+                backgroundColor={themeColor}
+              />
 
               <View style={s.playerMeta}>
                 <Text style={[s.playerStatus, { color: colors.text }]}>
@@ -1027,7 +1073,7 @@ export default function ListeningScreen() {
   if (phase === "questions") {
     const answeredCount = questions.filter((qq) => (quickAnswers[qq.id] ?? "").trim()).length;
     const progress = questions.length > 0 ? answeredCount / questions.length : 0;
-    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays);
+    const playDisabled = audioLoading || !audioBase64 || (!unlimitedPlays && playCount >= maxPlays && playStatus !== "playing");
     const qTypeColors: Record<string, string> = {
       "multiple-choice": "#3498DB",
       "true-false": "#2ECC71",
@@ -1096,13 +1142,15 @@ export default function ListeningScreen() {
 
           {/* Audio replay mini-player */}
           <View style={[s.miniPlayer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Pressable
-              onPress={playAudio}
+            <PlayStopButton
+              playing={playStatus === "playing"}
               disabled={playDisabled}
-              style={[s.miniPlayBtn, { backgroundColor: themeColor, opacity: playDisabled ? 0.5 : 1 }]}
-            >
-              <Ionicons name="play" size={16} color="#fff" />
-            </Pressable>
+              onPress={playAudio}
+              size={32}
+              color="#fff"
+              backgroundColor={themeColor}
+              style={{ opacity: playDisabled ? 0.5 : 1 }}
+            />
             <Text style={[s.miniPlayerText, { color: colors.textSecondary }]}>Reproducir audio</Text>
             <Text style={[s.miniPlayerSpeed, { color: themeColor }]}>{playbackSpeed}x</Text>
           </View>
