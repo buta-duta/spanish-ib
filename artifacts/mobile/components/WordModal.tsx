@@ -16,8 +16,6 @@ import { useFlashcards } from "@/contexts/FlashcardContext";
 import { apiFetch, getApiUrl } from "@/lib/api";
 import { speakSpanishWord } from "@/lib/wordTts";
 
-import { speakSpanishWord } from "@/lib/wordTts";
-
 export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string; dictionaryForm?: string };
 
 // Module-level caches — persist across screen renders
