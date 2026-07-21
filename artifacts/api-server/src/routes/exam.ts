@@ -110,7 +110,7 @@ Explain how to say ${englishWords.length === 1 ? "that word" : "those words"} ap
   }
 });
 
-router.post("/exam/mistake-feedback", async (req, res) => {
+router.post("/exam/mistake-feedback", async (req, res): Promise<void> => {
   const { text, englishWords } = req.body as { text?: string; englishWords?: string[] };
 
   if (!text?.trim()) {
@@ -142,11 +142,11 @@ Give at most 2 bullet points. Include grammar, vocabulary, or English-word repla
     res.json({ content });
   } catch (error) {
     console.error("Mistake feedback error:", error);
-    return sendOpenAIError(res, error, "Mistake feedback failed");
+    sendOpenAIError(res, error, "Mistake feedback failed");
   }
 });
 
-router.post("/exam/translate-message", async (req, res) => {
+router.post("/exam/translate-message", async (req, res): Promise<void> => {
   const { text } = req.body as { text?: string };
 
   if (!text?.trim()) {
@@ -176,7 +176,7 @@ router.post("/exam/translate-message", async (req, res) => {
     res.json({ translation });
   } catch (error) {
     console.error("Message translation error:", error);
-    return sendOpenAIError(res, error, "Message translation failed");
+    sendOpenAIError(res, error, "Message translation failed");
   }
 });
 
