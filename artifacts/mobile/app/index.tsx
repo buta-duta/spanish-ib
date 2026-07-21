@@ -17,19 +17,45 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { THEMES } from "@/constants/themes";
-import { useIBTheme } from "@/contexts/ThemeContext";
 import { ProgressManager } from "@/components/ProgressManager";
 import { useExam } from "@/contexts/ExamContext";
 import { useProgress } from "@/contexts/ProgressContext";
-import { MODULE_IDS, MODULE_LABELS, type ModuleId } from "@/types/progress";
+import { MODULE_IDS, MODULE_LABELS, type ModuleId, type SessionSummary } from "@/types/progress";
+
+function startOfLocalDay(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function calculateStreak(timestamps: number[]): { count: number; activeToday: boolean } {
+  const days = [...new Set(timestamps.map(startOfLocalDay))].sort((a, b) => b - a);
+  const today = startOfLocalDay(Date.now());
+  if (days[0] !== today) return { count: 0, activeToday: false };
+
+  let count = 0;
+  let expected = today;
+  for (const day of days) {
+    if (day !== expected) break;
+    count += 1;
+    expected -= 24 * 60 * 60 * 1000;
+  }
+  return { count, activeToday: true };
+}
+
+function scoreText(summary?: SessionSummary): string | undefined {
+  if (!summary?.score) return undefined;
+  const { correct, total } = summary.score;
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  return `${correct}/${total} · ${pct}%`;
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = Colors[isDark ? "dark" : "light"];
-  const { usedThemes, selectedTheme } = useIBTheme();
-  const { loadSessions, sessions } = useExam();
+  const { loadSessions } = useExam();
   const progress = useProgress();
   const [progressOpen, setProgressOpen] = useState(false);
 
@@ -108,6 +134,38 @@ export default function HomeScreen() {
   };
 
   const generalWeak = progress.getWeakAreas("general").slice(0, 4);
+  const practiceDates = [
+    ...progress.sessionSummaries.map((s) => s.completedAt),
+    ...progress.examSessions.map((s) => s.completedAt ?? 0),
+  ].filter((ts) => ts > 0);
+  const streak = calculateStreak(practiceDates);
+  const latestOralByTheme = (themeId: string) =>
+    progress.sessionSummaries.find((s) => s.module === "exam" && s.experienceId === themeId);
+  const latestListening = progress.getLatestSummary("listening");
+  const latestReading = progress.getLatestSummary("reading");
+  const checklistItems = [
+    ...THEMES.map((t) => ({
+      key: `oral-${t.id}`,
+      label: t.name,
+      subLabel: "Oral practice",
+      color: t.color,
+      summary: latestOralByTheme(t.id),
+    })),
+    {
+      key: "listening",
+      label: "Listening",
+      subLabel: "Comprensión auditiva",
+      color: "#3498DB",
+      summary: latestListening,
+    },
+    {
+      key: "reading",
+      label: "Reading",
+      subLabel: "Comprensión lectora",
+      color: "#27AE60",
+      summary: latestReading,
+    },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -136,7 +194,7 @@ export default function HomeScreen() {
             <View style={styles.header}>
               <View>
                 <Text style={[styles.subtitle, { color: theme.tint }]}>IB Spanish</Text>
-                <Text style={[styles.title, { color: theme.text }]}>Práctica oral</Text>
+                <Text style={[styles.title, { color: theme.text }]}>Bienvenido</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
@@ -179,6 +237,65 @@ export default function HomeScreen() {
                   <Ionicons name="time-outline" size={22} color={theme.tint} />
                 </Pressable>
               </View>
+            </View>
+
+            <View style={[styles.streakCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View
+                style={[
+                  styles.streakIcon,
+                  { backgroundColor: streak.activeToday ? "#FF7A1A22" : theme.cardAlt },
+                ]}
+              >
+                <Ionicons
+                  name="flame"
+                  size={26}
+                  color={streak.activeToday ? "#FF7A1A" : theme.textSecondary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.streakTitle, { color: theme.text }]}>
+                  {streak.count} day streak
+                </Text>
+                <Text style={[styles.streakSub, { color: theme.textSecondary }]}>
+                  {streak.activeToday
+                    ? "Practice logged today"
+                    : "Practice today to light your streak"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.checklistCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={styles.checklistHeader}>
+                <Text style={[styles.checklistTitle, { color: theme.text }]}>Practice checklist</Text>
+                <Text style={[styles.checklistCount, { color: theme.textSecondary }]}>
+                  {checklistItems.filter((item) => item.summary).length}/{checklistItems.length}
+                </Text>
+              </View>
+              {checklistItems.map((item) => {
+                const done = !!item.summary;
+                return (
+                  <View key={item.key} style={styles.checklistRow}>
+                    <View
+                      style={[
+                        styles.checkCircle,
+                        {
+                          borderColor: done ? item.color : theme.border,
+                          backgroundColor: done ? item.color : "transparent",
+                        },
+                      ]}
+                    >
+                      {done ? <Ionicons name="checkmark" size={15} color="#fff" /> : null}
+                    </View>
+                    <View style={styles.checkTextWrap}>
+                      <Text style={[styles.checkLabel, { color: theme.text }]}>{item.label}</Text>
+                      <Text style={[styles.checkSub, { color: theme.textSecondary }]}>{item.subLabel}</Text>
+                    </View>
+                    <Text style={[styles.checkScore, { color: done ? item.color : theme.textSecondary }]}>
+                      {scoreText(item.summary) ?? "—"}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
 
             {generalWeak.length > 0 ? (
@@ -353,6 +470,83 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  streakCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 14,
+  },
+  streakIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  streakTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+  },
+  streakSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  checklistCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+  },
+  checklistHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  checklistTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  checklistCount: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  checklistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkTextWrap: {
+    flex: 1,
+  },
+  checkLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  checkSub: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 1,
+  },
+  checkScore: {
+    minWidth: 70,
+    textAlign: "right",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
   },
   progressCard: {
     borderRadius: 16,
