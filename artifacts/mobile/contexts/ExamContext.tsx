@@ -105,7 +105,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
       if (!prev || prev.messages.length === 0) return prev;
       const msgs = [...prev.messages];
       for (let i = msgs.length - 1; i >= 0; i--) {
-        if (msgs[i].role === "assistant" && msgs[i].kind !== "english-tip") {
+        if (msgs[i].role === "assistant" && !msgs[i].kind) {
           msgs[i] = { ...msgs[i], content };
           break;
         }

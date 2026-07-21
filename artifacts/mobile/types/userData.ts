@@ -12,8 +12,8 @@ export type ExamMessage = {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
-  /** Short English-in-Spanish tip shown right after the student's message */
-  kind?: "english-tip";
+  /** Separate learning feedback shown outside the examiner reply */
+  kind?: "english-tip" | "mistake-tip";
 };
 
 export type ExamSession = {

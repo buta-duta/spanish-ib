@@ -140,6 +140,9 @@ function MessageBubble({
   canRegenerate,
   onWordPress,
   onReplay,
+  onTranslate,
+  translation,
+  isTranslating,
 }: {
   message: Message;
   themeColor: string;
@@ -150,10 +153,15 @@ function MessageBubble({
   canRegenerate: boolean;
   onWordPress: (word: string, context: string) => void;
   onReplay: () => void;
+  onTranslate: () => void;
+  translation?: string;
+  isTranslating: boolean;
 }) {
   const colors = Colors[isDark ? "dark" : "light"];
   const isUser = message.role === "user";
-  const isEnglishTip = message.kind === "english-tip";
+  const isMistakeTip = message.kind === "mistake-tip";
+  const isLearningTip = message.kind === "english-tip" || isMistakeTip;
+  const canTranslate = !isLearningTip;
   const tokens = React.useMemo(() => tokenizeMessage(message.content), [message.content]);
 
   return (
@@ -164,15 +172,15 @@ function MessageBubble({
             style={[
               bubbleStyles.avatar,
               {
-                backgroundColor: isEnglishTip ? "#C9A84C22" : themeColor + "22",
-                borderColor: isEnglishTip ? "#C9A84C44" : themeColor + "44",
+                backgroundColor: isLearningTip ? "#FFD54F22" : themeColor + "22",
+                borderColor: isLearningTip ? "#FFD54F66" : themeColor + "44",
               },
             ]}
           >
             <Ionicons
-              name={isEnglishTip ? "bulb-outline" : "school-outline"}
+              name={isLearningTip ? "bulb-outline" : "school-outline"}
               size={14}
-              color={isEnglishTip ? "#C9A84C" : themeColor}
+              color={isLearningTip ? "#C9A84C" : themeColor}
             />
           </View>
         )}
@@ -181,14 +189,16 @@ function MessageBubble({
             bubbleStyles.bubble,
             isUser
               ? { backgroundColor: themeColor, borderBottomRightRadius: 4 }
-              : isEnglishTip
-              ? { backgroundColor: "#C9A84C18", borderColor: "#C9A84C50", borderWidth: 1, borderBottomLeftRadius: 4 }
+              : isLearningTip
+              ? { backgroundColor: "#FFD54F22", borderColor: "#D6A80070", borderWidth: 1, borderBottomLeftRadius: 4 }
               : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
             { maxWidth: "82%" },
           ]}
         >
           {isUser ? (
             <Text style={[bubbleStyles.text, { color: "#fff" }]}>{message.content}</Text>
+          ) : isLearningTip ? (
+            <Text style={[bubbleStyles.text, { color: colors.text }]}>{message.content}</Text>
           ) : (
             <Text style={[bubbleStyles.text, { color: colors.text }]}>
               {tokens.map((t) =>
@@ -207,19 +217,39 @@ function MessageBubble({
               )}
             </Text>
           )}
+          {translation && (
+            <View style={[bubbleStyles.translationBox, { borderTopColor: isUser ? "#FFFFFF55" : colors.border }]}>
+              <Text style={[bubbleStyles.translationText, { color: isUser ? "#fff" : colors.textSecondary }]}>
+                {translation}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
-      {/* Replay button — examiner messages only (not English tips) */}
-      {!isUser && !isEnglishTip && (
-        <Pressable
-          onPress={onReplay}
-          style={({ pressed }) => [bubbleStyles.replayRow, { opacity: pressed ? 0.5 : 1 }]}
-        >
-          <Ionicons name="volume-medium-outline" size={13} color={themeColor} />
-          <Text style={[bubbleStyles.replayText, { color: themeColor }]}>Reproducir otra vez</Text>
-        </Pressable>
+      {canTranslate && (
+        <View style={[bubbleStyles.messageActionRow, isUser ? bubbleStyles.userActionRow : undefined]}>
+          {!isUser && (
+            <Pressable
+              onPress={onReplay}
+              style={({ pressed }) => [bubbleStyles.inlineAction, { opacity: pressed ? 0.5 : 1 }]}
+            >
+              <Ionicons name="volume-medium-outline" size={13} color={themeColor} />
+              <Text style={[bubbleStyles.replayText, { color: themeColor }]}>Reproducir otra vez</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={onTranslate}
+            disabled={isTranslating}
+            style={({ pressed }) => [bubbleStyles.inlineAction, { opacity: pressed || isTranslating ? 0.55 : 1 }]}
+          >
+            <Ionicons name="language-outline" size={13} color={themeColor} />
+            <Text style={[bubbleStyles.replayText, { color: themeColor }]}>
+              {translation ? "Ocultar traducción" : isTranslating ? "Traduciendo..." : "Traducir"}
+            </Text>
+          </Pressable>
+        </View>
       )}
-      {!isUser && !isEnglishTip && isLast && canRegenerate && (
+      {!isUser && !isLearningTip && isLast && canRegenerate && (
         <View style={bubbleStyles.actionRow}>
           <Pressable
             onPress={onRegenerate}
@@ -252,8 +282,12 @@ const bubbleStyles = StyleSheet.create({
   regenText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   skipBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: "#88888820", borderWidth: 1, borderColor: "#88888840" },
   skipText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#888888" },
-  replayRow: { flexDirection: "row", alignItems: "center", gap: 5, marginLeft: 52, marginTop: 3, marginBottom: 1 },
+  messageActionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginLeft: 52, marginTop: 3, marginBottom: 1 },
+  userActionRow: { justifyContent: "flex-end", marginLeft: 0, marginRight: 16 },
+  inlineAction: { flexDirection: "row", alignItems: "center", gap: 5 },
   replayText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  translationBox: { borderTopWidth: 1, marginTop: 8, paddingTop: 8 },
+  translationText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
 });
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -287,6 +321,8 @@ export default function ExamScreen() {
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [wordPopup, setWordPopup] = useState<{ word: string; context: string } | null>(null);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translatingIds, setTranslatingIds] = useState<Record<string, boolean>>({});
 
   // Native recording refs (expo-av)
   const nativeRecordingRef = useRef<Audio.Recording | null>(null);
@@ -392,10 +428,13 @@ export default function ExamScreen() {
     sendLockRef.current = true;
     setIsStreaming(true);
     setShowTyping(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+    let responseCompleted = false;
 
     try {
       const apiMessages = chatMessages
-        .filter((m) => m.kind !== "english-tip")
+        .filter((m) => !m.kind)
         .map((m) => ({ role: m.role, content: m.content }));
 
       const response = await expoApiFetch(`${getApiUrl()}api/exam/chat`, {
@@ -409,6 +448,7 @@ export default function ExamScreen() {
           skip,
           practiceFocus: currentSession?.practiceFocus,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -420,8 +460,9 @@ export default function ExamScreen() {
       let buffer = "";
       let assistantAdded = false;
       let assistantMsgId = "";
+      let streamDone = false;
 
-      while (true) {
+      while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -431,7 +472,10 @@ export default function ExamScreen() {
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6);
-          if (data === "[DONE]") continue;
+          if (data === "[DONE]") {
+            streamDone = true;
+            break;
+          }
           try {
             const parsed = JSON.parse(data);
             if (parsed.content) {
@@ -454,9 +498,9 @@ export default function ExamScreen() {
                 assistantAdded = true;
               } else {
                 setMessages((prev) => {
-                  const updated = [...prev];
-                  const idx = updated.length - 1;
-                  updated[idx] = { ...updated[idx], content: fullContent };
+                  const updated = prev.map((m) =>
+                    m.id === assistantMsgId ? { ...m, content: fullContent } : m
+                  );
                   messagesRef.current = updated;
                   return updated;
                 });
@@ -467,15 +511,19 @@ export default function ExamScreen() {
       }
 
       if (fullContent) {
+        responseCompleted = true;
         updateLastAssistantContent(fullContent);
         playTTS(fullContent, assistantMsgId);
       }
-    } catch {
+    } catch (err: any) {
       setShowTyping(false);
       const errMsg: Message = {
         id: generateMsgId(),
         role: "assistant",
-        content: "Lo siento, hubo un error. Por favor intenta de nuevo.",
+        content:
+          err?.name === "AbortError"
+            ? "La respuesta tardó demasiado. Intenta enviar tu respuesta otra vez."
+            : "Lo siento, hubo un error. Por favor intenta de nuevo.",
         timestamp: Date.now(),
       };
       setMessages((prev) => {
@@ -485,11 +533,12 @@ export default function ExamScreen() {
       });
       addMessage({ id: errMsg.id, role: "assistant", content: errMsg.content });
     } finally {
+      clearTimeout(timeout);
       sendLockRef.current = false;
       setIsStreaming(false);
       setShowTyping(false);
       const hasUserMessage = chatMessages.some((m) => m.role === "user");
-      if (hasUserMessage && !regenerate && !skip) {
+      if (hasUserMessage && responseCompleted && !regenerate && !skip) {
         setSessionTurn((prev) => {
           const next = prev + 1;
           sessionTurnRef.current = next;
@@ -523,7 +572,7 @@ export default function ExamScreen() {
     if (currentSession && currentSession.messages.length > 0) {
       const turn =
         currentSession.sessionTurn ??
-        currentSession.messages.filter((m) => m.role === "user" && m.kind !== "english-tip").length;
+        currentSession.messages.filter((m) => m.role === "user" && !m.kind).length;
       setMessages(currentSession.messages);
       messagesRef.current = currentSession.messages;
       setSessionTurn(turn);
@@ -857,6 +906,28 @@ export default function ExamScreen() {
     setRecordingState("idle");
   };
 
+  const requestMistakeFeedback = async (text: string, englishWords: string[]) => {
+    try {
+      const res = await apiFetch(`${getApiUrl()}api/exam/mistake-feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, englishWords }),
+      });
+      if (!res.ok) return;
+      const { content } = (await res.json()) as { content?: string };
+      const trimmed = content?.trim();
+      if (!trimmed) return;
+
+      const tipMsg = addMessage({ role: "assistant", content: trimmed, kind: "mistake-tip" });
+      setMessages((prev) => {
+        const next = [...prev, tipMsg];
+        messagesRef.current = next;
+        return next;
+      });
+      persistDraft();
+    } catch {}
+  };
+
   const handleSendTranscript = async () => {
     const text = transcript.trim();
     if (!text || isStreaming || sendLockRef.current) return;
@@ -871,27 +942,9 @@ export default function ExamScreen() {
     persistDraft();
 
     const englishWords = detectEnglishWords(text);
-    if (englishWords.length > 0) {
-      try {
-        const res = await apiFetch(`${getApiUrl()}api/exam/english-feedback`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, englishWords }),
-        });
-        if (res.ok) {
-          const { content } = (await res.json()) as { content: string };
-          const tipMsg = addMessage({ role: "assistant", content, kind: "english-tip" });
-          const withTip = [...messagesRef.current, tipMsg];
-          messagesRef.current = withTip;
-          setMessages(withTip);
-          persistDraft();
-        }
-      } catch {
-        // Non-blocking — examiner reply still proceeds
-      }
-    }
+    void requestMistakeFeedback(text, englishWords);
 
-    await sendToAI(messagesRef.current);
+    await sendToAI(withUser);
   };
 
   const handleRegenerateQuestion = useCallback(async () => {
@@ -990,14 +1043,44 @@ export default function ExamScreen() {
     ]);
   };
 
-  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-  const lastMsgIsAssistant =
-    lastMsg?.role === "assistant" && lastMsg.kind !== "english-tip";
-  const canRegenerate = lastMsgIsAssistant && !isStreaming && recordingState === "idle";
+  const lastExaminerMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && !m.kind);
+  const canRegenerate = !!lastExaminerMessage && !isStreaming && recordingState === "idle";
 
   const handleReplayMessage = async (msgId: string, content: string) => {
     if (isStreaming) return;
     await playTTS(content, msgId);
+  };
+
+  const handleTranslateMessage = async (message: Message) => {
+    if (translations[message.id]) {
+      setTranslations((prev) => {
+        const next = { ...prev };
+        delete next[message.id];
+        return next;
+      });
+      return;
+    }
+    if (translatingIds[message.id]) return;
+
+    setTranslatingIds((prev) => ({ ...prev, [message.id]: true }));
+    try {
+      const res = await apiFetch(`${getApiUrl()}api/exam/translate-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message.content }),
+      });
+      if (!res.ok) throw new Error("Translation failed");
+      const { translation } = (await res.json()) as { translation?: string };
+      if (translation?.trim()) {
+        setTranslations((prev) => ({ ...prev, [message.id]: translation.trim() }));
+      }
+    } catch {
+      Alert.alert("Translation error", "No se pudo traducir este mensaje.");
+    } finally {
+      setTranslatingIds((prev) => ({ ...prev, [message.id]: false }));
+    }
   };
 
   const micDisabled = isStreaming || recordingState === "processing" || recordingState === "preview";
@@ -1054,12 +1137,15 @@ export default function ExamScreen() {
               message={item}
               themeColor={themeColor}
               isDark={isDark}
-              isLast={index === messages.length - 1}
+              isLast={item.id === lastExaminerMessage?.id}
               onReplay={() => handleReplayMessage(item.id, item.content)}
               onRegenerate={handleRegenerateQuestion}
               onSkip={handleSkipQuestion}
               canRegenerate={canRegenerate}
               onWordPress={(word, context) => setWordPopup({ word, context })}
+              onTranslate={() => handleTranslateMessage(item)}
+              translation={translations[item.id]}
+              isTranslating={!!translatingIds[item.id]}
             />
           )}
           ListFooterComponent={
