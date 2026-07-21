@@ -145,10 +145,21 @@ export default function SummaryScreen() {
       setFeedback(fb);
       if (!examSummaryDone.current) {
         examSummaryDone.current = true;
+        const bands = [
+          fb.ibCriteria?.criterionA?.band,
+          fb.ibCriteria?.criterionB?.band,
+          fb.ibCriteria?.criterionC?.band,
+          fb.ibCriteria?.criterionD?.band,
+        ].filter((band): band is number => typeof band === "number");
         void progress.completeSession({
           module: "exam",
           mistakes: mistakesFromExamFeedback(fb),
+          score: bands.length
+            ? { correct: bands.reduce((sum, band) => sum + band, 0), total: bands.length * 7 }
+            : undefined,
           clearSnapshot: true,
+          experienceId: s.themeId,
+          experienceLabel: s.themeName,
         });
       }
     } catch {

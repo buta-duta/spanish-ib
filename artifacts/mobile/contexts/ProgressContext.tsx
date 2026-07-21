@@ -31,6 +31,8 @@ type CompleteSessionInput = {
   score?: { correct: number; total: number };
   clearSnapshot?: boolean;
   mode?: "quick" | "full";
+  experienceId?: string;
+  experienceLabel?: string;
 };
 
 type ProgressContextValue = {
@@ -213,7 +215,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 
   const completeSession = useCallback(
     async (input: CompleteSessionInput): Promise<SessionSummary> => {
-      const { module, mistakes, score, clearSnapshot = true, mode } = input;
+      const { module, mistakes, score, clearSnapshot = true, mode, experienceId, experienceLabel } = input;
       let summaryText: string;
       let focusAreas: string[];
 
@@ -247,6 +249,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         mistakes,
         score,
         mode,
+        experienceId,
+        experienceLabel,
       };
 
       const current = storeRef.current;

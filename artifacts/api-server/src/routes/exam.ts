@@ -49,19 +49,14 @@ IMPORTANT INSTRUCTIONS:
 2. Ask ONE focused question at a time. Never ask multiple questions in a single turn.
 3. RESPONSE FORMAT after the student answers (follow this exact order every time):
    a) Brief encouraging comment in Spanish (1 sentence, e.g. "¡Muy bien!", "¡Interesante punto!")
-   b) ONE English language tip marked with "💡" — pick ONE of:
-      - Grammar correction: "💡 Grammar: Instead of '[their error]', say '[correct form]' ([brief reason])"
-      - Vocabulary upgrade: "💡 Vocab: '[their word]' works — try '[advanced word]' for a stronger B2 impression"
-      - Structure tip: "💡 Tip: Using connectors like 'sin embargo', 'cabe destacar que', or 'no obstante' would elevate this response"
-      - Only include this tip if the student actually made a mistake or used basic vocabulary. If they performed well, skip the tip and move straight to the question.
-   c) The next question in Spanish (1 sentence)
+   b) The next question in Spanish (1 sentence)
 4. Vary your question types: descriptive, opinion-based, hypothetical, comparative.
 5. After 6-8 exchanges, occasionally link to a second IB theme (Band 6-7 skill).
 6. Start with an accessible warm-up question, then gradually increase difficulty.
 7. Use informal "tú" consistently for student interactions.
 8. Show authentic examiner personality: be professional but encouraging.
 9. Reference the theme in your questions naturally.
-10. ENGLISH WORDS: If the student uses an English word instead of Spanish, do NOT explain it in your main response — a separate feedback message handles that. Continue with your normal examiner reply in Spanish only.
+10. FEEDBACK: Do NOT include grammar corrections, vocabulary tips, English explanations, or "💡" tips in your response. A separate feedback message handles mistakes. Continue with your normal examiner reply in Spanish only.
 
 Begin the exam by welcoming the student warmly in Spanish and asking your first question about the theme. (No English tip on the opening turn — that's for after the student responds.)
 `;
@@ -115,6 +110,76 @@ Explain how to say ${englishWords.length === 1 ? "that word" : "those words"} ap
   }
 });
 
+router.post("/exam/mistake-feedback", async (req, res): Promise<void> => {
+  const { text, englishWords } = req.body as { text?: string; englishWords?: string[] };
+
+  if (!text?.trim()) {
+    res.status(400).json({ error: "Missing text" });
+    return;
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 220,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You help IB Spanish B students improve spoken answers. Reply in English only. Return only one concise feedback message. If there is no meaningful mistake or upgrade, return an empty string.",
+        },
+        {
+          role: "user",
+          content: `Student answer: "${text.slice(0, 700)}"
+English words detected: ${(englishWords ?? []).slice(0, 8).join(", ") || "none"}
+
+Give at most 2 bullet points. Include grammar, vocabulary, or English-word replacements only when useful. Keep Spanish corrections in Spanish but all explanations in English.`,
+        },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() ?? "";
+    res.json({ content });
+  } catch (error) {
+    console.error("Mistake feedback error:", error);
+    sendOpenAIError(res, error, "Mistake feedback failed");
+  }
+});
+
+router.post("/exam/translate-message", async (req, res): Promise<void> => {
+  const { text } = req.body as { text?: string };
+
+  if (!text?.trim()) {
+    res.status(400).json({ error: "Missing text" });
+    return;
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 350,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Translate the full message into natural English for a Spanish learner. Return only the translation, with no labels or commentary.",
+        },
+        { role: "user", content: text.slice(0, 1500) },
+      ],
+    });
+
+    const translation = response.choices[0]?.message?.content?.trim();
+    if (!translation) {
+      res.status(500).json({ error: "Empty translation" });
+      return;
+    }
+    res.json({ translation });
+  } catch (error) {
+    console.error("Message translation error:", error);
+    sendOpenAIError(res, error, "Message translation failed");
+  }
+});
+
 router.post("/exam/chat", async (req, res) => {
   const { messages, theme, sessionTurn, regenerate, skip, practiceFocus } = req.body;
 
@@ -158,12 +223,12 @@ router.post("/exam/chat", async (req, res) => {
   try {
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemPrompt },
-      ...messages.filter((m: { role: string }) => m.role !== "system"),
+      ...messages.filter((m: { role: string }) => m.role !== "system").slice(-18),
     ];
 
     const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_completion_tokens: 1500,
+      max_completion_tokens: 650,
       messages: chatMessages,
       stream: true,
     });

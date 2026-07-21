@@ -30,6 +30,8 @@ export type SessionSummary = {
   mistakes: MistakeItem[];
   score?: { correct: number; total: number };
   mode?: "quick" | "full";
+  experienceId?: string;
+  experienceLabel?: string;
 };
 
 export type WeakArea = {

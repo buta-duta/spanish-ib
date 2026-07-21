@@ -14,6 +14,7 @@ import {
 import Colors from "@/constants/colors";
 import { useFlashcards } from "@/contexts/FlashcardContext";
 import { apiFetch, getApiUrl } from "@/lib/api";
+import { normalizeFlashcardWord } from "@/lib/flashcardWord";
 import { speakSpanishWord } from "@/lib/wordTts";
 
 export type WordInfo = { phonetic: string; meaning: string; partOfSpeech: string; dictionaryForm?: string };
@@ -42,6 +43,7 @@ export function WordModal({
   const [ttsLoading, setTtsLoading] = useState(false);
   const [fcStatus, setFcStatus] = useState<"idle" | "saved" | "duplicate">("idle");
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const flashcardWord = data ? normalizeFlashcardWord(word, data.partOfSpeech, data.dictionaryForm) : word;
 
   useEffect(() => {
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }).start();
@@ -53,7 +55,12 @@ export function WordModal({
       body: JSON.stringify({ word, context: context.slice(0, 300) }),
     })
       .then((r) => r.json())
-      .then((d: WordInfo) => { wordExplainCache.set(word.toLowerCase(), d); setData(d); setFcStatus(hasWord(word) ? "duplicate" : "idle"); })
+      .then((d: WordInfo) => {
+        const normalized = normalizeFlashcardWord(word, d.partOfSpeech, d.dictionaryForm);
+        wordExplainCache.set(word.toLowerCase(), d);
+        setData(d);
+        setFcStatus(hasWord(normalized) ? "duplicate" : "idle");
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [word]);
@@ -118,7 +125,11 @@ export function WordModal({
                     color="#8E44AD"
                   />
                   <Text style={wStyles.fcBtnText}>
-                    {fcStatus === "saved" ? "Añadida ✓" : fcStatus === "duplicate" ? "Ya guardada" : "Añadir a flashcards"}
+                    {fcStatus === "saved"
+                      ? `Añadida: ${flashcardWord}`
+                      : fcStatus === "duplicate"
+                      ? "Ya guardada"
+                      : `Añadir: ${flashcardWord}`}
                   </Text>
                 </Pressable>
               </>
